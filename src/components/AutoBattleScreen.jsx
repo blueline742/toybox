@@ -5,6 +5,7 @@ import {
   selectRandomTarget,
   selectAllTargets,
   calculateDamageWithRarity,
+  calculateDefenseReduction,
   generateAITeam 
 } from '../game/enhancedCharacters.js'
 import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
@@ -19,6 +20,7 @@ import RoboFighterEffects from './RoboFighterEffects'
 import WizardEffects from './WizardEffects'
 import PirateEffects from './PirateEffects'
 import RubberDuckieEffects from './RubberDuckieEffects'
+import BrickDudeEffects from './BrickDudeEffects'
 import SpellNotification from './SpellNotification'
 import CastingBar from './CastingBar'
 import CharacterCard from './CharacterCard'
@@ -635,7 +637,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         const target = validTargets[Math.floor(Math.random() * validTargets.length)]
         targets = [target]
       }
-    } else if (selectedAbility.effect === 'damage_all') {
+    } else if (selectedAbility.effect === 'damage_all' || selectedAbility.effect === 'damage_cascade') {
       targets = defendingTeam.filter(char => char.currentHealth > 0)
     } else if (selectedAbility.effect === 'freeze_all') {
       // Ice Nova - targets all living enemies
@@ -655,6 +657,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         targets = [target]
       }
     } else if (selectedAbility.effect === 'heal_all') {
+      targets = attackingTeam.filter(char => char.currentHealth > 0)
+    } else if (selectedAbility.effect === 'shield_all') {
+      // Shield all living allies
       targets = attackingTeam.filter(char => char.currentHealth > 0)
     } else if (selectedAbility.effect === 'heal_revive_all') {
       // Include ALL allies, dead or alive, for revival ultimate
@@ -733,10 +738,13 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         } else if (selectedAbility.effect === 'shield') {
           // Shield - typically single target
           setHealingTargets([mainTarget.instanceId])
+        } else if (selectedAbility.effect === 'shield_all') {
+          // Shield all - show on all allies
+          setHealingTargets(targets.map(t => t.instanceId))
         } else if (selectedAbility.effect === 'damage' || selectedAbility.effect === 'damage_burn') {
           // Single target damage - only show on main target
           setActiveTargets([mainTarget.instanceId])
-        } else if (selectedAbility.effect === 'damage_all' || selectedAbility.effect === 'multi_damage') {
+        } else if (selectedAbility.effect === 'damage_all' || selectedAbility.effect === 'multi_damage' || selectedAbility.effect === 'damage_cascade') {
           // Multi-target damage - show on all targets
           setActiveTargets(targets.map(t => t.instanceId))
         } else if (selectedAbility.effect === 'chaos' || selectedAbility.effect === 'supernova' || selectedAbility.effect === 'apocalypse') {
@@ -893,6 +901,30 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       return // Shield doesn't need further processing
     }
     
+    // Check for shield_all abilities
+    if (ability.effect === 'shield_all') {
+      // Apply shield to all living allies
+      const shieldAmount = ability.shield || 15
+      
+      targets.forEach(ally => {
+        setShieldedCharacters(prev => {
+          const newMap = new Map(prev)
+          const existingShield = newMap.get(ally.instanceId) || { amount: 0 }
+          newMap.set(ally.instanceId, { 
+            amount: Math.min(existingShield.amount + shieldAmount, 100), // Cap at 100
+            maxAmount: Math.min(existingShield.amount + shieldAmount, 100),
+            type: 'energy' 
+          })
+          return newMap
+        })
+        
+        // Show shield amount on each ally
+        showDamageNumber(shieldAmount, 'shield', ally.id)
+      })
+      
+      return // Shield_all doesn't need further processing
+    }
+    
     // Handle heal_all effect for regular heal all abilities
     if (ability.effect === 'heal_all') {
       const healAmount = ability.healAll || 100
@@ -953,8 +985,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       const freezeDamage = ability.damage || 50
       
       targets.forEach(target => {
-        // Apply freeze damage
-        let damage = calculateDamageWithRarity(freezeDamage, caster.rarity)
+        // Apply freeze damage with attack stat
+        let damage = calculateDamageWithRarity(freezeDamage, caster.rarity, caster.stats?.attack)
+        
+        // Apply defense reduction
+        damage = calculateDefenseReduction(damage, target.rarity, target.stats?.defense)
         
         // Check for shields
         const targetShield = shieldedCharacters.get(target.instanceId)
@@ -1008,7 +1043,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       targets.forEach((target, index) => {
         // Reduce damage for each chain (100%, 75%, 50%)
         const damageMultiplier = index === 0 ? 1 : index === 1 ? 0.75 : 0.5
-        let damage = calculateDamageWithRarity(chainDamage * damageMultiplier, caster.rarity)
+        let damage = calculateDamageWithRarity(chainDamage * damageMultiplier, caster.rarity, caster.stats?.attack)
+        
+        // Apply defense reduction
+        damage = calculateDefenseReduction(damage, target.rarity, target.stats?.defense)
         
         // Apply damage (similar to normal damage but with chain reduction)
         const teamSetter = isPlayerAttacking ? setAiTeamState : setPlayerTeamState
@@ -1027,10 +1065,19 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     
     // Combat log entry is now added when spell notification is shown (moved to earlier in the code)
     
-    targets.forEach(target => {
-      if (target.isDamage || (!target.isHeal && (ability.effect === 'damage' || ability.effect === 'multi_damage' || ability.effect === 'damage_all' || ability.effect === 'damage_burn' || ability.effect === 'apocalypse'))) {
-        // Apply damage
-        let damage = calculateDamageWithRarity(ability.damage || 0, caster.rarity)
+    targets.forEach((target, targetIndex) => {
+      if (target.isDamage || (!target.isHeal && (ability.effect === 'damage' || ability.effect === 'multi_damage' || ability.effect === 'damage_all' || ability.effect === 'damage_burn' || ability.effect === 'damage_cascade' || ability.effect === 'apocalypse'))) {
+        // Apply damage with attack stat
+        let damage = calculateDamageWithRarity(ability.damage || 0, caster.rarity, caster.stats?.attack)
+        
+        // Apply cascade multiplier if it's a cascade effect
+        if (ability.effect === 'damage_cascade' && ability.cascadeDamage) {
+          const multiplier = ability.cascadeDamage[targetIndex] || ability.cascadeDamage[ability.cascadeDamage.length - 1]
+          damage = Math.floor(damage * multiplier)
+        }
+        
+        // Apply defense reduction
+        damage = calculateDefenseReduction(damage, target.rarity, target.stats?.defense)
         
         // Check if target has shield
         const targetShield = shieldedCharacters.get(target.instanceId)
@@ -1271,7 +1318,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       )}
       
       {/* Attack Line Indicator - Skip for special characters */}
-      {attackInProgress && spellPositions && activeAttacker?.id !== 'unicorn_warrior' && activeAttacker?.id !== 'phoenix_dragon' && activeAttacker?.id !== 'robo_fighter' && activeAttacker?.id !== 'wizard_toy' && (
+      {attackInProgress && spellPositions && activeAttacker?.id !== 'unicorn_warrior' && activeAttacker?.id !== 'phoenix_dragon' && activeAttacker?.id !== 'robo_fighter' && activeAttacker?.id !== 'wizard_toy' && activeAttacker?.id !== 'brick_dude' && (
         <AttackLine
           casterPosition={spellPositions.caster}
           targetPositions={spellPositions.targets}
@@ -1368,6 +1415,18 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           spellPositions={spellPositions}
           playerPositions={playerTeamState.map(char => ({ element: document.getElementById(`char-${char.instanceId}`) }))}
           opponentPositions={aiTeamState.map(char => ({ element: document.getElementById(`char-${char.instanceId}`) }))}
+          onComplete={() => {
+            setActiveSpell(null)
+            setSpellPositions(null)
+          }}
+        />
+      )}
+      
+      {/* Brick Dude Spell Effects */}
+      {activeSpell && activeSpell.caster && activeSpell.caster.id === 'brick_dude' && (
+        <BrickDudeEffects
+          spell={activeSpell}
+          positions={spellPositions}
           onComplete={() => {
             setActiveSpell(null)
             setSpellPositions(null)

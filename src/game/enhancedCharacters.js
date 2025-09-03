@@ -1,10 +1,10 @@
 // Default stats based on rarity
 const DEFAULT_STATS = {
-  common: { attack: 5, defense: 5, speed: 5 },
-  rare: { attack: 7, defense: 6, speed: 6 },
-  epic: { attack: 8, defense: 7, speed: 7 },
-  legendary: { attack: 9, defense: 8, speed: 8 },
-  mythic: { attack: 10, defense: 10, speed: 10 }
+  common: { attack: 5, defense: 5 },
+  rare: { attack: 7, defense: 6 },
+  epic: { attack: 8, defense: 7 },
+  legendary: { attack: 9, defense: 8 },
+  mythic: { attack: 10, defense: 10 }
 }
 
 // Enhanced Toy Fighter Character Data with Ultimate Abilities
@@ -22,8 +22,7 @@ export const ENHANCED_CHARACTERS = {
     description: 'A high-tech robot toy with laser attacks',
     stats: {
       attack: 8,
-      defense: 6,
-      speed: 7
+      defense: 6
     },
     abilities: [
       {
@@ -483,39 +482,46 @@ export const ENHANCED_CHARACTERS = {
     color: '#DC143C',
     emoji: '🧱',
     image: '/legopp.jpg',
+    selectSound: '/duckie.wav',
+    abilitySound: '/duckie1.wav',
+    ultimateSound: '/duckie2.wav',
     rarity: 'common',
-    description: 'A friendly construction worker made of building blocks',
+    description: 'A master builder warrior with sword and shield',
     abilities: [
       {
-        id: 'brick_toss',
-        name: 'Brick Toss',
-        damage: 18,
-        chance: 0.50,
-        description: 'Throws colorful bricks at enemies',
+        id: 'sword_slash',
+        name: 'Sword Slash',
+        damage: 25,
+        chance: 0.0, // 0% for testing
+        description: 'Slashes enemy with a brick sword',
         effect: 'damage',
-        animation: 'default',
-        priority: 1
+        animation: 'sword_slash',
+        priority: 1,
+        targetType: 'single'
       },
       {
-        id: 'quick_build',
-        name: 'Quick Build',
-        heal: 22,
-        chance: 0.45,
-        description: 'Quickly builds a wall for protection',
-        effect: 'heal',
-        animation: 'healing_aura',
-        priority: 2
+        id: 'block_defence',
+        name: 'Block Defence',
+        shield: 15,
+        chance: 0.0, // 0% for testing
+        description: 'Shields all allies with 15 damage protection',
+        effect: 'shield_all',
+        animation: 'block_shield',
+        priority: 2,
+        targetType: 'all_allies'
       },
       {
-        id: 'brick_storm',
-        name: 'BRICK STORM',
-        damage: 45,
-        chance: 0.10,
-        description: 'Unleashes a storm of flying bricks!',
-        effect: 'damage',
-        animation: 'explosion',
+        id: 'whirlwind_slash',
+        name: 'WHIRLWIND SLASH',
+        damage: 35,
+        chance: 1.0, // 100% for testing
+        description: 'Spins with sword hitting all enemies (100%, 60%, 30% damage)',
+        effect: 'damage_cascade',
+        animation: 'whirlwind',
         isUltimate: true,
-        priority: 3
+        priority: 3,
+        targetType: 'all_enemies',
+        cascadeDamage: [1.0, 0.6, 0.3]
       }
     ]
   },
@@ -1109,8 +1115,8 @@ export const selectAllTargets = (targets) => {
   return targets.filter(t => t.currentHealth > 0)
 }
 
-// Calculate damage with rarity bonuses
-export const calculateDamageWithRarity = (baseDamage, rarity) => {
+// Calculate damage with rarity and attack stat bonuses
+export const calculateDamageWithRarity = (baseDamage, rarity, attackStat = null) => {
   const rarityMultipliers = {
     common: 1.0,
     rare: 1.1,
@@ -1119,7 +1125,27 @@ export const calculateDamageWithRarity = (baseDamage, rarity) => {
     mythic: 1.5
   }
   
-  return Math.round(baseDamage * (rarityMultipliers[rarity] || 1.0))
+  // Get attack stat or use default based on rarity
+  const attack = attackStat || DEFAULT_STATS[rarity]?.attack || 5
+  
+  // Attack multiplier: each point above 5 adds 10% damage
+  const attackMultiplier = 1 + ((attack - 5) * 0.1)
+  
+  return Math.round(baseDamage * (rarityMultipliers[rarity] || 1.0) * attackMultiplier)
+}
+
+// Calculate damage reduction from defense
+export const calculateDefenseReduction = (incomingDamage, defenderRarity, defenseStat = null) => {
+  // Get defense stat or use default based on rarity
+  const defense = defenseStat || DEFAULT_STATS[defenderRarity]?.defense || 5
+  
+  // Defense reduction: each point of defense reduces damage by 5%
+  const defenseReduction = defense * 0.05
+  
+  // Cap defense reduction at 50% to prevent immunity
+  const actualReduction = Math.min(defenseReduction, 0.5)
+  
+  return Math.round(incomingDamage * (1 - actualReduction))
 }
 
 // Get random AI team based on difficulty

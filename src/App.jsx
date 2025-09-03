@@ -42,6 +42,7 @@ function App() {
 
   const handlePvPBattleStart = (battleData) => {
     setPvpBattleData(battleData)
+    setShowLoadingScreen(true)
     setGameState(GAME_STATES.TEAM_BATTLE)
   }
 
@@ -205,6 +206,8 @@ function App() {
               <LoadingScreen
                 onLoadComplete={handleLoadingComplete}
                 battleType={pvpBattleData ? 'pvp' : 'single'}
+                playerAddress={pvpBattleData?.playerAddress}
+                opponentAddress={pvpBattleData?.opponentAddress}
               />
             )}
           </>

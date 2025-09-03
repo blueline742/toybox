@@ -3,16 +3,8 @@ import React from 'react'
 const CardPreview = ({ character, isVisible, position, onClose }) => {
   if (!character || !isVisible) return null
 
-  // Determine rarity based on stats or default
-  const getRarity = (char) => {
-    const totalStats = (char.stats?.attack || 0) + (char.stats?.defense || 0) + (char.stats?.speed || 0)
-    if (totalStats >= 24) return 'legendary'
-    if (totalStats >= 20) return 'epic'
-    if (totalStats >= 16) return 'rare'
-    return 'common'
-  }
-
-  const rarity = getRarity(character)
+  // Use the character's actual rarity
+  const rarity = character.rarity || 'common'
 
   // Always center the preview
   const style = {
@@ -23,6 +15,12 @@ const CardPreview = ({ character, isVisible, position, onClose }) => {
   }
 
   const rarityColors = {
+    mythic: {
+      border: 'linear-gradient(135deg, #FF006E, #8338EC, #3A86FF, #06FFB4, #FFBE0B)',
+      glow: 'rgba(131, 56, 236, 0.8)',
+      badge: 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500',
+      text: '#FF006E'
+    },
     legendary: {
       border: 'linear-gradient(135deg, #FFD700, #FFA500, #FFD700)',
       glow: 'rgba(255, 215, 0, 0.6)',
@@ -139,107 +137,166 @@ const CardPreview = ({ character, isVisible, position, onClose }) => {
                   </div>
                 </div>
                 
-                {/* Level Badge */}
-                <div className="absolute -top-2 -right-2 w-14 h-14 rounded-full flex items-center justify-center"
-                     style={{
-                       background: 'linear-gradient(135deg, #f59e0b, #dc2626)',
-                       boxShadow: '0 4px 15px rgba(0,0,0,0.5)'
-                     }}>
-                  <div className="text-white font-bold text-lg">
-                    {character.level || 1}
+              </div>
+            </div>
+            
+            {/* Stats Section - Hidden for Legendary/Mythic */}
+            {rarity !== 'legendary' && rarity !== 'mythic' && (
+            <div className="px-4 pb-3">
+              <div className="space-y-2">
+                {/* HP Bar */}
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">❤️</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs text-gray-400 uppercase">HP</span>
+                      <span className="text-white font-bold">{character.maxHealth || 100}</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min((character.maxHealth || 100) / 200 * 100, 100)}%`,
+                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Attack Bar */}
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">⚔️</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs text-gray-400 uppercase">ATK</span>
+                      <span className="text-white font-bold">{character.stats?.attack || 5}</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${(character.stats?.attack || 5) * 10}%`,
+                          boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Defense Bar */}
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">🛡️</div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs text-gray-400 uppercase">DEF</span>
+                      <span className="text-white font-bold">{character.stats?.defense || 5}</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${(character.stats?.defense || 5) * 10}%`,
+                          boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+            )}
             
-            {/* Stats Bar */}
+            {/* Abilities Section - Compact & Cool */}
             <div className="px-4 pb-3">
-              <div className="grid grid-cols-4 gap-2">
-                <div className="text-center bg-red-900/40 backdrop-blur rounded-lg py-2 border border-red-500/30">
-                  <div className="text-red-400 text-xs mb-1">HEALTH</div>
-                  <div className="text-white font-bold text-lg">{character.maxHealth || 100}</div>
-                </div>
-                <div className="text-center bg-orange-900/40 backdrop-blur rounded-lg py-2 border border-orange-500/30">
-                  <div className="text-orange-400 text-xs mb-1">ATTACK</div>
-                  <div className="text-white font-bold text-lg">{character.stats?.attack || 5}</div>
-                </div>
-                <div className="text-center bg-blue-900/40 backdrop-blur rounded-lg py-2 border border-blue-500/30">
-                  <div className="text-blue-400 text-xs mb-1">DEFENSE</div>
-                  <div className="text-white font-bold text-lg">{character.stats?.defense || 5}</div>
-                </div>
-                <div className="text-center bg-green-900/40 backdrop-blur rounded-lg py-2 border border-green-500/30">
-                  <div className="text-green-400 text-xs mb-1">SPEED</div>
-                  <div className="text-white font-bold text-lg">{character.stats?.speed || 5}</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Abilities Section - Enhanced */}
-            <div className="px-4 pb-3">
-              <div className="bg-gradient-to-b from-purple-900/30 to-blue-900/30 backdrop-blur rounded-xl p-4 border border-purple-500/30">
-                <h3 className="text-purple-300 font-bold text-sm mb-3 flex items-center gap-2">
-                  <span className="text-xl">⚔️</span>
-                  ABILITIES & ATTACKS
-                </h3>
-                
-                <div className="space-y-3">
-                  {character.abilities && character.abilities.length > 0 ? (
-                    character.abilities.map((ability, idx) => (
-                      <div key={idx} 
-                           className="bg-black/30 rounded-lg p-3 border border-white/10 hover:border-purple-500/50 transition-all">
-                        <div className="flex items-start justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">
-                              {ability.effect === 'heal' ? '💚' : 
-                               ability.effect === 'shield' ? '🛡️' : 
-                               ability.damage >= 35 ? '💥' : '⚔️'}
-                            </span>
-                            <div>
-                              <div className="text-white font-semibold text-sm">{ability.name}</div>
-                              {idx === character.abilities.length - 1 && (
-                                <span className="text-xs text-yellow-400 font-bold">ULTIMATE</span>
+              <div className="space-y-2">
+                {character.abilities && character.abilities.slice(0, 3).map((ability, idx) => {
+                  const isUltimate = ability.isUltimate || idx === 2
+                  const bgColor = isUltimate 
+                    ? 'bg-gradient-to-r from-purple-900/60 via-pink-900/60 to-red-900/60' 
+                    : idx === 0 
+                    ? 'bg-gradient-to-r from-blue-900/40 to-cyan-900/40'
+                    : 'bg-gradient-to-r from-green-900/40 to-emerald-900/40'
+                  
+                  const borderColor = isUltimate 
+                    ? 'border-purple-500/50' 
+                    : idx === 0 
+                    ? 'border-blue-500/30'
+                    : 'border-green-500/30'
+                    
+                  const glowColor = isUltimate 
+                    ? 'rgba(168, 85, 247, 0.4)' 
+                    : idx === 0
+                    ? 'rgba(59, 130, 246, 0.3)'
+                    : 'rgba(34, 197, 94, 0.3)'
+                  
+                  return (
+                    <div key={idx} 
+                         className={`relative ${bgColor} backdrop-blur rounded-lg p-2 border ${borderColor} overflow-hidden transition-all hover:scale-[1.02]`}
+                         style={{
+                           boxShadow: `0 4px 20px ${glowColor}`
+                         }}>
+                      
+                      {/* Background pattern for ultimate */}
+                      {isUltimate && (
+                        <div className="absolute inset-0 opacity-20">
+                          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 animate-gradient-shift" />
+                        </div>
+                      )}
+                      
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {/* Icon */}
+                          <div className={`text-2xl ${isUltimate ? 'animate-pulse' : ''}`}>
+                            {ability.effect === 'heal' || ability.effect === 'heal_all' ? '💚' : 
+                             ability.effect === 'shield' || ability.effect === 'shield_all' ? '🛡️' :
+                             isUltimate ? '💥' : 
+                             idx === 0 ? '⚔️' : '🎯'}
+                          </div>
+                          
+                          {/* Name and Stats */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold text-sm ${isUltimate ? 'text-yellow-400' : 'text-white'}`}>
+                                {ability.name}
+                              </span>
+                              {isUltimate && (
+                                <span className="text-xs px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-white font-bold animate-pulse">
+                                  ULTIMATE
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className={`${isUltimate ? 'text-pink-300' : 'text-gray-300'}`}>
+                                {Math.round((ability.chance || 0) * 100)}% chance
+                              </span>
+                              {ability.damage && (
+                                <span className="text-orange-400">
+                                  {ability.damage} DMG
+                                </span>
+                              )}
+                              {ability.heal && (
+                                <span className="text-green-400">
+                                  {ability.heal} HEAL
+                                </span>
                               )}
                             </div>
                           </div>
-                          {ability.cooldown > 0 && (
-                            <div className="text-cyan-400 text-xs">
-                              ⏱️ {ability.cooldown} turns
-                            </div>
-                          )}
                         </div>
                         
-                        <div className="text-gray-400 text-xs mb-2">
-                          {ability.description}
-                        </div>
-                        
-                        <div className="flex items-center gap-3 text-xs">
-                          {ability.damage && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-red-400">⚡ Damage:</span>
-                              <span className="text-white font-bold">{ability.damage}</span>
-                            </div>
-                          )}
-                          {ability.heal && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-green-400">❤️ Heal:</span>
-                              <span className="text-white font-bold">{ability.heal}</span>
-                            </div>
-                          )}
-                          {ability.manaCost && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-blue-400">💎 Cost:</span>
-                              <span className="text-white font-bold">{ability.manaCost}</span>
-                            </div>
-                          )}
+                        {/* Chance Display */}
+                        <div className={`text-right ${isUltimate ? 'animate-pulse' : ''}`}>
+                          <div className={`text-2xl font-black ${
+                            isUltimate ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500' : 
+                            'text-white/80'
+                          }`}>
+                            {Math.round((ability.chance || 0) * 100)}%
+                          </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-500 text-sm italic text-center py-2">
-                      No special abilities available
                     </div>
-                  )}
-                </div>
+                  )
+                })}
               </div>
             </div>
             
@@ -297,6 +354,17 @@ const CardPreview = ({ character, isVisible, position, onClose }) => {
         @keyframes glow-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.8; }
+        }
+        
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        .animate-gradient-shift {
+          background-size: 200% 200%;
+          animation: gradient-shift 3s ease infinite;
         }
       `}</style>
     </>

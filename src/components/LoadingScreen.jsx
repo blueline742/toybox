@@ -31,7 +31,7 @@ const BACKGROUND_IMAGES = [
   '/assets/images/windupsoldier.jpeg'
 ];
 
-const LoadingScreen = ({ onLoadComplete, battleType = 'single' }) => {
+const LoadingScreen = ({ onLoadComplete, battleType = 'single', playerAddress = null, opponentAddress = null }) => {
   const [countdown, setCountdown] = useState(5);
   const [currentTip] = useState(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
   const [showVS, setShowVS] = useState(false);
@@ -135,7 +135,15 @@ const LoadingScreen = ({ onLoadComplete, battleType = 'single' }) => {
                 <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-5xl md:text-6xl mb-2 animate-pulse shadow-2xl">
                   ⚔️
                 </div>
-                <p className="text-white font-black text-xl md:text-2xl">YOU</p>
+                <p className="text-white font-black text-lg md:text-xl">
+                  {battleType === 'pvp' && playerAddress ? (
+                    <span className="text-cyan-300">
+                      {playerAddress.slice(0, 4)}...{playerAddress.slice(-4)}
+                    </span>
+                  ) : (
+                    'YOU'
+                  )}
+                </p>
               </div>
               
               <div className="text-4xl md:text-6xl font-black text-yellow-400 animate-pulse-slow">
@@ -144,10 +152,18 @@ const LoadingScreen = ({ onLoadComplete, battleType = 'single' }) => {
               
               <div className="text-center">
                 <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-5xl md:text-6xl mb-2 animate-pulse shadow-2xl">
-                  🤖
+                  {battleType === 'pvp' ? '⚔️' : '🤖'}
                 </div>
-                <p className="text-white font-black text-xl md:text-2xl">
-                  {battleType === 'pvp' ? 'OPPONENT' : 'AI'}
+                <p className="text-white font-black text-lg md:text-xl">
+                  {battleType === 'pvp' && opponentAddress ? (
+                    <span className="text-orange-300">
+                      {opponentAddress.slice(0, 4)}...{opponentAddress.slice(-4)}
+                    </span>
+                  ) : battleType === 'pvp' ? (
+                    'OPPONENT'
+                  ) : (
+                    'AI'
+                  )}
                 </p>
               </div>
             </div>

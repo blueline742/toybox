@@ -14,11 +14,22 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   const [previewCharacter, setPreviewCharacter] = useState(null)
   const [previewPosition, setPreviewPosition] = useState(null)
   const [longPressTimer, setLongPressTimer] = useState(null)
+  const [hoverDelayTimer, setHoverDelayTimer] = useState(null)
   
   useEffect(() => {
     // Simulate loading NFT collection
     // In production, this would fetch actual NFTs from the wallet
     loadNFTCollection()
+    
+    // Cleanup timers on unmount
+    return () => {
+      if (hoverDelayTimer) {
+        clearTimeout(hoverDelayTimer)
+      }
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+      }
+    }
   }, [publicKey])
   
   const loadNFTCollection = () => {
@@ -58,11 +69,11 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   
   const getRarityHeader = (rarity) => {
     const headers = {
-      mythic: { text: '🔥 MYTHIC', color: 'from-red-600 to-orange-500', glow: 'text-red-500' },
-      legendary: { text: '⭐ LEGENDARY', color: 'from-yellow-500 to-amber-500', glow: 'text-yellow-500' },
-      epic: { text: '💎 EPIC', color: 'from-purple-500 to-pink-500', glow: 'text-purple-500' },
-      rare: { text: '💙 RARE', color: 'from-blue-500 to-cyan-500', glow: 'text-blue-500' },
-      common: { text: '⚪ COMMON', color: 'from-gray-500 to-gray-600', glow: 'text-gray-400' }
+      mythic: { text: 'MYTHIC', color: 'from-red-600 to-orange-500', glow: 'text-red-500' },
+      legendary: { text: 'LEGENDARY', color: 'from-yellow-500 to-amber-500', glow: 'text-yellow-500' },
+      epic: { text: 'EPIC', color: 'from-purple-500 to-pink-500', glow: 'text-purple-500' },
+      rare: { text: 'RARE', color: 'from-blue-500 to-cyan-500', glow: 'text-blue-500' },
+      common: { text: 'COMMON', color: 'from-gray-500 to-gray-600', glow: 'text-gray-400' }
     }
     return headers[rarity] || headers.common
   }
@@ -268,12 +279,30 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                 onClick={() => handleCharacterClick(character)}
                 onMouseEnter={() => {
                   setHoveredCharacter(character)
-                  setPreviewCharacter(character)
                   playHoverSound()
+                  
+                  // Clear any existing hover timer
+                  if (hoverDelayTimer) {
+                    clearTimeout(hoverDelayTimer)
+                  }
+                  
+                  // Set new timer for 0.9 seconds
+                  const timer = setTimeout(() => {
+                    setPreviewCharacter(character)
+                  }, 900) // 0.9 second delay
+                  
+                  setHoverDelayTimer(timer)
                 }}
                 onMouseLeave={() => {
                   setHoveredCharacter(null)
                   setPreviewCharacter(null)
+                  
+                  // Clear hover delay timer
+                  if (hoverDelayTimer) {
+                    clearTimeout(hoverDelayTimer)
+                    setHoverDelayTimer(null)
+                  }
+                  
                   if (longPressTimer) {
                     clearTimeout(longPressTimer)
                     setLongPressTimer(null)
@@ -308,133 +337,169 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                   ${!character.owned ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
               >
-                {/* NFT Card */}
+                {/* NFT Card - Redesigned to match preview */}
                 <div 
-                  className={`
-                    bg-gradient-to-br ${getRarityColor(character.rarity)}
-                    rounded-xl p-1 shadow-2xl relative
-                    ${character.rarity === 'legendary' ? 'rarity-legendary' : ''}
-                    ${character.rarity === 'epic' ? 'rarity-epic' : ''}
-                    ${character.rarity === 'rare' ? 'rarity-rare' : ''}
-                  `}
+                  className="relative rounded-2xl overflow-hidden"
                   style={{
-                    boxShadow: hoveredCharacter?.nftId === character.nftId 
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+                    border: '2px solid transparent',
+                    backgroundClip: 'padding-box',
+                    borderImage: character.rarity === 'mythic' ? 'linear-gradient(135deg, #FF006E, #8338EC, #3A86FF, #06FFB4, #FFBE0B)' :
+                                character.rarity === 'legendary' ? 'linear-gradient(135deg, #FFD700, #FFA500, #FFD700)' :
+                                character.rarity === 'epic' ? 'linear-gradient(135deg, #B794F4, #9F7AEA, #B794F4)' :
+                                character.rarity === 'rare' ? 'linear-gradient(135deg, #63B3ED, #4299E1, #63B3ED)' :
+                                'linear-gradient(135deg, #CBD5E0, #A0AEC0, #CBD5E0)',
+                    borderImageSlice: 1,
+                    boxShadow: character.rarity !== 'common' 
                       ? `0 20px 40px ${getRarityGlow(character.rarity)}`
-                      : '0 10px 30px rgba(0,0,0,0.5)'
+                      : hoveredCharacter?.nftId === character.nftId 
+                        ? `0 20px 40px ${getRarityGlow(character.rarity)}`
+                        : '0 10px 30px rgba(0,0,0,0.5)',
+                    filter: character.rarity !== 'common'
+                      ? `drop-shadow(0 0 20px ${getRarityGlow(character.rarity)})`
+                      : hoveredCharacter?.nftId === character.nftId 
+                        ? `drop-shadow(0 0 20px ${getRarityGlow(character.rarity)})`
+                        : 'none'
                   }}
                 >
-                  <div className={`bg-gray-900 rounded-lg p-4 ${isSelected ? 'opacity-70' : ''}`}>
-                    {/* Sparkle Effects for Legendary */}
-                    {character.rarity === 'legendary' && !isSelected && (
-                      <>
-                        <div className="absolute top-2 left-2 text-yellow-400 animate-pulse text-xl">✨</div>
-                        <div className="absolute bottom-2 right-2 text-yellow-400 animate-pulse text-xl" style={{animationDelay: '0.5s'}}>✨</div>
-                        <div className="absolute top-1/2 right-2 text-yellow-400 animate-pulse text-xl" style={{animationDelay: '1s'}}>⭐</div>
-                      </>
-                    )}
-                    
+                  {/* Rarity Badge */}
+                  <div className={`
+                    absolute top-0 left-0 right-0 h-6 opacity-90
+                    ${character.rarity === 'mythic' ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500' :
+                      character.rarity === 'legendary' ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400' :
+                      character.rarity === 'epic' ? 'bg-gradient-to-r from-purple-400 to-purple-600' :
+                      character.rarity === 'rare' ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                      'bg-gradient-to-r from-gray-400 to-gray-600'}
+                  `}>
+                    <div className="flex items-center justify-center h-full">
+                      <span className="text-white font-bold text-[10px] tracking-widest uppercase">
+                        {character.rarity}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className={`pt-8 pb-4 px-3 ${isSelected ? 'opacity-70' : ''}`}>
                     {/* Team Position Indicator */}
                     {isSelected && (
-                      <div className="absolute -top-2 -right-2 bg-yellow-400 text-black rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg animate-bounce">
+                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg animate-bounce z-10">
                         {teamPosition}
                       </div>
                     )}
                     
-                    {/* Character Emoji */}
                     {/* Character Image/Emoji */}
-                    {character.image ? (
-                      <img
-                        src={character.image}
-                        alt={character.name}
-                        className={`w-24 h-24 object-cover rounded-xl mb-2 mx-auto transition-all duration-300 ${isSelected ? 'character-selected' : ''}`}
-                        style={{ 
-                          filter: isSelected 
-                            ? 'grayscale(100%) brightness(0.6)'
-                            : hoveredCharacter?.nftId === character.nftId 
-                              ? `drop-shadow(0 0 20px ${character.color})` 
-                              : 'none',
-                          transform: hoveredCharacter?.nftId === character.nftId 
-                            ? 'rotate(5deg) scale(1.05)' 
-                            : 'rotate(0deg) scale(1)'
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          const emojiDiv = e.target.nextSibling;
-                          if (emojiDiv) emojiDiv.style.display = 'block';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className={`text-6xl mb-2 text-center transition-all duration-300 ${isSelected ? 'character-selected' : ''}`}
-                      style={{ 
-                        color: isSelected ? '#666' : character.color,
-                        filter: isSelected 
-                          ? 'grayscale(100%) brightness(0.6)'
-                          : hoveredCharacter?.nftId === character.nftId 
-                            ? `drop-shadow(0 0 20px ${character.color})` 
-                            : 'none',
-                        transform: hoveredCharacter?.nftId === character.nftId 
-                          ? 'rotate(5deg)' 
-                          : 'rotate(0deg)',
-                        display: character.image ? 'none' : 'block'
-                      }}
-                    >
-                      {character.emoji}
+                    <div className="relative mx-auto w-24 h-24 mb-3">
+                      <div className="absolute inset-0 rounded-full"
+                           style={{
+                             background: `radial-gradient(circle, ${getRarityGlow(character.rarity)} 0%, transparent 70%)`,
+                             animation: 'rotate-slow 10s linear infinite',
+                             opacity: 0.5
+                           }} />
+                      <div className="relative flex items-center justify-center h-full">
+                        {character.image ? (
+                          <img
+                            src={character.image}
+                            alt={character.name}
+                            className={`w-20 h-20 object-cover rounded-xl ${isSelected ? 'character-selected' : ''}`}
+                            style={{ 
+                              filter: isSelected 
+                                ? 'grayscale(100%) brightness(0.6)'
+                                : `drop-shadow(0 5px 15px ${getRarityGlow(character.rarity)})`
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const emojiDiv = e.target.nextSibling;
+                              if (emojiDiv) emojiDiv.style.display = 'block';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`text-6xl ${isSelected ? 'character-selected' : ''}`}
+                          style={{ 
+                            filter: isSelected 
+                              ? 'grayscale(100%) brightness(0.6)'
+                              : `drop-shadow(0 5px 15px ${getRarityGlow(character.rarity)})`,
+                            display: character.image ? 'none' : 'block'
+                          }}
+                        >
+                          {character.emoji}
+                        </div>
+                      </div>
+                      
                     </div>
                     
                     {/* Character Name */}
-                    <h3 className={`text-sm font-bold text-center mb-2 ${isSelected ? 'text-gray-400' : 'text-white'}`}>
+                    <h3 className={`text-sm font-bold text-center mb-2 font-toy tracking-wide`}
+                        style={{
+                          color: character.rarity === 'mythic' ? '#FF006E' :
+                                character.rarity === 'legendary' ? '#FFD700' :
+                                character.rarity === 'epic' ? '#B794F4' :
+                                character.rarity === 'rare' ? '#63B3ED' :
+                                '#CBD5E0',
+                          textShadow: `0 0 10px ${getRarityGlow(character.rarity)}, 1px 1px 2px rgba(0,0,0,0.8)`
+                        }}>
                       {character.name}
                     </h3>
                     
-                    {/* Stats Bar */}
-                    <div className="space-y-1">
+                    {/* Stats Display - Simple emoji with numbers */}
+                    <div className="flex justify-around mb-3 px-1">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400 w-8">HP</span>
-                        <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-green-500"
-                            style={{ width: `${(character.maxHealth / 120) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-white w-8 text-right">{character.maxHealth}</span>
+                        <span className="text-sm">❤️</span>
+                        <span className="text-xs text-white font-bold">{character.maxHealth || 100}</span>
                       </div>
-                      
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400 w-8">ATK</span>
-                        <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-500"
-                            style={{ width: `${(character.stats.attack / 10) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-white w-8 text-right">{character.stats.attack}</span>
+                        <span className="text-sm">⚔️</span>
+                        <span className="text-xs text-white font-bold">{character.stats?.attack || 5}</span>
                       </div>
-                      
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400 w-8">DEF</span>
-                        <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500"
-                            style={{ width: `${(character.stats.defense / 10) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-white w-8 text-right">{character.stats.defense}</span>
+                        <span className="text-sm">🛡️</span>
+                        <span className="text-xs text-white font-bold">{character.stats?.defense || 5}</span>
                       </div>
                     </div>
                     
-                    {/* Ultimate Ability Preview */}
-                    {character.ultimateAbility && (
-                      <div className="mt-2 p-1 bg-gradient-to-r from-red-900 to-purple-900 rounded text-center">
-                        <div className="text-xs text-yellow-400 font-bold">ULTIMATE</div>
-                        <div className="text-xs text-white">{character.ultimateAbility.name}</div>
-                        <div className="text-xs text-gray-300">{character.ultimateAbility.chance * 100}% chance</div>
+                    {/* Abilities Preview - All 3 abilities */}
+                    {character.abilities && (
+                      <div className="space-y-1.5">
+                        {character.abilities.slice(0, 3).map((ability, idx) => {
+                          const isUltimate = ability.isUltimate || idx === 2
+                          
+                          return (
+                            <div key={idx} 
+                                 className={`relative ${
+                                   isUltimate 
+                                     ? 'bg-gradient-to-r from-purple-900/60 via-pink-900/60 to-red-900/60' 
+                                     : 'bg-gradient-to-r from-gray-800/40 to-gray-900/40'
+                                 } backdrop-blur rounded px-2 py-1.5 border ${
+                                   isUltimate ? 'border-purple-500/50' : 'border-gray-700/30'
+                                 }`}
+                                 style={{
+                                   boxShadow: isUltimate ? '0 2px 10px rgba(168, 85, 247, 0.3)' : 'none'
+                                 }}>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <span className={`font-bold text-[10px] ${isUltimate ? 'text-yellow-400' : 'text-white'}`}>
+                                    {ability.name}
+                                  </span>
+                                </div>
+                                
+                                <div className={`text-right ${isUltimate ? 'animate-pulse' : ''}`}>
+                                  <div className={`text-xs font-black ${
+                                    isUltimate ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500' : 
+                                    'text-white/80'
+                                  }`}>
+                                    {Math.round((ability.chance || 0) * 100)}%
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                     
                     {/* Not Owned Overlay */}
                     {!character.owned && (
-                      <div className="absolute inset-0 bg-black bg-opacity-70 rounded-lg flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black bg-opacity-70 rounded-2xl flex items-center justify-center">
                         <div className="text-white text-center">
                           <div className="text-2xl mb-2">🔒</div>
                           <div className="text-xs">Not Owned</div>

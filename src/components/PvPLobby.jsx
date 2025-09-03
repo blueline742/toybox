@@ -70,7 +70,9 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
       setMatchFound(true);
       setMatchmaking(false);
       setBattleId(id);
-      setOpponent(opp);
+      // Extract the actual opponent wallet address
+      const opponentWallet = playerNumber === 1 ? opp.player2 : opp.player1;
+      setOpponent(opponentWallet);
       
       // Play match found sound
       const matchSound = new Audio('/battlestart.wav');
@@ -81,11 +83,13 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
       setTimeout(() => {
         onBattleStart({
           battleId: id,
-          opponent: opp,
+          opponent: opponentWallet,
           opponentTeam: opponentTeam,
           wagerAmount: wager,
           socket: socket,
-          playerNumber: playerNumber
+          playerNumber: playerNumber,
+          playerAddress: publicKey?.toString(),
+          opponentAddress: opponentWallet
         });
       }, 3000);
     };
