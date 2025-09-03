@@ -1,0 +1,97 @@
+TOYBOX GAME - SESSION CONTEXT
+
+Last Session Date: 2025-09-03
+
+## COMPLETED TASKS:
+
+### 1. TOY CHARACTER UPDATES:
+- Added new toys from assets/images folder to the game
+- Only kept toys with corresponding "pp" profile pictures:
+  * Doctor Toy (doctorpp.png)
+  * Rocket Ship (rocketpp.png)
+- Changed Shadow Teddy to Rubik's Cube with new abilities
+- Changed Toy Robot V2 to The Puppet with marionette abilities  
+- Changed Alien Invader to Squishy Alien with stretchy powers
+- Added Brick Dude as new common toy with legopp.jpg image
+
+### 2. RARITY ADJUSTMENTS:
+- Moved all rare toys to common rarity
+- Moved Teddy Warrior to rare rarity
+- Moved Battle Train from epic to rare
+
+### 3. SOUND IMPLEMENTATION:
+Successfully added sound effects to toys:
+
+**Character Selection Sounds (selectSound):**
+- Bath Turtle: /bathturtle.wav
+- Rubber Duckie: /duckie.wav  
+- Mecha Dino: /mechadino.wav
+- Cursed Marionette: /masionette.wav
+- Battle Train: /train.wav
+- Cosmic Jack: /cosmicjack.wav
+- Phoenix Dragon: /phoenix.wav
+- Robot Guardian: /robot.wav
+- Knightmare Rocking Horse: /rockinghorse.wav
+- Rubik's Cube: /rubikspp.png (has image)
+- The Puppet: /puppetpp.png (has image)
+
+**Ability Sounds (abilitySound):**
+- Bath Turtle: /bathturtle1.wav
+- Rubber Duckie: /duckie1.wav
+- Mecha Dino: /mechadino1.wav
+- Cursed Marionette: /masionette1.wav
+- Battle Train: /train1.wav
+- Cosmic Jack: /cosmicjack1.wav
+- Knightmare Rocking Horse: /rockinghorse1.wav
+- Phoenix Dragon: /phoenix.wav
+- Robot Guardian: /robot.wav
+
+**Ultimate Sounds (ultimateSound):**
+- Rubber Duckie: /duckie2.wav
+- Mecha Dino: /mechadino2.wav
+- Cursed Marionette: /masionette2.wav
+- Knightmare Rocking Horse: /rockinghorse2.wav
+
+### 4. CODE CHANGES:
+
+**TeamSelect.jsx:**
+- Updated to check for character.selectSound property first
+- Falls back to legacy hardcoded sounds for wizard and pirate
+- Plays character-specific sounds at 0.5 volume when selected
+
+**AutoBattleScreen.jsx:**
+- Added ability sound playback during battle
+- Checks for ultimateSound first for ultimate abilities (0.6 volume)
+- Falls back to abilitySound for regular abilities (0.5 volume)
+- Sounds trigger when spell notification is shown
+
+**enhancedCharacters.js:**
+- Added selectSound, abilitySound, and ultimateSound properties to characters
+- Updated character data with new toys and removed duplicates
+- File copied to backend folder for server sync
+
+## AVAILABLE SOUND FILES NOT YET USED:
+- /laugh1.wav, /laugh2.wav, /laugh3.wav, /laugh4.wav (could be used for certain characters)
+- /heal.wav (generic heal sound)
+- /chainlightning.wav (in assets/sounds/)
+- /pyroblast.wav (in assets/sounds/)
+- /robotrevive.wav (in assets/sounds/)
+- /selectcard.wav (already used for card selection)
+
+## SERVERS RUNNING:
+- Frontend: http://localhost:3000 (Vite dev server)
+- Backend: http://localhost:3001 (WebSocket/game server)
+
+## PROJECT STRUCTURE:
+- Frontend character data: src/game/enhancedCharacters.js
+- Backend character data: backend/enhancedCharacters.js (synced copy)
+- Team selection: src/components/TeamSelect.jsx
+- Battle system: src/components/AutoBattleScreen.jsx
+- Sound effects: src/utils/soundEffects.js
+- Public assets: public/ (images and sounds)
+
+## NOTES:
+- Sound implementation working for both team selection and battle abilities
+- All new toys have placeholder abilities copied from existing toys
+- Profile pictures must have "pp" suffix to work properly
+- Game uses both .wav and .mp3 files for different characters
