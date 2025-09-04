@@ -465,3 +465,34 @@
 .animate-flash {
   animation: flash 0.3s ease-out;
 }
+
+/* Button Glow Animation for Hero Button */
+@keyframes glow {
+  0%, 100% { 
+    filter: brightness(1) drop-shadow(0 0 10px rgba(147, 51, 234, 0.5));
+  }
+  50% { 
+    filter: brightness(1.1) drop-shadow(0 0 20px rgba(249, 115, 22, 0.7));
+  }
+}
+
+/* Wiggle Animation for Button Hover */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+.hover\:wiggle:hover {
+  animation: wiggle 0.3s ease-in-out;
+}
+
+/* Slow Bounce for Icons */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1s ease-in-out infinite;
+}

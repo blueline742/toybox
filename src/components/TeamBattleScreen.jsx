@@ -582,11 +582,30 @@ const TeamBattleScreen = ({ playerTeam, onBattleEnd, onBack }) => {
     if (alivePlayerChars === 0 || aliveAIChars === 0) {
       const winner = alivePlayerChars > 0 ? 'player' : 'ai'
       
-      if (winner === 'player') {
-        playVictorySound()
-      } else {
-        playDefeatSound()
-      }
+      // Pause background music for victory sounds
+      musicManager.pauseMusic()
+      
+      // Play team-specific victory sound first with slight delay
+      setTimeout(() => {
+        const teamSound = new Audio(winner === 'player' ? '/blueteamwins.mp3' : '/redteamwins.mp3')
+        teamSound.volume = 0.7  // Increased volume since music is paused
+        teamSound.play().then(() => {
+          console.log(`Playing ${winner === 'player' ? 'blue' : 'red'} team victory sound`)
+        }).catch(err => console.log('Team victory sound failed:', err))
+        
+        // Play player win/lose sound after team sound finishes (always player perspective in single player)
+        teamSound.addEventListener('ended', () => {
+          const playerResultSound = new Audio(winner === 'player' ? '/gamewin.wav' : '/gamelose.wav')
+          playerResultSound.volume = 0.6  // Also increased volume
+          playerResultSound.play().then(() => {
+            console.log(`Playing ${winner === 'player' ? 'win' : 'lose'} sound`)
+            // Resume music after victory sounds finish
+            setTimeout(() => {
+              musicManager.resumeMusic()
+            }, 2000)
+          }).catch(err => console.log('Player result sound failed:', err))
+        })
+      }, 200) // Small delay to ensure music pause takes effect
       
       const result = {
         winner,

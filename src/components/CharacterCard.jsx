@@ -1,7 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import ActiveCharacterGlow from './ActiveCharacterGlow'
+import BuffIndicator from './BuffIndicator'
+import DamageNumber from './DamageNumber'
 
-const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNumbers = [], teamColor = 'blue' }) => {
+const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNumbers = [], teamColor = 'blue', shields, damageBuff, criticalBuff, frozen, debuffed }) => {
+  const [showDetails, setShowDetails] = useState(false)
+  const [touchTimer, setTouchTimer] = useState(null)
   const getRarityGradient = (rarity) => {
     switch (rarity) {
       case 'mythic': return 'from-red-600 via-orange-500 to-yellow-500'
@@ -24,25 +28,123 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
 
   const healthPercentage = (currentHealth / maxHealth) * 100
   const isDead = currentHealth <= 0
+  
+  // Handle touch events for mobile
+  const handleTouchStart = () => {
+    if (touchTimer) clearTimeout(touchTimer)
+    const timer = setTimeout(() => {
+      setShowDetails(true)
+    }, 200) // Show after 200ms press
+    setTouchTimer(timer)
+  }
+  
+  const handleTouchEnd = () => {
+    if (touchTimer) {
+      clearTimeout(touchTimer)
+      setTouchTimer(null)
+    }
+    // Hide details after 3 seconds
+    if (showDetails) {
+      setTimeout(() => setShowDetails(false), 3000)
+    }
+  }
 
   return (
     <div className={`
       relative transition-all duration-300
       ${isActive ? 'scale-100 z-30' : 'scale-100'}
       ${isDead ? 'opacity-50 grayscale' : ''}
-    `}>
+    `} style={{ zIndex: damageNumbers.length > 0 ? 100 : undefined }}>
       {/* Active Character Glow Effect */}
       <ActiveCharacterGlow isActive={isActive && !isDead} teamColor={teamColor} />
       
+      {/* Buff Indicators */}
+      <BuffIndicator 
+        characterId={character.instanceId}
+        shields={shields}
+        damageBuff={damageBuff}
+        criticalBuff={criticalBuff}
+        frozen={frozen}
+        debuffed={debuffed}
+      />
+      
+      {/* Character Details Popup on Hover */}
+      {showDetails && !isDead && (
+        <div className={`absolute -top-4 z-50 pointer-events-none
+          ${teamColor === 'red' ? 'right-full mr-2 animate-fadeInLeft' : 'left-full ml-2 animate-fadeInRight'}
+          md:min-w-[250px] min-w-[200px]
+        `}>
+          <div className="bg-gray-900/95 backdrop-blur-md border-2 border-gray-700 rounded-lg md:rounded-xl p-2 md:p-4 shadow-2xl">
+            {/* Character Name & Rarity */}
+            <div className="mb-2 md:mb-3 pb-1 md:pb-2 border-b border-gray-700">
+              <h3 className="text-white font-bold text-sm md:text-lg">{character.name}</h3>
+              <span className={`text-[10px] md:text-xs font-bold uppercase bg-gradient-to-r ${getRarityGradient(character.rarity)} bg-clip-text text-transparent`}>
+                {character.rarity}
+              </span>
+            </div>
+            
+            {/* Stats */}
+            <div className="space-y-1 md:space-y-2 mb-2 md:mb-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400 text-xs md:text-sm">HP</span>
+                <span className="text-white font-bold text-xs md:text-sm">{currentHealth}/{maxHealth}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-red-400 text-xs md:text-sm">⚔️ ATK</span>
+                <span className="text-white font-bold text-xs md:text-sm">{character.attack || 50}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-blue-400 text-xs md:text-sm">🛡️ DEF</span>
+                <span className="text-white font-bold text-xs md:text-sm">{character.defense || 30}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-yellow-400 text-xs md:text-sm">⚡ SPD</span>
+                <span className="text-white font-bold text-xs md:text-sm">{character.speed || 40}</span>
+              </div>
+            </div>
+            
+            {/* Abilities */}
+            <div className="border-t border-gray-700 pt-1 md:pt-2">
+              <p className="text-gray-400 text-[10px] md:text-xs font-bold mb-1 md:mb-2">Abilities:</p>
+              <div className="space-y-0.5 md:space-y-1 max-h-24 md:max-h-32 overflow-y-auto">
+                {character.abilities && character.abilities.map((ability, idx) => (
+                  <div key={idx} className="text-[10px] md:text-xs">
+                    <div className="text-white font-semibold">{ability.name}</div>
+                    <div className="text-gray-400 text-[9px] md:text-[10px]">
+                      {ability.damage && <span className="text-red-400">Dmg: {ability.damage} </span>}
+                      {ability.heal && <span className="text-green-400">Heal: {ability.heal} </span>}
+                      {ability.chance && <span className="text-yellow-400">({Math.round(ability.chance * 100)}%)</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Description if available - hide on mobile for space */}
+            {character.description && (
+              <div className="mt-1 md:mt-2 pt-1 md:pt-2 border-t border-gray-700 hidden md:block">
+                <p className="text-gray-300 text-[10px] md:text-xs italic">{character.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* NFT Card Container */}
-      <div className={`
-        relative w-32 h-44 md:w-40 md:h-56
-        border-2 ${getRarityBorder(character.rarity)}
-        rounded-lg md:rounded-xl overflow-hidden
-        bg-gradient-to-br ${getRarityGradient(character.rarity)}
-        p-0.5
-        ${isActive ? 'shadow-2xl' : 'shadow-lg'}
-      `}>
+      <div 
+        className={`
+          relative w-32 h-44 md:w-40 md:h-56
+          border-2 ${getRarityBorder(character.rarity)}
+          rounded-lg md:rounded-xl overflow-hidden
+          bg-gradient-to-br ${getRarityGradient(character.rarity)}
+          p-0.5
+          ${isActive ? 'shadow-2xl' : 'shadow-lg'}
+        `}
+        onMouseEnter={() => setShowDetails(true)}
+        onMouseLeave={() => setShowDetails(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="w-full h-full bg-gray-900 rounded-xl overflow-hidden relative">
           {/* Card Background Pattern */}
           <div className="absolute inset-0 opacity-20">
@@ -211,29 +313,37 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
         </div>
       </div>
       
-      {/* Damage Numbers */}
-      {damageNumbers.map(number => (
-        <div
-          key={number.id}
-          className={`
-            absolute z-50
-            ${number.type === 'damage' ? 'text-red-500' : 'text-green-500'}
-            ${number.isCritical ? 'text-4xl text-yellow-400' : 'text-2xl'}
-            font-bold animate-float-up pointer-events-none
-            left-1/2 transform -translate-x-1/2
-          `}
-          style={{
-            top: '-20px',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
-          }}
-        >
-          {number.type === 'damage' ? '-' : '+'}{number.amount}
-          {number.isCritical && ' CRIT!'}
-        </div>
-      ))}
+      {/* Enhanced Damage Numbers */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 9999 }}>
+        {damageNumbers.map((number, index) => (
+          <DamageNumber key={number.id} number={number} index={index} />
+        ))}
+      </div>
       
       
       <style jsx>{`
+        @keyframes fadeInRight {
+          0% {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes fadeInLeft {
+          0% {
+            opacity: 0;
+            transform: translateX(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
         @keyframes float {
           0%, 100% {
             transform: translateY(0px);
@@ -290,6 +400,14 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
             transform: scale(1) rotate(12deg);
             opacity: 1;
           }
+        }
+        
+        .animate-fadeInRight {
+          animation: fadeInRight 0.2s ease-out forwards;
+        }
+        
+        .animate-fadeInLeft {
+          animation: fadeInLeft 0.2s ease-out forwards;
         }
         
         .animate-float {

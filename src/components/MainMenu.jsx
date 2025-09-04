@@ -46,13 +46,21 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
     }
   }, [showNFTSection])
 
+  const playButtonSound = () => {
+    const buttonSound = new Audio('/button.wav')
+    buttonSound.volume = 0.5
+    buttonSound.play().catch(err => console.log('Button sound failed:', err))
+  }
+
   const handlePlayForSol = () => {
+    playButtonSound()
     if (connected) {
       onStartPvP()
     }
   }
 
   const handleViewToys = () => {
+    playButtonSound()
     if (onViewToys) {
       onViewToys()
     } else {
@@ -61,6 +69,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   }
 
   const scrollToNFTSection = () => {
+    playButtonSound()
     setShowNFTSection(true)
     setTimeout(() => {
       document.getElementById('nft-showcase')?.scrollIntoView({ behavior: 'smooth' })
@@ -100,10 +109,10 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         ))}
 
         <div className="text-center z-10 max-w-4xl mx-auto">
-          {/* Main Title - Slower animation */}
-          <h1 className="text-6xl md:text-8xl font-toy mb-2"
+          {/* Main Title - Smaller for better fit */}
+          <h1 className="text-5xl md:text-6xl font-toy mb-1"
               style={{
-                animation: 'title-dance 6s ease-in-out infinite', // Doubled from 3s to 6s
+                animation: 'title-dance 6s ease-in-out infinite',
                 display: 'inline-block'
               }}>
             <span className="text-yellow-400" style={{ textShadow: '3px 3px 0 #ff6b35, 6px 6px 0 #ff4500' }}>TOY</span>
@@ -111,7 +120,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             <span className="text-orange-500" style={{ textShadow: '3px 3px 0 #ff1493, 6px 6px 0 #ff69b4' }}>BOX</span>
           </h1>
           
-          <h2 className="text-4xl md:text-6xl font-toy mb-4 text-pink-500"
+          <h2 className="text-3xl md:text-4xl font-toy mb-8 text-pink-500"
               style={{
                 textShadow: '2px 2px 0 #ff69b4, 4px 4px 0 #ff1493',
                 animation: 'pulse 3s ease-in-out infinite'
@@ -119,120 +128,135 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             BRAWL
           </h2>
 
-
-          {/* Wallet Connection - Toy-themed */}
-          <div className="mb-6 relative">
+          {/* Wallet Connection - Smaller */}
+          <div className="mb-4 relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 animate-pulse"></div>
             <div className="relative">
               <WalletMultiButton 
-                className="!bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-lg !px-8 !py-4 !rounded-full transform hover:scale-110 hover:rotate-3 transition-all !border-2 !border-white/50"
+                className="!bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-sm !px-6 !py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
                 style={{
                   fontFamily: 'Comic Sans MS, cursive',
-                  boxShadow: '0 4px 0 #c026d3, 0 8px 20px rgba(0,0,0,0.3)',
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                  boxShadow: '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
+                  textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
                   background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)'
                 }}
               />
             </div>
           </div>
 
-          {/* Game Buttons - AAA Game Style */}
-          <div className="flex flex-col gap-4 items-center max-w-xl mx-auto">
-            {/* Free Play Button */}
-            <button
-              onClick={onStartGame}
-              className="w-full relative group overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!connected}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-500 to-green-600 animate-gradient-x opacity-100" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="relative px-12 py-5 bg-gradient-to-b from-white/10 to-transparent backdrop-blur-sm border-2 border-white/30 rounded-lg">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl md:text-3xl font-black text-white tracking-wider drop-shadow-lg">
-                    {connected ? 'FREE PLAY' : 'CONNECT WALLET FIRST'}
-                  </span>
-                  <span className="text-xs text-green-200/80 mt-1 uppercase tracking-widest">Single Player Mode</span>
-                </div>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            </button>
+          {/* Game Buttons - Refined Toy Style with No Spacing */}
+          <div className="flex flex-col gap-0 items-center max-w-sm mx-auto">
             
-            {/* PvP Battle Button */}
+            {/* PvP Battle Button - Custom Image */}
             <button
               onClick={handlePlayForSol}
-              className="w-full relative group overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 animate-gradient-x opacity-100" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="relative px-12 py-5 bg-gradient-to-b from-white/10 to-transparent backdrop-blur-sm border-2 border-white/30 rounded-lg">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl md:text-3xl font-black text-white tracking-wider drop-shadow-lg">
-                    PVP BATTLE
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-purple-200/80 uppercase tracking-widest">Wager</span>
-                    <span className="text-xs font-bold text-yellow-300">◎ SOL</span>
-                  </div>
-                </div>
+              {/* Button Image */}
+              <img 
+                src="/pvpbattlebutton.svg" 
+                alt="PvP Battle" 
+                className="w-full h-auto drop-shadow-xl"
+              />
+              
+              {/* Hover Glow Effect */}
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-orange-500/20 to-purple-600/20 rounded-2xl blur-xl" />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </button>
             
-            {/* View Your Toys Button */}
+            {/* Free Play Button - Custom Image */}
             <button
-              onClick={handleViewToys}
-              className="w-full relative group overflow-hidden"
+              onClick={() => {
+                playButtonSound()
+                onStartGame()
+              }}
+              className="w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              disabled={!connected}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-600 animate-gradient-x opacity-100" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="relative px-12 py-5 bg-gradient-to-b from-white/10 to-transparent backdrop-blur-sm border-2 border-white/30 rounded-lg">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl md:text-3xl font-black text-white tracking-wider drop-shadow-lg">
-                    YOUR COLLECTION
-                  </span>
-                  <span className="text-xs text-yellow-200/80 mt-1 uppercase tracking-widest">View & Manage Toys</span>
-                </div>
+              {/* Button Image */}
+              <img 
+                src="/freeplaybutton.svg" 
+                alt="Free Play" 
+                className="w-full h-auto drop-shadow-lg"
+              />
+              
+              {/* Hover Glow Effect */}
+              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl blur-xl" />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              
+              {/* Connect Wallet Overlay (when not connected) */}
+              {!connected && (
+                <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold uppercase">Connect Wallet First</span>
+                </div>
+              )}
             </button>
             
-            {/* Mint New Toys Button */}
-            <button
-              onClick={scrollToNFTSection}
-              className="w-full relative group overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 animate-gradient-x opacity-100" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="relative px-12 py-5 bg-gradient-to-b from-white/10 to-transparent backdrop-blur-sm border-2 border-white/30 rounded-lg">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl md:text-3xl font-black text-white tracking-wider drop-shadow-lg">
-                    MINT NEW TOYS
-                  </span>
-                  <span className="text-xs text-purple-200/80 mt-1 uppercase tracking-widest">NFT Pack Store</span>
+            {/* Utility Buttons - Smaller Size */}
+            <div className="flex flex-col md:flex-row gap-2 w-full mt-2">
+              {/* Mint Toys Button - Custom Image */}
+              <button
+                onClick={scrollToNFTSection}
+                className="flex-1 relative group transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              >
+                <img 
+                  src="/minttoysbutton.svg" 
+                  alt="Mint Toys" 
+                  className="w-full h-auto drop-shadow-md"
+                />
+                
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-lg blur-xl" />
                 </div>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              {/* Premium Badge */}
-              <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs font-black px-3 py-1 rounded-full shadow-lg animate-pulse">
-                NEW
-              </div>
-            </button>
-          </div>
-
-          {/* Game Info - Simplified */}
-          <div className="flex justify-center gap-8 mt-8">
-            <span className="text-sm uppercase tracking-wider text-white/60 font-bold">Battle</span>
-            <span className="text-white/40">•</span>
-            <span className="text-sm uppercase tracking-wider text-white/60 font-bold">Win</span>
-            <span className="text-white/40">•</span>
-            <span className="text-sm uppercase tracking-wider text-white/60 font-bold">Collect</span>
+                
+                {/* NEW Badge */}
+                <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black text-[10px] font-black rounded-full shadow-md animate-pulse">
+                  NEW
+                </div>
+              </button>
+              
+              {/* Collection Button - Custom Image */}
+              <button
+                onClick={handleViewToys}
+                className="flex-1 relative group transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              >
+                <img 
+                  src="/mytoyboxbutton.svg" 
+                  alt="My Toybox" 
+                  className="w-full h-auto drop-shadow-md"
+                />
+                
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-lg blur-xl" />
+                </div>
+              </button>
+            </div>
+            
+            {/* Game Slogan - Moved to bottom */}
+            <div className="flex justify-center gap-4 mt-6 text-white/80">
+              <span className="text-sm uppercase tracking-wider font-bold">Battle</span>
+              <span className="text-white/60">•</span>
+              <span className="text-sm uppercase tracking-wider font-bold">Win</span>
+              <span className="text-white/60">•</span>
+              <span className="text-sm uppercase tracking-wider font-bold">Collect</span>
+            </div>
           </div>
           
+          {/* Wallet Status - Subtle Pill Button */}
           {connected && (
-            <p className="text-xs uppercase tracking-widest text-green-400/80 mt-4 font-bold">
-              Wallet Connected
-            </p>
+            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40">
+              <button className="flex items-center gap-2 px-3 py-1.5 bg-black/20 backdrop-blur-sm rounded-full border border-white/10 hover:bg-black/30 transition-colors">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-[10px] uppercase tracking-wider text-white/60 font-medium">
+                  👛 Connected
+                </span>
+              </button>
+            </div>
           )}
         </div>
 

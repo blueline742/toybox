@@ -107,14 +107,14 @@ const PhoenixDragonEffects = ({
     }
     setFireBreaths(fireBlasts)
     
-    // Screen shake effect
-    document.body.classList.add('apocalypse-shake')
+    // Screen shake effect DISABLED
+    // document.body.classList.add('apocalypse-shake')
     
     setTimeout(() => {
       setApocalypseActive(false)
       setDragonForm(false)
       setFireBreaths([])
-      document.body.classList.remove('apocalypse-shake')
+      // document.body.classList.remove('apocalypse-shake')
       onComplete()
     }, 4000)
   }

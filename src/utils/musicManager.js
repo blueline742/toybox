@@ -2,7 +2,7 @@ class MusicManager {
   constructor() {
     this.currentMusic = null
     this.currentTrack = null
-    this.volume = 0.3
+    this.volume = 0.15 // Reduced from 0.3 to 0.15 (50% reduction)
     this.isMuted = false
     this.laughSounds = []
     this.laughInterval = null

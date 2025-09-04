@@ -7,12 +7,13 @@ const UltimateSpellOverlay = ({ isActive, spellName, casterName }) => {
   useEffect(() => {
     if (isActive) {
       setShowEffect(true)
-      setScreenShake(true)
+      // Screen shake DISABLED
+      // setScreenShake(true)
       
-      // Stop screen shake after 1 second
-      const shakeTimer = setTimeout(() => {
-        setScreenShake(false)
-      }, 1000)
+      // Stop screen shake after 1 second - DISABLED
+      // const shakeTimer = setTimeout(() => {
+      //   setScreenShake(false)
+      // }, 1000)
       
       // Hide everything after 3 seconds (same as spell notification)
       const hideTimer = setTimeout(() => {
@@ -20,7 +21,7 @@ const UltimateSpellOverlay = ({ isActive, spellName, casterName }) => {
       }, 3000)
       
       return () => {
-        clearTimeout(shakeTimer)
+        // clearTimeout(shakeTimer) // DISABLED
         clearTimeout(hideTimer)
       }
     } else {
@@ -29,18 +30,18 @@ const UltimateSpellOverlay = ({ isActive, spellName, casterName }) => {
     }
   }, [isActive])
   
-  // Apply screen shake to the whole viewport
-  useEffect(() => {
-    if (screenShake) {
-      document.body.classList.add('screen-shake')
-    } else {
-      document.body.classList.remove('screen-shake')
-    }
-    
-    return () => {
-      document.body.classList.remove('screen-shake')
-    }
-  }, [screenShake])
+  // Apply screen shake to the whole viewport - DISABLED
+  // useEffect(() => {
+  //   if (screenShake) {
+  //     document.body.classList.add('screen-shake')
+  //   } else {
+  //     document.body.classList.remove('screen-shake')
+  //   }
+  //   
+  //   return () => {
+  //     document.body.classList.remove('screen-shake')
+  //   }
+  // }, [screenShake])
   
   if (!showEffect) return null
   

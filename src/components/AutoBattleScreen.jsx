@@ -21,13 +21,15 @@ import WizardEffects from './WizardEffects'
 import PirateEffects from './PirateEffects'
 import RubberDuckieEffects from './RubberDuckieEffects'
 import BrickDudeEffects from './BrickDudeEffects'
+import WindUpSoldierEffects from './WindUpSoldierEffects'
 import SpellNotification from './SpellNotification'
 import CastingBar from './CastingBar'
 import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
-import TargetingIndicator from './TargetingIndicator'
+// import TargetingIndicator from './TargetingIndicator' // DISABLED
 import ShieldEffect from './ShieldEffect'
-import AttackLine from './AttackLine'
+// import AttackLine from './AttackLine' // DISABLED
+import GameOverScreen from './GameOverScreen'
 import { useWallet } from '@solana/wallet-adapter-react'
 import musicManager from '../utils/musicManager'
 import {
@@ -43,6 +45,12 @@ import {
 
 const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP = false, pvpData = null }) => {
   const { publicKey } = useWallet()
+  
+  // Randomly select arena background (50/50 chance)
+  const [arenaBackground] = useState(() => {
+    const arenas = ['/assets/backgrounds/toyboxare1na.png', '/assets/backgrounds/toyboxarena2.png']
+    return arenas[Math.random() < 0.5 ? 0 : 1]
+  })
   
   // Create seeded random for PvP battles
   const battleRandom = useRef(
@@ -97,7 +105,24 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [shieldedCharacters, setShieldedCharacters] = useState(new Map()) // Track active shields
   const [frozenCharacters, setFrozenCharacters] = useState(new Map()) // Track frozen characters
   const [debuffedCharacters, setDebuffedCharacters] = useState(new Map()) // Track accuracy debuffs
+  const [damageBuffedCharacters, setDamageBuffedCharacters] = useState(new Map()) // Track damage buffs
+  const [criticalBuffedCharacters, setCriticalBuffedCharacters] = useState(new Map()) // Track critical buffs
   const [isPaused] = useState(false) // Remove pause functionality
+  
+  // Battle Statistics Tracking
+  const [battleStats, setBattleStats] = useState({
+    damageDealt: {},
+    healingDone: {},
+    ultimatesUsed: 0,
+    totalDamage: 0,
+    rounds: 0,
+    kills: {},
+    startTime: Date.now()
+  })
+  
+  // Game Over Screen
+  const [showGameOver, setShowGameOver] = useState(false)
+  const [gameOverData, setGameOverData] = useState(null)
   
   // Visual states
   const [currentArena] = useState(() => Object.values(ARENAS)[Math.floor(Math.random() * Object.values(ARENAS).length)])
@@ -121,6 +146,52 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       }
     }
   }, [])
+  
+  // Helper functions for battle statistics
+  const trackDamage = (casterId, amount) => {
+    setBattleStats(prev => ({
+      ...prev,
+      damageDealt: {
+        ...prev.damageDealt,
+        [casterId]: (prev.damageDealt[casterId] || 0) + amount
+      },
+      totalDamage: prev.totalDamage + amount
+    }))
+  }
+  
+  const trackHealing = (casterId, amount) => {
+    setBattleStats(prev => ({
+      ...prev,
+      healingDone: {
+        ...prev.healingDone,
+        [casterId]: (prev.healingDone[casterId] || 0) + amount
+      }
+    }))
+  }
+  
+  const trackKill = (killerId, victimId) => {
+    setBattleStats(prev => ({
+      ...prev,
+      kills: {
+        ...prev.kills,
+        [killerId]: (prev.kills[killerId] || 0) + 1
+      }
+    }))
+  }
+  
+  const trackUltimate = () => {
+    setBattleStats(prev => ({
+      ...prev,
+      ultimatesUsed: prev.ultimatesUsed + 1
+    }))
+  }
+  
+  const trackRound = () => {
+    setBattleStats(prev => ({
+      ...prev,
+      rounds: prev.rounds + 1
+    }))
+  }
   
   // Initialize battle
   useEffect(() => {
@@ -576,6 +647,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     
     // Show ultimate overlay for ultimate abilities
     if (selectedAbility.isUltimate) {
+      trackUltimate() // Track ultimate usage for stats
       setUltimateSpell({
         name: selectedAbility.name,
         caster: activeCharacter.name
@@ -845,6 +917,54 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   }
 
   const applyAbilityEffects = (ability, caster, targets, isPlayerAttacking) => {
+    // Handle damage buff for all allies (Wind Tension)
+    if (ability.effect === 'buff_damage_all') {
+      const buffAmount = ability.buffDamage || 15
+      const allAllies = isPlayerAttacking ? playerTeamState : aiTeamState
+      
+      allAllies.forEach(ally => {
+        if (ally.isAlive) {
+          setDamageBuffedCharacters(prev => {
+            const newMap = new Map(prev)
+            newMap.set(ally.instanceId, { amount: buffAmount, turnsRemaining: 1 })
+            return newMap
+          })
+          
+          // Show buff notification
+          showDamageNumber(`+${buffAmount} ATK`, 'buff', ally.id)
+        }
+      })
+      
+      return // Buff applied, no further processing needed
+    }
+    
+    // Handle critical buff for all allies (Forward March)
+    if (ability.effect === 'buff_critical_all') {
+      const critBoost = ability.criticalBoost || 0.5
+      const allAllies = isPlayerAttacking ? playerTeamState : aiTeamState
+      
+      allAllies.forEach(ally => {
+        if (ally.isAlive) {
+          setCriticalBuffedCharacters(prev => {
+            const newMap = new Map(prev)
+            // Permanent buff - no turns limit
+            newMap.set(ally.instanceId, { boost: critBoost, permanent: true })
+            return newMap
+          })
+          
+          // Show buff notification
+          showDamageNumber(`+${Math.round(critBoost * 100)}% CRIT`, 'buff', ally.id)
+        }
+      })
+      
+      // Track ultimate usage
+      if (ability.isUltimate) {
+        trackUltimate()
+      }
+      
+      return // Buff applied, no further processing needed
+    }
+    
     // Check for accuracy debuff abilities (soap spray)
     if (ability.effect === 'debuff_accuracy') {
       const damageAmount = ability.damage || 10
@@ -858,6 +978,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             if (char.instanceId === target.instanceId) {
               const actualDamage = Math.min(damageAmount, char.currentHealth)
               showDamageNumber(actualDamage, 'damage', char.id)
+              trackDamage(caster.id, actualDamage) // Track damage for stats
               return { ...char, currentHealth: Math.max(0, char.currentHealth - actualDamage) }
             }
             return char
@@ -1018,6 +1139,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           if (char.instanceId === target.instanceId) {
             const newHealth = Math.max(0, char.currentHealth - damage)
             showDamageNumber(damage, 'damage', char.id)
+            trackDamage(caster.id, damage) // Track damage for stats
+            if (newHealth === 0 && char.currentHealth > 0) {
+              trackKill(caster.id, char.id) // Track kill
+              // Play defeat sound when a toy is defeated
+              const defeatSound = new Audio('/defeat.wav')
+              defeatSound.volume = 0.5
+              defeatSound.play().catch(err => console.log('Defeat sound failed:', err))
+            }
             return { ...char, currentHealth: newHealth }
           }
           return char
@@ -1054,6 +1183,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           if (char.instanceId === target.instanceId) {
             const newHealth = Math.max(0, char.currentHealth - damage)
             showDamageNumber(Math.round(damage), 'damage', char.id)
+            trackDamage(caster.id, Math.round(damage)) // Track damage for stats
+            if (newHealth === 0 && char.currentHealth > 0) {
+              trackKill(caster.id, char.id) // Track kill
+              // Play defeat sound when a toy is defeated
+              const defeatSound = new Audio('/defeat.wav')
+              defeatSound.volume = 0.5
+              defeatSound.play().catch(err => console.log('Defeat sound failed:', err))
+            }
             return { ...char, currentHealth: newHealth }
           }
           return char
@@ -1069,6 +1206,18 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       if (target.isDamage || (!target.isHeal && (ability.effect === 'damage' || ability.effect === 'multi_damage' || ability.effect === 'damage_all' || ability.effect === 'damage_burn' || ability.effect === 'damage_cascade' || ability.effect === 'apocalypse'))) {
         // Apply damage with attack stat
         let damage = calculateDamageWithRarity(ability.damage || 0, caster.rarity, caster.stats?.attack)
+        
+        // Apply damage buff if active
+        const damageBuff = damageBuffedCharacters.get(caster.instanceId)
+        if (damageBuff && damageBuff.amount > 0) {
+          damage += damageBuff.amount
+          // Remove buff after use (one-time use)
+          setDamageBuffedCharacters(prev => {
+            const newMap = new Map(prev)
+            newMap.delete(caster.instanceId)
+            return newMap
+          })
+        }
         
         // Apply cascade multiplier if it's a cascade effect
         if (ability.effect === 'damage_cascade' && ability.cascadeDamage) {
@@ -1111,8 +1260,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         
         damage = damageAfterShield
         
-        // Critical hit chance
-        const isCritical = Math.random() < 0.15
+        // Critical hit chance with buffs
+        let criticalChance = 0.15 // Base 15% chance
+        const critBuff = criticalBuffedCharacters.get(caster.instanceId)
+        if (critBuff && critBuff.boost > 0) {
+          criticalChance += critBuff.boost // Add buff (e.g., +50% makes it 65%)
+        }
+        
+        const isCritical = Math.random() < criticalChance
         if (isCritical) {
           damage = Math.round(damage * 1.5)
           playCriticalSound()
@@ -1155,9 +1310,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           if (char.id === target.id) {
             const newHealth = Math.max(0, char.currentHealth - damage)
             showDamageNumber(damage, 'damage', char.id, isCritical)
+            trackDamage(caster.id, damage) // Track damage for stats
             
-            if (newHealth === 0) {
-              // Character defeated - no log needed
+            if (newHealth === 0 && char.currentHealth > 0) {
+              trackKill(caster.id, char.id) // Track kill
+              // Play defeat sound when a toy is defeated
+              const defeatSound = new Audio('/defeat.wav')
+              defeatSound.volume = 0.5
+              defeatSound.play().catch(err => console.log('Defeat sound failed:', err))
             }
             
             return { ...char, currentHealth: newHealth }
@@ -1187,6 +1347,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             
             if (actualHeal > 0) {
               showDamageNumber(actualHeal, 'heal', char.id)
+              trackHealing(caster.id, actualHeal) // Track healing for stats
             }
             
             return { ...char, currentHealth: newHealth }
@@ -1208,6 +1369,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const endTurn = () => {
     setIsAnimating(false)
     setTurnCounter(prev => prev + 1)
+    trackRound() // Track round for statistics
     
     // Check if battle should end
     const alivePlayerChars = playerTeamState.filter(char => char.currentHealth > 0).length
@@ -1236,25 +1398,72 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     if (alivePlayerChars === 0 || aliveAIChars === 0) {
       const winner = alivePlayerChars > 0 ? 'player' : 'ai'
       
-      if (winner === 'player') {
-        playVictorySound()
-      } else {
-        playDefeatSound()
-      }
+      // Pause background music for victory sounds
+      musicManager.pauseMusic()
       
+      // Play team-specific victory sound first with slight delay
+      setTimeout(() => {
+        const teamSound = new Audio(winner === 'player' ? '/blueteamwins.mp3' : '/redteamwins.mp3')
+        teamSound.volume = 0.7  // Increased volume since music is paused
+        teamSound.play().then(() => {
+          console.log(`Playing ${winner === 'player' ? 'blue' : 'red'} team victory sound`)
+        }).catch(err => console.log('Team victory sound failed:', err))
+        
+        // Determine if the actual player won (important for multiplayer)
+        const playerWon = isPvP ? 
+          (pvpData?.playerNumber === 1 && winner === 'player') || (pvpData?.playerNumber === 2 && winner === 'ai') :
+          winner === 'player'
+        
+        // Play player win/lose sound after team sound finishes
+        teamSound.addEventListener('ended', () => {
+          const playerResultSound = new Audio(playerWon ? '/gamewin.wav' : '/gamelose.wav')
+          playerResultSound.volume = 0.6  // Also increased volume
+          playerResultSound.play().then(() => {
+            console.log(`Playing ${playerWon ? 'win' : 'lose'} sound`)
+            // Resume music after victory sounds finish
+            setTimeout(() => {
+              musicManager.resumeMusic()
+            }, 2000)
+          }).catch(err => console.log('Player result sound failed:', err))
+        })
+      }, 200) // Small delay to ensure music pause takes effect
+      
+      // Show game over screen with battle stats
+      setTimeout(() => {
+        setGameOverData({
+          winner,
+          battleStats,
+          playerTeam: playerTeamState,
+          enemyTeam: aiTeamState,
+          betAmount: isPvP && pvpData?.wagerAmount ? pvpData.wagerAmount : 0,
+          isPvP
+        })
+        setShowGameOver(true)
+      }, 1500)
+    }
+  }
+  
+  const handleGameOverContinue = () => {
+    // Transition back to menu music
+    musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
+    
+    if (gameOverData) {
       const result = {
-        winner,
+        winner: gameOverData.winner,
         playerTeam: playerTeamState,
         aiTeam: aiTeamState,
-        score,
-        turns: turnCounter
+        turns: turnCounter,
+        stats: battleStats,
+        survivingChars: gameOverData.winner === 'player' ? playerTeamState : aiTeamState
       }
       
-      setTimeout(() => {
-        // Transition back to menu music
-        musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
-        onBattleEnd(result)
-      }, 2000)
+      onBattleEnd(result)
+    } else {
+      // Fallback if no game over data
+      onBattleEnd({
+        winner: 'player',
+        survivingChars: playerTeamState
+      })
     }
   }
 
@@ -1270,10 +1479,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Static Background (always visible) */}
+      {/* Static Background (always visible) - randomly selected arena */}
       <div 
         className="absolute inset-0 w-full h-full bg-cover bg-center"
-        style={{ backgroundImage: 'url(/assets/backgrounds/toyboxarena.png)' }}
+        style={{ backgroundImage: `url(${arenaBackground})` }}
       />
       
       {/* Video Background (only during critical hits, overlays static) */}
@@ -1317,14 +1526,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         />
       )}
       
-      {/* Attack Line Indicator - Skip for special characters */}
+      {/* Attack Line Indicator - DISABLED
       {attackInProgress && spellPositions && activeAttacker?.id !== 'unicorn_warrior' && activeAttacker?.id !== 'phoenix_dragon' && activeAttacker?.id !== 'robo_fighter' && activeAttacker?.id !== 'wizard_toy' && activeAttacker?.id !== 'brick_dude' && (
         <AttackLine
           casterPosition={spellPositions.caster}
           targetPositions={spellPositions.targets}
           isActive={true}
         />
-      )}
+      )} */}
       
       {/* Enhanced Spell Effects Layer - Skip for special characters */}
       {activeSpell && spellPositions && activeSpell.caster?.id !== 'unicorn_warrior' && activeSpell.caster?.id !== 'phoenix_dragon' && activeSpell.caster?.id !== 'robo_fighter' && activeSpell.caster?.id !== 'wizard_toy' && (
@@ -1434,6 +1643,34 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         />
       )}
       
+      {/* Wind-Up Soldier Spell Effects */}
+      {activeSpell && activeSpell.caster && activeSpell.caster.id === 'wind_up_soldier' && (
+        <>
+          {/* Use BrickDudeEffects for March Attack (sword slash) */}
+          {activeSpell.ability && activeSpell.ability.id === 'march_attack' ? (
+            <BrickDudeEffects
+              spell={activeSpell}
+              positions={spellPositions}
+              onComplete={() => {
+                setActiveSpell(null)
+                setSpellPositions(null)
+              }}
+            />
+          ) : (
+            <WindUpSoldierEffects
+              ability={activeSpell.ability}
+              sourcePosition={spellPositions?.caster}
+              targetPositions={spellPositions?.targets}
+              activeCharacter={activeSpell.caster}
+              onComplete={() => {
+                setActiveSpell(null)
+                setSpellPositions(null)
+              }}
+            />
+          )}
+        </>
+      )}
+      
       {/* Spell Notification Popup */}
       {spellNotification && (
         <SpellNotification
@@ -1530,11 +1767,16 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
                     teamColor="blue"
+                    shields={shieldedCharacters.get(char.instanceId)}
+                    damageBuff={damageBuffedCharacters.get(char.instanceId)}
+                    criticalBuff={criticalBuffedCharacters.get(char.instanceId)}
+                    frozen={frozenCharacters.has(char.instanceId)}
+                    debuffed={debuffedCharacters.get(char.instanceId)}
                   />
-                  {/* Targeting Indicator */}
+                  {/* Targeting Indicator - DISABLED
                   {isBeingTargeted && (
                     <TargetingIndicator isActive={true} isDamage={true} />
-                  )}
+                  )} */}
                   {/* Healing Glow */}
                   {isBeingHealed && (
                     <HealingGlow isActive={true} targetId={char.id} />
@@ -1765,11 +2007,16 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
                     teamColor="red"
+                    shields={shieldedCharacters.get(char.instanceId)}
+                    damageBuff={damageBuffedCharacters.get(char.instanceId)}
+                    criticalBuff={criticalBuffedCharacters.get(char.instanceId)}
+                    frozen={frozenCharacters.has(char.instanceId)}
+                    debuffed={debuffedCharacters.get(char.instanceId)}
                   />
-                  {/* Targeting Indicator */}
+                  {/* Targeting Indicator - DISABLED
                   {isBeingTargeted && (
                     <TargetingIndicator isActive={true} isDamage={true} />
-                  )}
+                  )} */}
                   {/* Healing Glow */}
                   {isBeingHealed && (
                     <HealingGlow isActive={true} targetId={char.id} />
@@ -1819,6 +2066,20 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       >
         ← Back
       </button>
+      
+      
+      {/* Game Over Screen */}
+      {showGameOver && gameOverData && (
+        <GameOverScreen
+          winner={gameOverData.winner}
+          battleStats={gameOverData.battleStats}
+          onContinue={handleGameOverContinue}
+          playerTeam={gameOverData.playerTeam}
+          enemyTeam={gameOverData.enemyTeam}
+          betAmount={gameOverData.betAmount}
+          isPvP={gameOverData.isPvP}
+        />
+      )}
       
       <style jsx>{`
         @keyframes float-up {

@@ -35,22 +35,29 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
       const moveX = target.x - casterPos.x;
       const moveY = target.y - casterPos.y;
 
-      // Phase 1: Lift up and tilt
-      casterElement.style.transition = 'all 0.3s ease-out';
-      casterElement.style.transform = `${originalTransform} translateY(-20px) scale(1.1) rotate(-5deg)`;
+      // Phase 1: Quick subtle wind-up (lift slightly backwards)
+      casterElement.style.transition = 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
+      casterElement.style.transform = `${originalTransform} translateX(-10px) translateY(-10px) scale(1.05)`;
       casterElement.style.zIndex = '100';
       
-      // Phase 2: Move to target
+      // Phase 2: Smooth charge to near target (90% of distance)
       setTimeout(() => {
-        casterElement.style.transition = 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        casterElement.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.2) rotate(15deg)`;
-      }, 300);
+        const attackX = moveX * 0.9;
+        const attackY = moveY * 0.9;
+        casterElement.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        casterElement.style.transform = `translate(${attackX}px, ${attackY}px) scale(1.1)`;
+      }, 150);
 
-      // Phase 3: Impact
+      // Phase 3: Quick strike (complete the final 10% with impact)
       setTimeout(() => {
-        // Quick shake on impact
-        casterElement.style.transition = 'all 0.1s';
-        casterElement.style.transform = `translate(${moveX + 10}px, ${moveY}px) scale(1.3) rotate(20deg)`;
+        // Final position for clean hit
+        casterElement.style.transition = 'all 0.08s ease-out';
+        casterElement.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.15)`;
+        
+        // Play impact sound on contact
+        const impactSound = new Audio('/impact.mp3');
+        impactSound.volume = 0.5;
+        impactSound.play().catch(err => console.log('Impact sound failed:', err));
         
         // Show slash effect at impact
         setSlashPosition({
@@ -59,28 +66,29 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
         });
         setAnimationPhase('impact');
         
-        // Camera shake effect (optional)
-        document.body.style.transform = 'translateX(5px)';
-        setTimeout(() => {
-          document.body.style.transform = 'translateX(-5px)';
-          setTimeout(() => {
-            document.body.style.transform = 'translateX(0)';
-          }, 50);
-        }, 50);
-      }, 700);
+        // Camera shake DISABLED
+        // document.body.style.transition = 'transform 0.05s';
+        // document.body.style.transform = 'translateX(2px)';
+        // setTimeout(() => {
+        //   document.body.style.transform = 'translateX(-2px)';
+        //   setTimeout(() => {
+        //     document.body.style.transform = 'translateX(0)';
+        //   }, 50);
+        // }, 50);
+      }, 400);
 
-      // Phase 4: Return to position
+      // Phase 4: Smooth elastic return
       setTimeout(() => {
-        casterElement.style.transition = 'all 0.5s ease-in-out';
+        casterElement.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
         casterElement.style.transform = originalTransform;
         casterElement.style.zIndex = originalZIndex;
-      }, 900);
+      }, 550);
 
       // Cleanup
       setTimeout(() => {
         casterElement.style.transition = originalTransition;
         onComplete();
-      }, 1400);
+      }, 900);
 
     } else if (spell.ability?.animation === 'block_shield') {
       // Block Defence - Shield all allies
@@ -94,6 +102,11 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
     } else if (spell.ability?.animation === 'whirlwind') {
       // Whirlwind Slash - Move to center and spin
       setAnimationPhase('whirlwind');
+      
+      // Play ultimate sound effect
+      const ultimateSound = new Audio('/brickdudeultimate.wav');
+      ultimateSound.volume = 0.6;
+      ultimateSound.play().catch(err => console.log('Ultimate sound failed:', err));
       
       // Get the caster card element
       const casterElement = document.getElementById(`char-${spell.caster.instanceId}`);
@@ -135,6 +148,11 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
       // Show cascading damage AFTER reaching center and starting to spin
       targetPositions.forEach((target, index) => {
         setTimeout(() => {
+          // Play impact sound for each hit with decreasing volume
+          const impactSound = new Audio('/impact.mp3');
+          impactSound.volume = index === 0 ? 0.5 : index === 1 ? 0.3 : 0.2;
+          impactSound.play().catch(err => console.log('Impact sound failed:', err));
+          
           setSlashPosition({
             x: target.x,
             y: target.y,

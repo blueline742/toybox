@@ -169,7 +169,7 @@ const EnhancedSpellEffects = ({
         
         return (
           <div key={`beam-${idx}`}>
-            {/* Main Beam */}
+            {/* Beam effects DISABLED - no more lines
             <div
               className="absolute origin-left"
               style={{
@@ -185,7 +185,6 @@ const EnhancedSpellEffects = ({
               }}
             />
             
-            {/* Beam Core */}
             <div
               className="absolute origin-left"
               style={{
@@ -198,8 +197,9 @@ const EnhancedSpellEffects = ({
                 opacity: 0.9
               }}
             />
+            */}
             
-            {/* Targeting Circle at End */}
+            {/* Targeting Circle at End - keep this for visual feedback */}
             {beamProgress > 50 && (
               <div
                 className="absolute animate-ping"

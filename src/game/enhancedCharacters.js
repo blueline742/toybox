@@ -492,7 +492,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'sword_slash',
         name: 'Sword Slash',
         damage: 25,
-        chance: 0.0, // 0% for testing
+        chance: 0.35, // 35% chance
         description: 'Slashes enemy with a brick sword',
         effect: 'damage',
         animation: 'sword_slash',
@@ -503,7 +503,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'block_defence',
         name: 'Block Defence',
         shield: 15,
-        chance: 0.0, // 0% for testing
+        chance: 0.55, // 55% chance
         description: 'Shields all allies with 15 damage protection',
         effect: 'shield_all',
         animation: 'block_shield',
@@ -514,7 +514,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'whirlwind_slash',
         name: 'WHIRLWIND SLASH',
         damage: 35,
-        chance: 1.0, // 100% for testing
+        chance: 0.10, // 10% chance
         description: 'Spins with sword hitting all enemies (100%, 60%, 30% damage)',
         effect: 'damage_cascade',
         animation: 'whirlwind',
@@ -543,29 +543,34 @@ export const ENHANCED_CHARACTERS = {
         chance: 0.50,
         description: 'Single-target military strike',
         effect: 'damage',
-        animation: 'default',
-        priority: 1
+        animation: 'sword_slash',
+        priority: 1,
+        targetType: 'single'
       },
       {
         id: 'wind_tension',
         name: 'Wind Tension',
         damage: 0,
-        chance: 0.40,
-        description: 'Winds up to increase attack for 2 turns',
-        effect: 'buff_attack',
-        animation: 'default',
-        priority: 2
+        buffDamage: 15,
+        chance: 0.25,
+        description: 'Buffs all allies next attack by +15 damage',
+        effect: 'buff_damage_all',
+        animation: 'wind_up',
+        priority: 2,
+        targetType: 'all_allies'
       },
       {
-        id: 'overcrank_explosion',
-        name: 'OVERCRANK EXPLOSION',
-        damage: 60,
-        chance: 0.10,
-        description: 'Explodes damaging all enemies AND itself!',
-        effect: 'kamikaze',
-        animation: 'explosion',
+        id: 'forward_march',
+        name: 'FORWARD MARCH',
+        damage: 0,
+        criticalBoost: 0.5,
+        chance: 0.25,
+        description: 'Increases critical strike chance of all allies by 50% permanently!',
+        effect: 'buff_critical_all',
+        animation: 'march_forward',
         isUltimate: true,
-        priority: 3
+        priority: 3,
+        targetType: 'all_allies'
       }
     ]
   },

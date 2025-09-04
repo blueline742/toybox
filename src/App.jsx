@@ -7,6 +7,7 @@ import AutoBattleScreen from './components/AutoBattleScreen'
 import ResultsScreen from './components/ResultsScreen'
 import PvPLobby from './components/PvPLobby'
 import LoadingScreen from './components/LoadingScreen'
+import InitialLoadingScreen from './components/InitialLoadingScreen'
 import musicManager from './utils/musicManager'
 
 const GAME_STATES = {
@@ -19,12 +20,13 @@ const GAME_STATES = {
 }
 
 function App() {
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [gameState, setGameState] = useState(GAME_STATES.MENU)
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [battleResult, setBattleResult] = useState(null)
   const [isMusicMuted, setIsMusicMuted] = useState(false)
   const [showVolumeControl, setShowVolumeControl] = useState(false)
-  const [volume, setVolume] = useState(30)
+  const [volume, setVolume] = useState(15) // Reduced from 30 to 15 (50% reduction)
   const [pvpBattleData, setPvpBattleData] = useState(null)
 
   const handleStartGame = () => {
@@ -61,8 +63,13 @@ function App() {
   }
 
   const handleBattleEnd = (result) => {
+    // Skip results screen and go back to appropriate screen
     setBattleResult(result)
-    setGameState(GAME_STATES.RESULTS)
+    
+    // Go back to team select for another battle
+    setSelectedTeam(null)
+    setBattleResult(null)
+    setGameState(GAME_STATES.TEAM_SELECT)
   }
 
   const handlePlayAgain = () => {
@@ -75,6 +82,10 @@ function App() {
     setSelectedTeam(null)
     setBattleResult(null)
     setGameState(GAME_STATES.MENU)
+  }
+
+  const handleInitialLoadComplete = () => {
+    setIsInitialLoading(false)
   }
 
   // Add touch event handlers to prevent scroll
@@ -110,6 +121,9 @@ function App() {
     <SolanaWalletProvider>
       <SocketProvider>
         <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
+        {isInitialLoading && (
+          <InitialLoadingScreen onLoadComplete={handleInitialLoadComplete} />
+        )}
         {/* Music Controls - Discreet corner placement */}
         <div 
           className="fixed bottom-4 right-4 z-50"
