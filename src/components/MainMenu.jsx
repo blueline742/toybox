@@ -4,7 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import musicManager from '../utils/musicManager'
 import NFTShowcase from './NFTShowcase'
 import MyToyboxCollection from './MyToyboxCollection'
-import '../styles/mobile.css'
+import { useTouchClick } from '../hooks/useTouchClick'
 
 const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
@@ -74,6 +74,15 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
       document.getElementById('nft-showcase')?.scrollIntoView({ behavior: 'smooth' })
     }, 100)
   }
+  
+  // Touch-click handlers for mobile compatibility
+  const pvpBattleHandlers = useTouchClick(handlePlayForSol)
+  const freePlayHandlers = useTouchClick(() => {
+    playButtonSound()
+    onStartGame()
+  })
+  const mintToysHandlers = useTouchClick(scrollToNFTSection)
+  const myToyboxHandlers = useTouchClick(handleViewToys)
 
   // Function to handle scrolling back to top (used by NFT section)
   window.scrollToTop = () => {
@@ -107,7 +116,8 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
           </div>
         ))}
 
-        <div className="text-center z-10 max-w-4xl mx-auto">
+        {/* Game wrapper for scaling on mobile */}
+        <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto">
           {/* Main Title - Smaller for better fit */}
           <h1 className="game-title text-3xl sm:text-4xl md:text-6xl font-toy mb-1"
               style={{
@@ -148,7 +158,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             
             {/* PvP Battle Button - Custom Image */}
             <button
-              onClick={handlePlayForSol}
+              {...pvpBattleHandlers}
               className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
@@ -167,10 +177,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             
             {/* Free Play Button - Custom Image */}
             <button
-              onClick={() => {
-                playButtonSound()
-                onStartGame()
-              }}
+              {...freePlayHandlers}
               className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
@@ -198,7 +205,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             <div className="flex flex-col md:flex-row gap-2 w-full mt-2">
               {/* Mint Toys Button - Custom Image */}
               <button
-                onClick={scrollToNFTSection}
+                {...mintToysHandlers}
                 className="flex-1 relative group transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               >
                 <img 
@@ -220,7 +227,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
               
               {/* Collection Button - Custom Image */}
               <button
-                onClick={handleViewToys}
+                {...myToyboxHandlers}
                 className="flex-1 relative group transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               >
                 <img 
@@ -257,9 +264,9 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
               </button>
             </div>
           )}
-        </div>
+        </div> {/* End of game-wrapper */}
 
-        {/* Version - Bottom corner */}
+        {/* Version - Bottom corner - Outside wrapper so it doesn't scale */}
         <div className="absolute bottom-4 right-4 text-white opacity-30 text-xs">
           v1.0.0 MVP
         </div>

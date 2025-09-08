@@ -8,6 +8,7 @@ import ResultsScreen from './components/ResultsScreen'
 import PvPLobby from './components/PvPLobby'
 import LoadingScreen from './components/LoadingScreen'
 import InitialLoadingScreen from './components/InitialLoadingScreen'
+import GlobalTouchHandler from './components/GlobalTouchHandler'
 import musicManager from './utils/musicManager'
 
 const GAME_STATES = {
@@ -88,18 +89,19 @@ function App() {
     setIsInitialLoading(false)
   }
 
-  // Add touch event handlers to prevent scroll
+  // Remove global scroll prevention - let screens handle their own scrolling
   useEffect(() => {
-    const preventDefault = (e) => {
-      e.preventDefault()
+    // Only prevent pull-to-refresh on mobile
+    const preventPullToRefresh = (e) => {
+      if (e.touches && e.touches[0].clientY < 10) {
+        e.preventDefault()
+      }
     }
 
-    document.addEventListener('touchmove', preventDefault, { passive: false })
-    document.addEventListener('touchstart', preventDefault, { passive: false })
+    document.addEventListener('touchmove', preventPullToRefresh, { passive: false })
 
     return () => {
-      document.removeEventListener('touchmove', preventDefault)
-      document.removeEventListener('touchstart', preventDefault)
+      document.removeEventListener('touchmove', preventPullToRefresh)
     }
   }, [])
 
@@ -120,6 +122,7 @@ function App() {
   return (
     <SolanaWalletProvider>
       <SocketProvider>
+        <GlobalTouchHandler />
         <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
         {isInitialLoading && (
           <InitialLoadingScreen onLoadComplete={handleInitialLoadComplete} />

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { getPerformanceSettings } from '../utils/deviceDetect'
 
 const ParticleEffects = ({ type = 'stars', count = 50 }) => {
   const canvasRef = useRef(null)
@@ -13,8 +14,17 @@ const ParticleEffects = ({ type = 'stars', count = 50 }) => {
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
 
-    // Initialize particles
-    particlesRef.current = Array.from({ length: count }, () => {
+    // Get performance settings for mobile optimization
+    const perfSettings = getPerformanceSettings()
+    const particleCount = perfSettings.enableParticles ? Math.min(count, perfSettings.particleCount) : 0
+    
+    // Skip particle effects on low-end devices if disabled
+    if (particleCount === 0) {
+      return
+    }
+
+    // Initialize particles with reduced count for mobile
+    particlesRef.current = Array.from({ length: particleCount }, () => {
       if (type === 'stars') {
         return {
           x: Math.random() * canvas.width,

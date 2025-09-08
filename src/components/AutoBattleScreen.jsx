@@ -28,7 +28,6 @@ import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
 // import TargetingIndicator from './TargetingIndicator' // DISABLED
 import ShieldEffect from './ShieldEffect'
-import '../styles/mobile.css'
 // import AttackLine from './AttackLine' // DISABLED
 import GameOverScreen from './GameOverScreen'
 import { useWallet } from '@solana/wallet-adapter-react'

@@ -179,16 +179,16 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
       </div>
       
       {/* Team Preview */}
-      <div className="relative z-10 bg-black bg-opacity-40 backdrop-blur p-4 mx-8 rounded-xl mb-4">
-        <div className="flex justify-center items-center gap-8">
-          <div className="text-white font-toy text-lg">Your Team:</div>
+      <div className="relative z-10 bg-black bg-opacity-40 backdrop-blur rounded-xl mb-4 team-preview-bar">
+        <div className="team-preview-label text-white font-toy">Your Team:</div>
+        <div className="team-preview-slots">
           {[0, 1, 2].map(index => {
             const member = selectedTeam[index]
             return (
               <div
                 key={index}
                 className={`
-                  w-24 h-24 rounded-xl border-2 border-dashed
+                  team-preview-slot rounded-xl border-2 border-dashed
                   flex items-center justify-center transition-all
                   ${member ? 'border-yellow-400 bg-gradient-to-br from-purple-800/50 to-indigo-800/50' : 'border-gray-600'}
                 `}
@@ -202,31 +202,33 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                         className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-5xl" style={{ color: member.color }}>
+                      <div className="w-full h-full flex items-center justify-center emoji-container">
+                        <div className="text-4xl" style={{ color: member.color }}>
                           {member.emoji}
                         </div>
                       </div>
                     )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-xs text-white text-center py-1 rounded-b-lg">
+                    <div className="character-name bg-black/70 text-white rounded-b-lg">
                       {member.name}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-gray-500 text-4xl">?</div>
+                  <div className="text-gray-500 text-3xl">?</div>
                 )}
               </div>
             )
           })}
-          {selectedTeam.length === 3 && (
+        </div>
+        {selectedTeam.length === 3 && (
+          <div className="battle-button-container">
             <button
               onClick={handleConfirmTeam}
-              className="ml-4 enhanced-toy-button text-lg px-6 py-3 font-toy animate-pulse"
+              className="enhanced-toy-button text-base px-5 py-2 font-toy animate-pulse"
             >
               Battle! ⚔️
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       
       {/* NFT Collection Grid - Organized by Rarity */}

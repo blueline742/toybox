@@ -20,6 +20,57 @@
     height: 100vh;
     width: 100vw;
   }
+  
+  /* Ensure ALL canvases never block interactions - global rule */
+  canvas,
+  canvas *,
+  .canvas-container,
+  .three-canvas {
+    pointer-events: none !important;
+  }
+  
+  /* Ensure ALL interactive elements are clickable across all screens */
+  button,
+  .menu-button,
+  .wallet-adapter-button,
+  .clickable,
+  .back-button,
+  .exit-button,
+  .close-button,
+  .character-card,
+  .character-select-card,
+  .team-select-card,
+  .spell-button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [onclick] {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 100 !important;
+    cursor: pointer;
+  }
+  
+  /* Ensure screen containers are on top */
+  .screen-container,
+  .battle-screen,
+  .team-select,
+  .pvp-lobby,
+  .game-over-screen,
+  .modal {
+    position: relative;
+    z-index: 50;
+  }
+  
+  /* Allow scrolling on screens that need it */
+  .scrollable,
+  .team-select-grid,
+  .character-grid {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
 }
 
 @layer components {
@@ -495,4 +546,295 @@
 
 .animate-bounce-slow {
   animation: bounce-slow 1s ease-in-out infinite;
+}
+
+/* ========================================
+   Mobile Responsive Styles - Scaling Approach
+   ======================================== */
+
+/* Game wrapper - no scaling on desktop, proper centering */
+#game-wrapper {
+  transform-origin: center center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure title is always visible and centered */
+.game-title {
+  margin: 20px 0 10px 0 !important;
+  text-align: center;
+}
+
+/* Team Select Screen - Team Preview Bar */
+.team-preview-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 1rem !important;
+  padding: 1rem 2rem !important;
+  width: 90% !important;
+  max-width: 800px !important;
+  margin: 0 auto 1rem auto !important;
+  box-sizing: border-box !important;
+}
+
+.team-preview-label {
+  font-size: 1.125rem !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.team-preview-slots {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+}
+
+.team-preview-slot {
+  width: 80px !important;
+  height: 80px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+.team-preview-slot img,
+.team-preview-slot .emoji-container {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.team-preview-slot .character-name {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  font-size: 0.625rem !important;
+  padding: 2px !important;
+  text-align: center !important;
+}
+
+.battle-button-container {
+  flex-shrink: 0 !important;
+  margin-left: 1rem !important;
+}
+
+/* Only scale on actual mobile/tablet devices */
+@media (max-width: 1024px) and (min-width: 769px) {
+  #game-wrapper {
+    transform: scale(0.9);
+    transform-origin: center center;
+  }
+}
+
+/* Tablet devices */
+@media (max-width: 768px) and (min-width: 481px) {
+  #game-wrapper {
+    transform: scale(0.8);
+    transform-origin: center center;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 480px) {
+  #game-wrapper {
+    transform: scale(0.65);
+    transform-origin: center center;
+  }
+}
+
+/* Very small devices */
+@media (max-width: 375px) {
+  #game-wrapper {
+    transform: scale(0.55);
+    transform-origin: center center;
+  }
+}
+
+/* Mobile adjustments for team preview bar */
+@media (max-width: 768px) {
+  .team-preview-bar {
+    flex-wrap: wrap !important;
+    padding: 0.75rem 1rem !important;
+    width: 95% !important;
+  }
+  
+  .team-preview-label {
+    font-size: 1rem !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .team-preview-slots {
+    gap: 0.5rem !important;
+  }
+  
+  .team-preview-slot {
+    width: 60px !important;
+    height: 60px !important;
+  }
+  
+  .team-preview-slot .text-4xl {
+    font-size: 1.75rem !important;
+  }
+  
+  .team-preview-slot .character-name {
+    font-size: 0.5rem !important;
+    padding: 1px !important;
+  }
+  
+  .battle-button-container {
+    margin-left: 0.5rem !important;
+  }
+  
+  .battle-button-container button {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Keep only essential mobile fixes below, no redesign */
+@media (max-width: 768px) {
+  /* Prevent scrolling issues */
+  body, html {
+    overflow-x: hidden;
+  }
+  
+  /* Battle Screen Layout - Keep for battle functionality */
+  .battle-arena {
+    flex-direction: column !important;
+    gap: 1rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .team-section {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    gap: 0.5rem !important;
+  }
+
+  .character-card-container {
+    width: 30% !important;
+    max-width: 100px !important;
+  }
+
+  .character-card-image {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .hp-bar-container {
+    height: 6px !important;
+  }
+
+  .stats-icons {
+    font-size: 0.625rem !important;
+  }
+
+  .spell-notification {
+    width: 90% !important;
+    left: 5% !important;
+    right: 5% !important;
+    padding: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .vs-divider {
+    position: relative !important;
+    margin: 1rem 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .back-button {
+    font-size: 0.875rem !important;
+    padding: 0.5rem 1rem !important;
+    top: 10px !important;
+    left: 10px !important;
+  }
+
+  .team-label {
+    font-size: 1rem !important;
+    position: static !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .round-counter {
+    font-size: 0.875rem !important;
+    top: 10px !important;
+    right: 10px !important;
+  }
+
+  .battle-stats {
+    font-size: 0.75rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .ultimate-counter {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  /* Performance optimizations - reduce particle effects on mobile */
+  .floating-particles,
+  .atmospheric-particles {
+    display: none !important;
+  }
+}
+
+
+/* Touch Device Optimizations */
+@media (pointer: coarse) {
+  /* Increase touch targets */
+  button,
+  .clickable,
+  .character-card {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent double-tap zoom */
+  * {
+    touch-action: manipulation;
+  }
+
+  /* Better active states for touch - with normal transition speed */
+  button:active,
+  .clickable:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+}
+
+/* Landscape Mode Adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .battle-arena {
+    flex-direction: row !important;
+  }
+
+  .team-section {
+    flex-direction: column !important;
+    width: 45% !important;
+  }
+
+  .character-card-container {
+    width: 80% !important;
+    max-width: 120px !important;
+    margin: 0.25rem auto !important;
+  }
+
+  .spell-notification {
+    top: 10px !important;
+    bottom: auto !important;
+  }
 }
