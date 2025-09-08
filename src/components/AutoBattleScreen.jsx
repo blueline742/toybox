@@ -12,6 +12,8 @@ import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
 import { ARENAS } from '../game/powerups'
 import ParticleEffects from './ParticleEffects'
 import MagicParticles from './MagicParticles'
+import PortraitOverlay from './PortraitOverlay'
+import { isPortraitMode, shouldEnforcePortrait } from '../utils/orientationDetect'
 // import UltimateSpellOverlay from './UltimateSpellOverlay' // Removed - custom animations for each ultimate
 import EnhancedSpellEffects from './EnhancedSpellEffects'
 import UnicornSpellEffects from './UnicornSpellEffects'
@@ -133,6 +135,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [particleIntensity, setParticleIntensity] = useState('normal')
   // const [ultimateSpell, setUltimateSpell] = useState(null) // Removed - custom animations for each ultimate
   
+  // Portrait mode state
+  const [showPortraitOverlay, setShowPortraitOverlay] = useState(false)
+  
   const damageNumberId = useRef(0)
   const videoRef = useRef(null)
   const [showVideo, setShowVideo] = useState(false) // Only show video during critical
@@ -145,6 +150,33 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       if (videoTimeoutRef.current) {
         clearTimeout(videoTimeoutRef.current)
       }
+    }
+  }, [])
+  
+  // Portrait mode enforcement for battles only
+  useEffect(() => {
+    const checkOrientation = () => {
+      if (shouldEnforcePortrait()) {
+        setShowPortraitOverlay(!isPortraitMode())
+      } else {
+        setShowPortraitOverlay(false)
+      }
+    }
+    
+    // Check on mount
+    checkOrientation()
+    
+    // Listen for orientation changes
+    window.addEventListener('resize', checkOrientation)
+    window.addEventListener('orientationchange', checkOrientation)
+    
+    // Also check on load
+    window.addEventListener('load', checkOrientation)
+    
+    return () => {
+      window.removeEventListener('resize', checkOrientation)
+      window.removeEventListener('orientationchange', checkOrientation)
+      window.removeEventListener('load', checkOrientation)
     }
   }, [])
   
@@ -1580,33 +1612,38 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Static Background (always visible) - randomly selected arena */}
-      <div 
-        className="absolute inset-0 w-full h-full bg-cover bg-center"
-        style={{ backgroundImage: `url(${arenaBackground})` }}
-      />
+      {/* Portrait Mode Overlay - Only shown in landscape on mobile during battle */}
+      <PortraitOverlay isVisible={showPortraitOverlay} />
       
-      {/* Video Background (only during critical hits, overlays static) */}
-      {showVideo && (
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
-          muted
-          playsInline
-          onEnded={() => setShowVideo(false)} // Also end when video completes
-        >
-          <source src="/assets/backgrounds/moviebg.mp4" type="video/mp4" />
-        </video>
-      )}
-      
-      {/* Dark overlay for better visibility */}
-      <div className="absolute inset-0 bg-black bg-opacity-30" />
-      
-      {/* Critical Hit Flash Effect */}
-      {criticalFlash && (
-        <div className="absolute inset-0 bg-white animate-flash pointer-events-none z-50" />
-      )}
+      {/* Battle Wrapper - All battle content */}
+      <div id="battle-wrapper" className={`h-full flex flex-col relative ${showPortraitOverlay ? 'hidden' : ''}`}>
+        {/* Static Background (always visible) - randomly selected arena */}
+        <div 
+          className="absolute inset-0 w-full h-full bg-cover bg-center"
+          style={{ backgroundImage: `url(${arenaBackground})` }}
+        />
+        
+        {/* Video Background (only during critical hits, overlays static) */}
+        {showVideo && (
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => setShowVideo(false)} // Also end when video completes
+          >
+            <source src="/assets/backgrounds/moviebg.mp4" type="video/mp4" />
+          </video>
+        )}
+        
+        {/* Dark overlay for better visibility */}
+        <div className="absolute inset-0 bg-black bg-opacity-30" />
+        
+        {/* Critical Hit Flash Effect */}
+        {criticalFlash && (
+          <div className="absolute inset-0 bg-white animate-flash pointer-events-none z-50" />
+        )}
       
       {/* Ultimate Spell Overlay - REMOVED 
           Each ultimate now has custom animations
@@ -2261,6 +2298,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           animation: float-particle 4s ease-in-out infinite;
         }
       `}</style>
+      </div> {/* End of battle-wrapper */}
     </div>
   )
 }
