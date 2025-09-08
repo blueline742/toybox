@@ -4,6 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import musicManager from '../utils/musicManager'
 import NFTShowcase from './NFTShowcase'
 import MyToyboxCollection from './MyToyboxCollection'
+import '../styles/mobile.css'
 
 const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
@@ -81,7 +82,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
 
   return (
     <div className="min-h-screen relative overflow-y-auto">
-      <div id="main-menu" className="h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div id="main-menu" className="main-menu-container h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Static Background */}
         <div 
           className="absolute inset-0 w-full h-full bg-cover bg-center"
@@ -95,7 +96,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         {floatingToys.map(toy => (
           <div
             key={toy.id}
-            className="absolute opacity-10 pointer-events-none text-4xl"
+            className="floating-particles absolute opacity-10 pointer-events-none text-2xl md:text-4xl"
             style={{
               left: `${toy.x}%`,
               top: `${toy.y}%`,
@@ -108,7 +109,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
 
         <div className="text-center z-10 max-w-4xl mx-auto">
           {/* Main Title - Smaller for better fit */}
-          <h1 className="text-5xl md:text-6xl font-toy mb-1"
+          <h1 className="game-title text-3xl sm:text-4xl md:text-6xl font-toy mb-1"
               style={{
                 animation: 'title-dance 6s ease-in-out infinite',
                 display: 'inline-block'
@@ -131,7 +132,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 animate-pulse"></div>
             <div className="relative">
               <WalletMultiButton 
-                className="!bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-sm !px-6 !py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
+                className="wallet-adapter-button !bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-xs sm:!text-sm !px-3 sm:!px-6 !py-2 sm:!py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
                 style={{
                   fontFamily: 'Comic Sans MS, cursive',
                   boxShadow: '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
@@ -143,12 +144,12 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
           </div>
 
           {/* Game Buttons - Refined Toy Style with No Spacing */}
-          <div className="flex flex-col gap-0 items-center max-w-sm mx-auto">
+          <div className="flex flex-col gap-2 sm:gap-0 items-center w-full max-w-xs sm:max-w-sm mx-auto px-4 sm:px-0">
             
             {/* PvP Battle Button - Custom Image */}
             <button
               onClick={handlePlayForSol}
-              className="w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
               {/* Button Image */}
@@ -170,7 +171,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
                 playButtonSound()
                 onStartGame()
               }}
-              className="w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
               {/* Button Image */}

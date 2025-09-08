@@ -28,6 +28,7 @@ import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
 // import TargetingIndicator from './TargetingIndicator' // DISABLED
 import ShieldEffect from './ShieldEffect'
+import '../styles/mobile.css'
 // import AttackLine from './AttackLine' // DISABLED
 import GameOverScreen from './GameOverScreen'
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -1787,9 +1788,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       
       {/* Battle Arena */}
-      <div className="flex-1 relative z-10 flex items-center justify-between px-2 md:px-8">
+      <div className="battle-arena flex-1 relative z-10 flex flex-col md:flex-row items-center justify-between px-2 md:px-8 gap-4 md:gap-0">
         {/* Blue Team (Player) */}
-        <div className="relative">
+        <div className="team-section relative w-full md:w-auto order-2 md:order-1">
           {/* Atmospheric Blue Mist Background */}
           <div className="absolute -inset-20 pointer-events-none">
             {/* Misty fog effect */}
@@ -1841,7 +1842,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Player Team Cards */}
-          <div className="flex flex-col gap-2 md:gap-4">
+          <div className="flex flex-row md:flex-col gap-1 md:gap-4 justify-around md:justify-start">
             {playerTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -1854,7 +1855,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
-                  className={`relative transition-all duration-500 ease-in-out ${
+                  className={`character-card-container relative transition-all duration-500 ease-in-out ${
                     isAttacking ? 'scale-110 z-50' :
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
                   }`}
@@ -2024,7 +2025,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         
         
         {/* Red Team (AI) */}
-        <div className="relative">
+        <div className="team-section relative w-full md:w-auto order-3">
           {/* Atmospheric Fire Mist Background */}
           <div className="absolute -inset-20 pointer-events-none">
             {/* Fiery fog effect */}
@@ -2076,7 +2077,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* AI Team Cards */}
-          <div className="flex flex-col gap-2 md:gap-4">
+          <div className="flex flex-row md:flex-col gap-1 md:gap-4 justify-around md:justify-start">
             {aiTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2089,7 +2090,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
-                  className={`relative transition-all duration-500 ease-in-out ${
+                  className={`character-card-container relative transition-all duration-500 ease-in-out ${
                     isAttacking ? 'scale-110 z-50' :
                     isBeingTargeted ? 'scale-105 z-40' :
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
