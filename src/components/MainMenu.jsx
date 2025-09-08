@@ -117,20 +117,25 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         ))}
 
         {/* Wallet Connection - Outside scaled wrapper for proper click detection */}
-        <div className="fixed top-4 right-4 z-50">
+        <div id="wallet-connect-container" className="fixed top-4 right-4" style={{ 
+          zIndex: 9999, 
+          transform: 'none',
+          pointerEvents: 'auto'
+        }}>
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 animate-pulse"></div>
             <div className="relative">
               <WalletMultiButton 
-                className="wallet-adapter-button !bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-xs sm:!text-sm !px-3 sm:!px-6 !py-2 sm:!py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
+                className="wallet-adapter-button !bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-xs sm:!text-sm !px-3 sm:!px-6 !py-2 sm:!py-3 !rounded-full !border-2 !border-white/50"
                 style={{
-                  fontFamily: 'Comic Sans MS, cursive',
+                  fontFamily: "'Comic Neue', cursive",
                   boxShadow: '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
                   textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
                   background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)',
+                  transform: 'none',
                   pointerEvents: 'auto',
                   position: 'relative',
-                  zIndex: 9999
+                  zIndex: 'inherit'
                 }}
               />
             </div>

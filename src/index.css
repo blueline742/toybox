@@ -14,6 +14,12 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    font-family: 'Comic Neue', cursive !important;
+  }
+  
+  /* Ensure consistent font across all elements */
+  body, button, input, select, textarea {
+    font-family: 'Comic Neue', cursive !important;
   }
 
   #root {
@@ -975,6 +981,37 @@
   cursor: pointer !important;
   -webkit-tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
+  transform: none !important;
+  font-family: 'Comic Neue', cursive !important;
+}
+
+/* Prevent hover transforms on mobile */
+@media (max-width: 768px) {
+  .wallet-adapter-button:hover {
+    transform: none !important;
+  }
+}
+
+/* Fix wallet dropdown positioning */
+.wallet-adapter-dropdown {
+  position: fixed !important;
+  transform: none !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+
+.wallet-adapter-dropdown-list {
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure wallet container doesn't get scaled */
+#wallet-connect-container {
+  transform: none !important;
+}
+
+#wallet-connect-container * {
+  transform-origin: center center !important;
 }
 
 @media (max-width: 768px) and (orientation: landscape) {
