@@ -565,7 +565,17 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="absolute top-4 left-4 bg-gray-800/80 backdrop-blur hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-full font-toy text-sm z-20 transition-all hover:scale-105"
+        onTouchEnd={(e) => {
+          e.preventDefault()
+          onBack()
+        }}
+        className="fixed top-4 left-4 bg-gray-800/80 backdrop-blur hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-full font-toy text-sm transition-all hover:scale-105"
+        style={{ 
+          zIndex: 9999, 
+          pointerEvents: 'auto',
+          touchAction: 'manipulation',
+          cursor: 'pointer'
+        }}
       >
         ← Back
       </button>

@@ -967,6 +967,16 @@
   user-select: none;
 }
 
+/* Ensure wallet button is always clickable */
+.wallet-adapter-button {
+  position: relative !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+}
+
 @media (max-width: 768px) and (orientation: landscape) {
   .battle-arena {
     flex-direction: row !important;

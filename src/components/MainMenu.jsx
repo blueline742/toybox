@@ -99,7 +99,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         />
         
         {/* Subtle overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-20" />
+        <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none" />
         
         {/* Subtle Floating Toy Emojis */}
         {floatingToys.map(toy => (
@@ -115,6 +115,27 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             {toy.emoji}
           </div>
         ))}
+
+        {/* Wallet Connection - Outside scaled wrapper for proper click detection */}
+        <div className="fixed top-4 right-4 z-50">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 animate-pulse"></div>
+            <div className="relative">
+              <WalletMultiButton 
+                className="wallet-adapter-button !bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-xs sm:!text-sm !px-3 sm:!px-6 !py-2 sm:!py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
+                style={{
+                  fontFamily: 'Comic Sans MS, cursive',
+                  boxShadow: '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
+                  textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
+                  background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)',
+                  pointerEvents: 'auto',
+                  position: 'relative',
+                  zIndex: 9999
+                }}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Game wrapper for scaling on mobile */}
         <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto">
@@ -136,22 +157,6 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
               }}>
             BRAWL
           </h2>
-
-          {/* Wallet Connection - Smaller */}
-          <div className="mb-4 relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 animate-pulse"></div>
-            <div className="relative">
-              <WalletMultiButton 
-                className="wallet-adapter-button !bg-gradient-to-r !from-yellow-400 !via-pink-400 !to-purple-500 hover:!from-yellow-500 hover:!via-pink-500 hover:!to-purple-600 !text-white !font-bold !text-xs sm:!text-sm !px-3 sm:!px-6 !py-2 sm:!py-3 !rounded-full transform hover:scale-105 transition-all !border-2 !border-white/50"
-                style={{
-                  fontFamily: 'Comic Sans MS, cursive',
-                  boxShadow: '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
-                  textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
-                  background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)'
-                }}
-              />
-            </div>
-          </div>
 
           {/* Game Buttons - Refined Toy Style with No Spacing */}
           <div className="flex flex-col gap-2 sm:gap-0 items-center w-full max-w-xs sm:max-w-sm mx-auto px-4 sm:px-0">
