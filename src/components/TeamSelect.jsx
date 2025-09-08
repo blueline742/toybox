@@ -14,10 +14,15 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   const [previewPosition, setPreviewPosition] = useState(null)
   const [longPressTimer, setLongPressTimer] = useState(null)
   const [hoverDelayTimer, setHoverDelayTimer] = useState(null)
+  const [touchStartTime, setTouchStartTime] = useState(null)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
   
   const [selectedTeam, setSelectedTeam] = useState([])
   
   useEffect(() => {
+    // Detect if touch device
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
+    
     // Simulate loading NFT collection
     // In production, this would fetch actual NFTs from the wallet
     loadNFTCollection()
@@ -280,40 +285,49 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                     return (
               <div
                 key={character.nftId}
-                onClick={() => handleCharacterClick(character)}
-                onMouseEnter={() => {
-                  setHoveredCharacter(character)
-                  playHoverSound()
-                  
-                  // Clear any existing hover timer
-                  if (hoverDelayTimer) {
-                    clearTimeout(hoverDelayTimer)
+                onClick={(e) => {
+                  // Only handle click on non-touch devices
+                  if (!isTouchDevice) {
+                    e.preventDefault()
+                    handleCharacterClick(character)
                   }
-                  
-                  // Set new timer for 0.9 seconds
-                  const timer = setTimeout(() => {
-                    setPreviewCharacter(character)
-                  }, 900) // 0.9 second delay
-                  
-                  setHoverDelayTimer(timer)
+                }}
+                onMouseEnter={() => {
+                  // Only for non-touch devices
+                  if (!isTouchDevice) {
+                    setHoveredCharacter(character)
+                    playHoverSound()
+                    
+                    // Clear any existing hover timer
+                    if (hoverDelayTimer) {
+                      clearTimeout(hoverDelayTimer)
+                    }
+                    
+                    // Set new timer for 0.9 seconds
+                    const timer = setTimeout(() => {
+                      setPreviewCharacter(character)
+                    }, 900) // 0.9 second delay
+                    
+                    setHoverDelayTimer(timer)
+                  }
                 }}
                 onMouseLeave={() => {
-                  setHoveredCharacter(null)
-                  setPreviewCharacter(null)
-                  
-                  // Clear hover delay timer
-                  if (hoverDelayTimer) {
-                    clearTimeout(hoverDelayTimer)
-                    setHoverDelayTimer(null)
-                  }
-                  
-                  if (longPressTimer) {
-                    clearTimeout(longPressTimer)
-                    setLongPressTimer(null)
+                  if (!isTouchDevice) {
+                    setHoveredCharacter(null)
+                    setPreviewCharacter(null)
+                    
+                    // Clear hover delay timer
+                    if (hoverDelayTimer) {
+                      clearTimeout(hoverDelayTimer)
+                      setHoverDelayTimer(null)
+                    }
                   }
                 }}
-                onTouchStart={() => {
-                  // Mobile long press to show preview
+                onTouchStart={(e) => {
+                  e.preventDefault() // Prevent mouse events from firing
+                  setTouchStartTime(Date.now())
+                  
+                  // Start long press timer
                   const timer = setTimeout(() => {
                     setPreviewCharacter(character)
                     // Vibrate if available
@@ -323,23 +337,42 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                   }, 500) // Show after 500ms hold
                   setLongPressTimer(timer)
                 }}
-                onTouchEnd={() => {
+                onTouchEnd={(e) => {
+                  e.preventDefault() // Prevent mouse events from firing
+                  
+                  // Clear long press timer
                   if (longPressTimer) {
                     clearTimeout(longPressTimer)
                     setLongPressTimer(null)
                   }
-                  // If preview is not showing, treat as click
-                  if (!previewCharacter) {
+                  
+                  const touchDuration = Date.now() - touchStartTime
+                  
+                  if (touchDuration < 400 && !previewCharacter) {
+                    // Quick tap - select/deselect
                     handleCharacterClick(character)
-                  } else {
+                  } else if (previewCharacter) {
+                    // Was showing preview - just close it
                     setPreviewCharacter(null)
                   }
+                  
+                  setTouchStartTime(null)
+                }}
+                onTouchCancel={() => {
+                  // Cancel any ongoing timers if touch is cancelled
+                  if (longPressTimer) {
+                    clearTimeout(longPressTimer)
+                    setLongPressTimer(null)
+                  }
+                  setTouchStartTime(null)
+                  setPreviewCharacter(null)
                 }}
                 className={`
-                  relative cursor-pointer transition-all duration-300 group
+                  character-select-card relative cursor-pointer transition-all duration-300 group
                   ${isSelected ? 'scale-95' : 'hover:scale-105'}
                   ${!character.owned ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
+                style={{ touchAction: 'manipulation' }}
               >
                 {/* NFT Card - Redesigned to match preview */}
                 <div 

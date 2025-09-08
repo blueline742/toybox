@@ -957,6 +957,16 @@
 }
 
 /* Landscape Mode Adjustments */
+/* Touch optimization for character selection */
+.character-select-card {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 @media (max-width: 768px) and (orientation: landscape) {
   .battle-arena {
     flex-direction: row !important;
