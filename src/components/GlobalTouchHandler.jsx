@@ -7,6 +7,11 @@ const GlobalTouchHandler = () => {
     
     // Handle touch start
     const handleTouchStart = (e) => {
+      // Skip if touching the wallet button portal
+      if (e.target.closest('#wallet-button-portal, .wallet-adapter-modal-wrapper')) {
+        return
+      }
+      
       // Check if target is an interactive element
       const target = e.target.closest('button, .clickable, [role="button"], a, .back-button, .character-card, .team-select-card')
       if (target) {
@@ -21,6 +26,11 @@ const GlobalTouchHandler = () => {
     
     // Handle touch end
     const handleTouchEnd = (e) => {
+      // Skip if touching the wallet button portal
+      if (e.target.closest('#wallet-button-portal, .wallet-adapter-modal-wrapper')) {
+        return
+      }
+      
       if (!touchStartPos) return
       
       const touchEnd = {
@@ -36,7 +46,7 @@ const GlobalTouchHandler = () => {
       
       if (deltaX < 10 && deltaY < 10 && deltaTime < 500) {
         // It's a tap - trigger click event
-        const target = e.target.closest('button, .clickable, [role="button"], a, .back-button, .character-card, .team-select-card')
+        const target = e.target.closest('button, .clickable, [role="button"], a, .back-button, .character-card, .team-select-card, .wallet-adapter-button, #wallet-button-portal')
         if (target && target === touchStartPos.target) {
           e.preventDefault()
           preventClick = true
@@ -75,6 +85,11 @@ const GlobalTouchHandler = () => {
     
     // Prevent ghost clicks on mobile
     const handleClick = (e) => {
+      // Skip if clicking the wallet button portal
+      if (e.target.closest('#wallet-button-portal, .wallet-adapter-modal-wrapper')) {
+        return
+      }
+      
       if (preventClick) {
         e.preventDefault()
         e.stopPropagation()

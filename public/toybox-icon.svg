@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Toy Box Icon -->
+  <!-- Box body -->
+  <rect x="64" y="192" width="384" height="256" rx="16" fill="#FFA500" stroke="#FF8C00" stroke-width="8"/>
+  
+  <!-- Box lid -->
+  <rect x="48" y="160" width="416" height="48" rx="16" fill="#FFD700" stroke="#FFA500" stroke-width="8"/>
+  
+  <!-- Toy teddy bear head -->
+  <circle cx="256" cy="120" r="40" fill="#8B4513"/>
+  <circle cx="230" cy="110" r="12" fill="#654321"/>
+  <circle cx="282" cy="110" r="12" fill="#654321"/>
+  
+  <!-- Teddy bear eyes -->
+  <circle cx="240" cy="115" r="6" fill="#000"/>
+  <circle cx="272" cy="115" r="6" fill="#000"/>
+  
+  <!-- Teddy bear nose -->
+  <ellipse cx="256" cy="130" rx="8" ry="6" fill="#000"/>
+  
+  <!-- Star decoration on box -->
+  <path d="M256 280 L268 316 L308 316 L278 340 L290 376 L256 352 L222 376 L234 340 L204 316 L244 316 Z" fill="#FFD700" stroke="#FFA500" stroke-width="4"/>
+  
+  <!-- Text "TOY BOX" -->
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#FFF">TOY BOX</text>
+</svg>
