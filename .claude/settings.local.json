@@ -47,7 +47,11 @@
       "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
       "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
       "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
-      "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)"
+      "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
+      "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
+      "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
+      "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
+      "Bash(npm start)"
     ],
     "deny": [],
     "ask": []

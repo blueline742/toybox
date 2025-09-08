@@ -17,7 +17,6 @@ const GameOverScreen = ({
   
   // Calculate rewards
   const winAmount = betAmount * 1.8 // 90% after 10% burn
-  const burnAmount = betAmount * 0.1
   
   useEffect(() => {
     // Victory confetti
@@ -316,7 +315,7 @@ const GameOverScreen = ({
                         {isVictory ? '💰 REWARDS 💰' : '💸 LOSSES 💸'}
                       </h3>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Bet Amount */}
                         <div className="text-center">
                           <p className="text-gray-400 text-sm">Bet Amount</p>
@@ -336,21 +335,6 @@ const GameOverScreen = ({
                             {isVictory ? `+${winAmount}` : `-${betAmount}`} SOL
                           </motion.p>
                         </div>
-                        
-                        {/* Token Burn */}
-                        <div className="text-center">
-                          <p className="text-gray-400 text-sm">Token Burn (10%)</p>
-                          <motion.p
-                            animate={animatingRewards ? { 
-                              scale: [1, 1.1, 1],
-                              color: ['#EF4444', '#F97316', '#EF4444']
-                            } : {}}
-                            transition={{ duration: 1, repeat: 3 }}
-                            className="text-2xl font-bold text-orange-500"
-                          >
-                            🔥 {burnAmount} SOL
-                          </motion.p>
-                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -366,7 +350,15 @@ const GameOverScreen = ({
               className="p-6 text-center"
             >
               <button
-                onClick={onContinue}
+                onClick={() => {
+                  if (isPvP) {
+                    // Refresh the page to return to lobby for PvP
+                    window.location.reload()
+                  } else {
+                    // Use the normal continue function for single player
+                    onContinue()
+                  }
+                }}
                 className={`
                   px-8 py-4 rounded-xl font-bold text-lg transition-all
                   transform hover:scale-105 active:scale-95

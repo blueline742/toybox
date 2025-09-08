@@ -12,7 +12,7 @@ import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
 import { ARENAS } from '../game/powerups'
 import ParticleEffects from './ParticleEffects'
 import MagicParticles from './MagicParticles'
-import UltimateSpellOverlay from './UltimateSpellOverlay'
+// import UltimateSpellOverlay from './UltimateSpellOverlay' // Removed - custom animations for each ultimate
 import EnhancedSpellEffects from './EnhancedSpellEffects'
 import UnicornSpellEffects from './UnicornSpellEffects'
 import PhoenixDragonEffects from './PhoenixDragonEffects'
@@ -60,8 +60,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   )
   
   // Team states with unique instance IDs
-  const [playerTeamState, setPlayerTeamState] = useState(() => 
-    playerTeam.map((char, index) => ({
+  const [playerTeamState, setPlayerTeamState] = useState(() => {
+    console.log('Player team being initialized:', playerTeam.map(c => c.name))
+    return playerTeam.map((char, index) => ({
       ...char,
       instanceId: `player-${char.id}-${index}`, // Unique instance ID
       team: 'player',
@@ -69,7 +70,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       isAlive: true,
       position: { x: 0, y: 0 }
     }))
-  )
+  })
   
   const [aiTeamState, setAiTeamState] = useState(() => {
     // In PvP mode, use the opponent's actual team
@@ -130,7 +131,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [ultimateAlert, setUltimateAlert] = useState(null)
   const [currentSpellType, setCurrentSpellType] = useState('magic')
   const [particleIntensity, setParticleIntensity] = useState('normal')
-  const [ultimateSpell, setUltimateSpell] = useState(null)
+  // const [ultimateSpell, setUltimateSpell] = useState(null) // Removed - custom animations for each ultimate
   
   const damageNumberId = useRef(0)
   const videoRef = useRef(null)
@@ -274,27 +275,70 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       })
       
       socket.on('battle_complete', ({ winner, finalState }) => {
+        console.log('AutoBattleScreen: Received battle_complete event!')
         console.log('Battle complete, winner:', winner)
+        console.log('My public key:', publicKey?.toString())
         const won = winner === publicKey?.toString()
-        onBattleEnd({
+        console.log('Did I win?', won)
+        
+        // Use the tracked battle stats and add final round count
+        const finalStats = {
+          ...battleStats,
+          rounds: finalState?.currentTurn || 0
+        }
+        
+        // Show the game over screen with stats
+        console.log('Setting game over data with tracked stats:', finalStats)
+        setGameOverData({
           winner: won ? 'player' : 'ai',
-          survivingChars: won ? playerTeamState : aiTeamState,
-          isPvP: true,
-          wagerAmount: pvpData.wagerAmount
+          battleStats: finalStats,
+          playerTeam: playerTeamState,
+          enemyTeam: aiTeamState,
+          betAmount: pvpData.wagerAmount || 0,
+          isPvP: true
         })
+        console.log('Setting showGameOver to true...')
+        setShowGameOver(true)
+        console.log('GameOver should now be visible!')
+        
+        // Play victory or defeat sound
+        if (won) {
+          const victorySound = new Audio('/victory.mp3')
+          victorySound.volume = 0.5
+          victorySound.play().catch(e => console.log('Could not play victory sound'))
+        } else {
+          const defeatSound = new Audio('/defeat.mp3')
+          defeatSound.volume = 0.5
+          defeatSound.play().catch(e => console.log('Could not play defeat sound'))
+        }
       })
       
       socket.on('opponent_disconnected', () => {
         console.log('Opponent disconnected')
         // Auto-win after disconnect
         setTimeout(() => {
-          onBattleEnd({
+          // Use tracked stats for disconnect win
+          const finalStats = {
+            ...battleStats,
+            rounds: turnCounter || 0
+          }
+          
+          // Show victory screen for disconnect
+          setGameOverData({
             winner: 'player',
-            survivingChars: playerTeamState,
-            isPvP: true,
-            reason: 'opponent_disconnected'
+            battleStats: finalStats,
+            playerTeam: playerTeamState,
+            enemyTeam: aiTeamState,
+            betAmount: pvpData.wagerAmount || 0,
+            isPvP: true
           })
-        }, 3000)
+          setShowGameOver(true)
+          
+          // Play victory sound
+          const victorySound = new Audio('/victory.mp3')
+          victorySound.volume = 0.5
+          victorySound.play().catch(e => console.log('Could not play victory sound'))
+        }, 1500)
       })
       
       // Notify ready
@@ -342,6 +386,17 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         ability: { name: 'FROZEN', description: 'Skips turn due to being frozen!' },
         caster: action.caster
       })
+      
+      // Clear frozen status after skip turn
+      if (action.reason === 'frozen' && isPvP) {
+        setFrozenCharacters(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(action.caster.instanceId)
+          console.log(`🔥 Clearing frozen for ${action.caster.name} after skip turn`)
+          return newMap
+        })
+      }
+      
       setTimeout(() => setSpellNotification(null), 2000)
       return
     }
@@ -372,6 +427,49 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           ...action.targets[idx]
         })) : action.targets
       })
+      
+      // Track battle statistics for damage/healing
+      if (action.effects) {
+        setBattleStats(prev => {
+          const newStats = { ...prev }
+          
+          action.effects.forEach(effect => {
+            if (effect.type === 'damage') {
+              // Track damage dealt by the caster
+              const casterId = action.caster.id || action.caster.instanceId
+              newStats.damageDealt[casterId] = (newStats.damageDealt[casterId] || 0) + effect.amount
+              newStats.totalDamage = (newStats.totalDamage || 0) + effect.amount
+            } else if (effect.type === 'heal') {
+              // Track healing done by the caster
+              const casterId = action.caster.id || action.caster.instanceId
+              newStats.healingDone[casterId] = (newStats.healingDone[casterId] || 0) + effect.amount
+            }
+            
+            // Track freeze effects for visual display in PvP mode
+            if ((effect.type === 'freeze' || effect.freeze) && isPvP) {
+              console.log('🧊 PvP FREEZE DETECTED in AutoBattleScreen:', {
+                targetId: effect.targetId,
+                effectType: effect.type,
+                hasFreeze: effect.freeze,
+                isPvP: isPvP
+              })
+              setFrozenCharacters(prev => {
+                const newMap = new Map(prev)
+                newMap.set(effect.targetId, { frozen: true, turnsRemaining: 1 })
+                console.log('🧊 Updated frozen characters:', Array.from(newMap.keys()))
+                return newMap
+              })
+            }
+          })
+          
+          // Track ultimates
+          if (action.ability.isUltimate) {
+            newStats.ultimatesUsed = (newStats.ultimatesUsed || 0) + 1
+          }
+          
+          return newStats
+        })
+      }
       
       // Calculate spell positions for animations
       setTimeout(() => {
@@ -568,6 +666,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     
     const activeCharacter = aliveAttackers[activeCharacterIndex % aliveAttackers.length]
     
+    // Debug logging
+    console.log(`${activeCharacter.name} (${activeCharacter.id}) is taking their turn`)
+    
     // Check if character is frozen - if so, skip their turn
     if (frozenCharacters.has(activeCharacter.instanceId)) {
       console.log(`${activeCharacter.name} is frozen and skips their turn!`)
@@ -645,14 +746,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     
     setParticleIntensity(selectedAbility.isUltimate ? 'high' : 'normal')
     
-    // Show ultimate overlay for ultimate abilities
+    // Track ultimate usage for stats only - no overlay
     if (selectedAbility.isUltimate) {
       trackUltimate() // Track ultimate usage for stats
-      setUltimateSpell({
-        name: selectedAbility.name,
-        caster: activeCharacter.name
-      })
-      setTimeout(() => setUltimateSpell(null), 3000)
+      // Ultimate overlay removed - each ultimate has custom animations
     }
     
     // Start casting bar animation
@@ -1454,7 +1551,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         aiTeam: aiTeamState,
         turns: turnCounter,
         stats: battleStats,
-        survivingChars: gameOverData.winner === 'player' ? playerTeamState : aiTeamState
+        survivingChars: gameOverData.winner === 'player' ? playerTeamState : aiTeamState,
+        isPvP: gameOverData.isPvP || false,
+        wagerAmount: gameOverData.betAmount || 0
       }
       
       onBattleEnd(result)
@@ -1462,7 +1561,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       // Fallback if no game over data
       onBattleEnd({
         winner: 'player',
-        survivingChars: playerTeamState
+        survivingChars: playerTeamState,
+        isPvP: isPvP,
+        wagerAmount: pvpData?.wagerAmount || 0
       })
     }
   }
@@ -1507,12 +1608,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         <div className="absolute inset-0 bg-white animate-flash pointer-events-none z-50" />
       )}
       
-      {/* Ultimate Spell Overlay */}
+      {/* Ultimate Spell Overlay - REMOVED 
+          Each ultimate now has custom animations
       <UltimateSpellOverlay 
         isActive={!!ultimateSpell}
         spellName={ultimateSpell?.name}
         casterName={ultimateSpell?.caster}
       />
+      */}
       
       {/* Particle Effects */}
       <ParticleEffects type={currentArena.particleEffect || 'stars'} count={30} />

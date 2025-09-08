@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="log"></div>
+    
+    <script>
+        const log = (msg) => {
+            document.getElementById('log').innerHTML += `<p>${new Date().toLocaleTimeString()}: ${msg}</p>`;
+            console.log(msg);
+        };
+        
+        log('Attempting to connect to http://localhost:3002');
+        
+        const socket = io('http://localhost:3002', {
+            transports: ['polling', 'websocket']
+        });
+        
+        socket.on('connect', () => {
+            document.getElementById('status').innerHTML = `✅ Connected! Socket ID: ${socket.id}`;
+            log(`Connected with ID: ${socket.id}`);
+        });
+        
+        socket.on('connect_error', (error) => {
+            document.getElementById('status').innerHTML = '❌ Connection failed';
+            log(`Connection error: ${error.message}`);
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('status').innerHTML = '⚠️ Disconnected';
+            log('Disconnected from server');
+        });
+    </script>
+</body>
+</html>

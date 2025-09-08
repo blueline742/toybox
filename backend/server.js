@@ -11,12 +11,17 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:5173"],
+    origin: "*", // Allow all origins for testing
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+  credentials: true,
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 
 // Solana configuration
@@ -35,7 +40,7 @@ const activeBattles = new Map();
 const playerSessions = new Map();
 
 io.on('connection', (socket) => {
-  console.log('Player connected:', socket.id);
+  console.log('Player connected:', socket.id, 'from', socket.handshake.headers.origin);
   
   socket.on('authenticate', ({ wallet }) => {
     playerSessions.set(socket.id, {
@@ -74,9 +79,9 @@ io.on('connection', (socket) => {
       
       activeBattles.set(battleId, battle);
       
-      // Join socket rooms
+      // The initiating player joins the room
       socket.join(battleId);
-      io.sockets.sockets.get(opponent.socket)?.join(battleId);
+      // The opponent will join when they emit 'battle_ready'
       
       // Notify both players with each other's team data
       // Send to player 1 (opponent who was waiting)
@@ -145,15 +150,24 @@ io.on('connection', (socket) => {
     const battle = activeBattles.get(battleId);
     if (!battle) return;
     
-    if (!battle.ready) battle.ready = [];
-    battle.ready.push(wallet);
+    // Make sure this socket joins the battle room (only if not already in it)
+    if (!socket.rooms.has(battleId)) {
+      socket.join(battleId);
+      console.log(`Socket ${socket.id} for wallet ${wallet} joined battle room ${battleId}`);
+    }
     
-    if (battle.ready.length === 2) {
-      // Both players ready, initialize battle engine
+    if (!battle.ready) battle.ready = [];
+    // Prevent duplicate ready signals
+    if (!battle.ready.includes(wallet)) {
+      battle.ready.push(wallet);
+    }
+    
+    if (battle.ready.length === 2 && !battle.engine) {
+      // Both players ready and engine not yet created
       battle.state = 'in_progress';
       
       try {
-        // Create server-side battle engine
+        // Create server-side battle engine (only once!)
         console.log('Creating battle engine for:', battleId);
         console.log('Player 1 team:', battle.player1.teamData);
         console.log('Player 2 team:', battle.player2.teamData);
@@ -182,18 +196,64 @@ io.on('connection', (socket) => {
       }
       
       // Start automated battle turns with proper pacing
-      // Wait a bit before starting turns
-      setTimeout(() => {
-        battle.turnInterval = setInterval(() => {
+      // Wait a bit before starting turns (only if not already started)
+      if (!battle.turnInterval) {
+        setTimeout(() => {
+          battle.turnInterval = setInterval(() => {
           if (battle.engine.isComplete) {
+            // Prevent multiple cleanup calls
+            if (battle.cleaningUp) return;
+            battle.cleaningUp = true;
+            
             clearInterval(battle.turnInterval);
+            
+            // Determine the winner wallet
+            let winnerWallet = null;
+            if (battle.engine.winner === 'player1') {
+              winnerWallet = battle.player1.wallet;
+            } else if (battle.engine.winner === 'player2') {
+              winnerWallet = battle.player2.wallet;
+            }
+            
+            console.log('Battle complete:', {
+              battleId,
+              engineWinner: battle.engine.winner,
+              winnerWallet,
+              player1: battle.player1.wallet,
+              player2: battle.player2.wallet
+            });
+            
+            // Check who's in the room before sending
+            const socketsInRoom = io.sockets.adapter.rooms.get(battleId);
+            console.log(`Sockets in battle room ${battleId}:`, socketsInRoom ? Array.from(socketsInRoom) : 'ROOM IS EMPTY!');
             
             // Send final results
             io.to(battleId).emit('battle_complete', {
-              winner: battle.engine.winner === 'player1' ? battle.player1.wallet : battle.player2.wallet,
+              winner: winnerWallet,
               finalState: battle.engine.getState()
             });
+            console.log('Emitted battle_complete event to room:', battleId);
             
+            // Clean up battle room and data after a delay to ensure clients receive the event
+            setTimeout(() => {
+              // Clean up battle room - all sockets leave
+              const socketsInRoom = io.sockets.adapter.rooms.get(battleId);
+              if (socketsInRoom) {
+                socketsInRoom.forEach(socketId => {
+                  io.sockets.sockets.get(socketId)?.leave(battleId);
+                });
+              }
+              
+              // Clean up battle data
+              activeBattles.delete(battleId);
+              console.log(`Cleaned up battle ${battleId}`);
+            }, 5000);
+            
+            return;
+          }
+          
+          // Double-check battle isn't complete before executing turn
+          if (battle.engine.isComplete || battle.cleaningUp) {
             return;
           }
           
@@ -206,9 +266,19 @@ io.on('connection', (socket) => {
               action,
               state: battle.engine.getState()
             });
+          } else {
+            // No action returned - check if battle should end
+            const state = battle.engine.getState();
+            console.log('No action returned, checking battle state:', {
+              isComplete: battle.engine.isComplete,
+              winner: battle.engine.winner,
+              player1Alive: state.player1Team.filter(c => c.isAlive).length,
+              player2Alive: state.player2Team.filter(c => c.isAlive).length
+            });
           }
         }, 4000); // 4 seconds per turn for smoother animations
       }, 2000); // Wait 2 seconds before starting
+      }
     }
   });
   
@@ -240,10 +310,8 @@ io.on('connection', (socket) => {
       });
     }
     
-    // Clean up
-    setTimeout(() => {
-      activeBattles.delete(battleId);
-    }, 60000); // Keep for 1 minute for debugging
+    // Clean up immediately since we handle cleanup in battle completion
+    activeBattles.delete(battleId);
   });
   
   socket.on('disconnect', () => {
@@ -327,7 +395,7 @@ app.get('/api/queue/:wagerAmount', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3003;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`WebSocket server ready for connections`);

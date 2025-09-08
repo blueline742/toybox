@@ -66,6 +66,7 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
         criticalBuff={criticalBuff}
         frozen={frozen}
         debuffed={debuffed}
+        teamColor={teamColor}
       />
       
       {/* Character Details Popup on Hover */}

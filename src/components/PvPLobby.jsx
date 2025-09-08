@@ -4,7 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useSocket } from '../contexts/SocketContext';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
 const RPC_ENDPOINT = 'https://api.devnet.solana.com';
 
 const GAME_TIPS = [
@@ -54,11 +54,19 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
   const [currentTip, setCurrentTip] = useState('');
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('Socket not initialized');
+      return;
+    }
     
     // Authenticate on connection
     if (socketConnected && publicKey) {
+      console.log('Socket connected, authenticating wallet:', publicKey.toString());
       socket.emit('authenticate', { wallet: publicKey.toString() });
+      setError(''); // Clear any connection errors
+    } else if (!socketConnected) {
+      console.log('Waiting for socket connection...');
+      setError('');
     }
 
     const handleQueued = ({ position }) => {
@@ -280,6 +288,20 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           <p className="text-lg md:text-2xl text-cyan-300 mt-4 font-bold animate-bounce-slow">
             ⚔️ ENTER THE ULTIMATE TOY SHOWDOWN ⚔️
           </p>
+        </div>
+
+        {/* Connection Status */}
+        <div className="mb-4 text-center">
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+            socketConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              socketConnected ? 'bg-green-400 animate-pulse' : 'bg-yellow-400 animate-pulse'
+            }`} />
+            <span className="text-sm font-semibold">
+              {socketConnected ? 'Connected to Server' : 'Connecting to Server...'}
+            </span>
+          </div>
         </div>
 
         {/* Stats Cards - Mobile Responsive Grid */}

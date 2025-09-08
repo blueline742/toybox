@@ -79,21 +79,24 @@ class BattleEngine {
     
     // Check if frozen
     if (activeCharacter.status.frozen) {
+      // Clear frozen status BEFORE creating action
       activeCharacter.status.frozen = false;
+      
       const action = {
         type: 'skip_turn',
         caster: {
           instanceId: activeCharacter.instanceId,
           id: activeCharacter.id,
           name: activeCharacter.name,
-          team: activeCharacter.team,
+          team: activeCharacter.team,  
           emoji: activeCharacter.emoji,
           rarity: activeCharacter.rarity,
           color: activeCharacter.color,
           image: activeCharacter.image
         },
         reason: 'frozen',
-        turnNumber: this.currentTurn
+        turnNumber: this.currentTurn,
+        wasFrozen: true  // Add flag to indicate this character was frozen
       };
       this.battleLog.push(action);
       this.advanceTurn();
@@ -155,11 +158,14 @@ class BattleEngine {
     
     this.battleLog.push(action);
     
-    // Check for battle end
+    // Check for battle end AFTER applying damage
     const alivePlayer1 = this.player1Team.filter(c => c.isAlive).length;
     const alivePlayer2 = this.player2Team.filter(c => c.isAlive).length;
     
+    console.log(`After turn ${this.currentTurn}: Player1 alive: ${alivePlayer1}, Player2 alive: ${alivePlayer2}`);
+    
     if (alivePlayer1 === 0 || alivePlayer2 === 0) {
+      console.log('Battle should end - one team has no alive characters');
       this.endBattle();
     } else {
       this.advanceTurn();
@@ -285,6 +291,11 @@ class BattleEngine {
     const effects = [];
     
     targets.forEach((target, index) => {
+      // Skip calculating effects for dead targets (except for revive abilities)
+      if (!target.isAlive && ability.effect !== 'heal_revive_all') {
+        return;
+      }
+      
       const effect = {
         targetId: target.instanceId,
         type: 'damage'
@@ -347,8 +358,9 @@ class BattleEngine {
         effect.amount = ability.shield;
       }
       
-      if (ability.effect === 'freeze_all') {
+      if (ability.effect === 'freeze_all' || ability.freeze) {
         effect.freeze = true;
+        effect.type = 'freeze'; // Also set type for client
       }
       
       if (ability.effect === 'damage_burn' || ability.burn) {
@@ -373,6 +385,9 @@ class BattleEngine {
       
       switch (effect.type) {
         case 'damage':
+          // Skip if target is already dead
+          if (!target.isAlive) return;
+          
           // Apply shields first
           let remainingDamage = effect.amount;
           if (target.shields > 0) {
@@ -392,6 +407,7 @@ class BattleEngine {
           
           if (effect.freeze) {
             target.status.frozen = true;
+            console.log(`❄️ Server: ${target.name} is now FROZEN!`);
           }
           if (effect.burn) {
             target.status.burned = true;
@@ -417,6 +433,14 @@ class BattleEngine {
             target.currentHealth = effect.amount;
           }
           break;
+          
+        case 'freeze':
+          // Handle freeze effect without damage
+          if (target.isAlive) {
+            target.status.frozen = true;
+            console.log(`❄️ Server: ${target.name} is now FROZEN!`);
+          }
+          break;
       }
     });
   }
@@ -435,6 +459,13 @@ class BattleEngine {
     const alivePlayer1 = this.player1Team.filter(c => c.isAlive).length;
     const alivePlayer2 = this.player2Team.filter(c => c.isAlive).length;
     
+    console.log('endBattle called:', {
+      alivePlayer1,
+      alivePlayer2,
+      player1Team: this.player1Team.map(c => ({ name: c.name, isAlive: c.isAlive, health: c.currentHealth })),
+      player2Team: this.player2Team.map(c => ({ name: c.name, isAlive: c.isAlive, health: c.currentHealth }))
+    });
+    
     if (alivePlayer1 > 0) {
       this.winner = 'player1';
     } else if (alivePlayer2 > 0) {
@@ -442,6 +473,8 @@ class BattleEngine {
     } else {
       this.winner = 'draw';
     }
+    
+    console.log('Battle ended with winner:', this.winner);
   }
   
   getState() {

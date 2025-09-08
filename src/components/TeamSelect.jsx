@@ -7,7 +7,6 @@ import CardPreview from './CardPreview'
 
 const TeamSelect = ({ onTeamSelected, onBack }) => {
   const { publicKey } = useWallet()
-  const [selectedTeam, setSelectedTeam] = useState([])
   const [hoveredCharacter, setHoveredCharacter] = useState(null)
   const [isConfirming, setIsConfirming] = useState(false)
   const [nftCollection, setNftCollection] = useState([])
@@ -15,6 +14,8 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   const [previewPosition, setPreviewPosition] = useState(null)
   const [longPressTimer, setLongPressTimer] = useState(null)
   const [hoverDelayTimer, setHoverDelayTimer] = useState(null)
+  
+  const [selectedTeam, setSelectedTeam] = useState([])
   
   useEffect(() => {
     // Simulate loading NFT collection
@@ -31,6 +32,7 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
       }
     }
   }, [publicKey])
+  
   
   const loadNFTCollection = () => {
     // For demo, we'll use all characters as available NFTs

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Backend server runs on port 3002
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
 
 const SocketContext = createContext(null);
 
@@ -18,12 +19,10 @@ export const SocketProvider = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
+    console.log('Creating socket connection to:', BACKEND_URL);
     // Create socket connection
     const newSocket = io(BACKEND_URL, {
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      transports: ['polling', 'websocket'], // Start with polling first
     });
 
     newSocket.on('connect', () => {
@@ -34,6 +33,12 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('disconnect', () => {
       console.log('Socket disconnected');
       setConnected(false);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+      console.error('Error type:', error.type);
+      console.error('Trying to connect to:', BACKEND_URL);
     });
 
     setSocket(newSocket);

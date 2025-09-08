@@ -1,18 +1,17 @@
 import React, { useState } from 'react'
 
-const BuffIndicator = ({ 
+const BuffIndicatorEnemy = ({ 
   characterId, 
   shields, 
   damageBuff, 
   criticalBuff, 
   frozen, 
-  debuffed,
-  teamColor = 'blue' 
+  debuffed 
 }) => {
   const [hoveredBuff, setHoveredBuff] = useState(null)
   const buffs = []
   
-  // Collect all active buffs/debuffs
+  // Collect all active buffs/debuffs - same as original
   if (shields && shields.amount > 0) {
     buffs.push({
       id: 'shield',
@@ -76,11 +75,9 @@ const BuffIndicator = ({
   
   if (buffs.length === 0) return null
   
-  // Position on left for red team (enemies), right for blue team (allies)
-  const positionClass = teamColor === 'red' ? '-top-2 -left-2' : '-top-2 -right-2'
-  
   return (
-    <div className={`absolute ${positionClass} flex gap-1 z-20`}>
+    // Position on top-left for enemy teams instead of top-right
+    <div className="absolute -top-2 -left-2 flex gap-1 z-20">
       {buffs.map((buff, index) => (
         <div
           key={buff.id}
@@ -117,7 +114,7 @@ const BuffIndicator = ({
             {/* Value Display (for shields and buffs with values) */}
             {buff.value && (
               <div 
-                className={`absolute -bottom-1 ${teamColor === 'red' ? '-left-1' : '-right-1'} bg-black bg-opacity-80 rounded-full px-1 text-white`}
+                className="absolute -bottom-1 -left-1 bg-black bg-opacity-80 rounded-full px-1 text-white"
                 style={{ fontSize: '9px', minWidth: '18px', textAlign: 'center' }}
               >
                 {buff.value}
@@ -126,7 +123,7 @@ const BuffIndicator = ({
             
             {/* Permanent Indicator */}
             {buff.permanent && (
-              <div className={`absolute -top-1 ${teamColor === 'red' ? '-right-1' : '-left-1'}`}>
+              <div className="absolute -top-1 -right-1">
                 <div 
                   className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"
                   style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}
@@ -174,7 +171,7 @@ const BuffIndicator = ({
             transform: translateY(0px) rotate(0deg);
           }
           50% {
-            transform: translateY(-3px) rotate(5deg);
+            transform: translateY(-3px) rotate(-5deg);
           }
         }
       `}</style>
@@ -182,4 +179,4 @@ const BuffIndicator = ({
   )
 }
 
-export default BuffIndicator
+export default BuffIndicatorEnemy

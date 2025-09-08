@@ -3,9 +3,11 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import musicManager from '../utils/musicManager'
 import NFTShowcase from './NFTShowcase'
+import MyToyboxCollection from './MyToyboxCollection'
 
 const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
+  const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
   const [floatingToys, setFloatingToys] = useState([])
 
@@ -61,11 +63,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
 
   const handleViewToys = () => {
     playButtonSound()
-    if (onViewToys) {
-      onViewToys()
-    } else {
-      alert('Toy collection viewer coming soon!')
-    }
+    setShowToyboxCollection(true)
   }
 
   const scrollToNFTSection = () => {
@@ -272,6 +270,11 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
           console.log('Minting pack:', pack)
           // Web3 integration will be added here
         }} />
+      )}
+      
+      {/* My Toybox Collection Modal */}
+      {showToyboxCollection && (
+        <MyToyboxCollection onClose={() => setShowToyboxCollection(false)} />
       )}
     </div>
   )
