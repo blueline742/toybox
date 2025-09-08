@@ -12,8 +12,8 @@ import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
 import { ARENAS } from '../game/powerups'
 import ParticleEffects from './ParticleEffects'
 import MagicParticles from './MagicParticles'
-import PortraitOverlay from './PortraitOverlay'
-import { isPortraitMode, shouldEnforcePortrait } from '../utils/orientationDetect'
+import LandscapeOverlay from './LandscapeOverlay'
+import { isPortraitMode, shouldEnforceLandscape } from '../utils/orientationDetect'
 // import UltimateSpellOverlay from './UltimateSpellOverlay' // Removed - custom animations for each ultimate
 import EnhancedSpellEffects from './EnhancedSpellEffects'
 import UnicornSpellEffects from './UnicornSpellEffects'
@@ -135,8 +135,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [particleIntensity, setParticleIntensity] = useState('normal')
   // const [ultimateSpell, setUltimateSpell] = useState(null) // Removed - custom animations for each ultimate
   
-  // Portrait mode state
-  const [showPortraitOverlay, setShowPortraitOverlay] = useState(false)
+  // Landscape mode state
+  const [showLandscapeOverlay, setShowLandscapeOverlay] = useState(false)
   
   const damageNumberId = useRef(0)
   const videoRef = useRef(null)
@@ -153,13 +153,13 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     }
   }, [])
   
-  // Portrait mode enforcement for battles only
+  // Landscape mode enforcement for battles only
   useEffect(() => {
     const checkOrientation = () => {
-      if (shouldEnforcePortrait()) {
-        setShowPortraitOverlay(!isPortraitMode())
+      if (shouldEnforceLandscape()) {
+        setShowLandscapeOverlay(isPortraitMode())
       } else {
-        setShowPortraitOverlay(false)
+        setShowLandscapeOverlay(false)
       }
     }
     
@@ -1612,11 +1612,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Portrait Mode Overlay - Only shown in landscape on mobile during battle */}
-      <PortraitOverlay isVisible={showPortraitOverlay} />
+      {/* Landscape Mode Overlay - Only shown in portrait on mobile during battle */}
+      <LandscapeOverlay isVisible={showLandscapeOverlay} />
       
       {/* Battle Wrapper - All battle content */}
-      <div id="battle-wrapper" className={`h-full flex flex-col relative ${showPortraitOverlay ? 'hidden' : ''}`}>
+      <div id="battle-wrapper" className={`h-full flex flex-col relative ${showLandscapeOverlay ? 'hidden' : ''}`}>
         {/* Static Background (always visible) - randomly selected arena */}
         <div 
           className="absolute inset-0 w-full h-full bg-cover bg-center"

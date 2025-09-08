@@ -1,11 +1,11 @@
 import React from 'react'
 
-const PortraitOverlay = ({ isVisible }) => {
+const LandscapeOverlay = ({ isVisible }) => {
   if (!isVisible) return null;
   
   return (
-    <div className="portrait-overlay">
-      <div className="portrait-content">
+    <div className="landscape-overlay">
+      <div className="landscape-content">
         <div className="rotate-icon">
           <svg 
             width="120" 
@@ -24,16 +24,16 @@ const PortraitOverlay = ({ isVisible }) => {
           Please Rotate Your Device
         </h2>
         <p className="text-xl text-gray-200">
-          Portrait mode is required for the best battle experience!
+          Landscape mode is required for the best battle experience!
         </p>
         <div className="rotation-hint mt-8">
-          <div className="phone-icon landscape">📱</div>
-          <div className="arrow-icon">➜</div>
           <div className="phone-icon portrait">📱</div>
+          <div className="arrow-icon">➜</div>
+          <div className="phone-icon landscape">📱</div>
         </div>
       </div>
     </div>
   );
 };
 
-export default PortraitOverlay;
+export default LandscapeOverlay;

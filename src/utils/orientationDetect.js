@@ -1,23 +1,27 @@
-// Orientation detection utilities for portrait mode enforcement during battles
+// Orientation detection utilities for landscape mode enforcement during battles
 
-export const isPortraitMode = () => {
+export const isLandscapeMode = () => {
   // Check if it's a mobile device first
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                    window.innerWidth <= 768;
   
   if (!isMobile) {
-    // Desktop always considered "portrait" (no restriction)
+    // Desktop always considered "landscape" (no restriction)
     return true;
   }
   
   // For mobile devices, check actual orientation
   if (window.orientation !== undefined) {
     // Mobile browsers with orientation API
-    return window.orientation === 0 || window.orientation === 180;
+    return window.orientation === 90 || window.orientation === -90;
   }
   
   // Fallback to window dimensions
-  return window.innerHeight > window.innerWidth;
+  return window.innerWidth > window.innerHeight;
+};
+
+export const isPortraitMode = () => {
+  return !isLandscapeMode();
 };
 
 export const isMobileDevice = () => {
@@ -32,8 +36,8 @@ export const isTabletDevice = () => {
   return isTablet;
 };
 
-export const shouldEnforcePortrait = () => {
-  // Only enforce portrait on phones, not tablets or desktop
+export const shouldEnforceLandscape = () => {
+  // Only enforce landscape on phones, not tablets or desktop
   return isMobileDevice() && !isTabletDevice() && window.innerWidth <= 768;
 };
 

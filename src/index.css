@@ -574,8 +574,8 @@
   position: relative;
 }
 
-/* Portrait Overlay Styles */
-.portrait-overlay {
+/* Landscape Overlay Styles */
+.landscape-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -589,7 +589,7 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-.portrait-content {
+.landscape-content {
   text-align: center;
   padding: 2rem;
   max-width: 400px;
