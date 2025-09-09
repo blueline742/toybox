@@ -6,9 +6,8 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
-import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect'
 import { clusterApiUrl } from '@solana/web3.js'
-import { walletConnectConfig, isMobileDevice } from '../config/walletConfig'
+import { isMobileDevice } from '../config/walletConfig'
 
 // Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -21,46 +20,13 @@ export function SolanaWalletProvider({ children }) {
   const wallets = useMemo(
     () => {
       const adapters = []
-      const isMobile = isMobileDevice()
       
-      if (isMobile) {
-        // MOBILE: Only use WalletConnect adapter
-        // This prevents Phantom's deep link from opening a new tab
-        adapters.push(
-          new WalletConnectWalletAdapter({
-            network,
-            options: {
-              ...walletConnectConfig,
-              // Force WalletConnect to handle the connection
-              qrcodeModalOptions: {
-                mobileLinks: [
-                  'phantom',
-                  'solflare',
-                  'trust',
-                ],
-                desktopLinks: []
-              }
-            }
-          })
-        )
-        // DO NOT add any other adapters on mobile to prevent conflicts
-      } else {
-        // DESKTOP: Use browser extensions first, WalletConnect as fallback
-        
-        // Phantom browser extension (desktop only)
-        adapters.push(new PhantomWalletAdapter())
-        
-        // Solflare browser extension
-        adapters.push(new SolflareWalletAdapter())
-        
-        // WalletConnect as a fallback option on desktop
-        adapters.push(
-          new WalletConnectWalletAdapter({
-            network,
-            options: walletConnectConfig
-          })
-        )
-      }
+      // Add Phantom adapter for both mobile and desktop
+      // The key is to use the WalletModalProvider which handles connections properly
+      adapters.push(new PhantomWalletAdapter())
+      
+      // Add Solflare as an alternative
+      adapters.push(new SolflareWalletAdapter())
       
       return adapters
     },
