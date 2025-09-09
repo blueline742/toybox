@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import ReactDOM from 'react-dom'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import MobileWalletButton from './MobileWalletButton'
+import { isMobileDevice } from '../config/walletConfig'
 
 const WalletButtonPortal = () => {
   const [mounted, setMounted] = useState(false)
@@ -69,37 +71,70 @@ const WalletButtonPortal = () => {
             userSelect: 'none'
           }}
         >
-          {/* Wallet Button */}
-          <WalletMultiButton 
-            style={{
-              position: 'relative',
-              background: isPressed 
-                ? 'linear-gradient(135deg, #facc15 0%, #f97316 50%, #9333ea 100%)'
-                : 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)',
-              border: '2px solid rgba(255, 255, 255, 0.5)',
-              borderRadius: '9999px',
-              padding: '8px 24px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: 'white',
-              fontFamily: "'Comic Neue', cursive",
-              boxShadow: isPressed 
-                ? '0 1px 0 #c026d3, 0 3px 10px rgba(0,0,0,0.3)'
-                : '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
-              textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '200px',
-              transform: isPressed ? 'scale(0.95)' : 'scale(1)',
-              transition: 'all 0.1s ease',
-              pointerEvents: 'auto',
-              touchAction: 'none',
-              WebkitTapHighlightColor: 'transparent',
-              userSelect: 'none'
-            }}
-          />
+          {/* Use custom button on mobile, standard button on desktop */}
+          {isMobileDevice() ? (
+            <MobileWalletButton 
+              style={{
+                position: 'relative',
+                background: isPressed 
+                  ? 'linear-gradient(135deg, #facc15 0%, #f97316 50%, #9333ea 100%)'
+                  : 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.5)',
+                borderRadius: '9999px',
+                padding: '8px 24px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: 'white',
+                fontFamily: "'Comic Neue', cursive",
+                boxShadow: isPressed 
+                  ? '0 1px 0 #c026d3, 0 3px 10px rgba(0,0,0,0.3)'
+                  : '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
+                textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '200px',
+                transform: isPressed ? 'scale(0.95)' : 'scale(1)',
+                transition: 'all 0.1s ease',
+                pointerEvents: 'auto',
+                touchAction: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                userSelect: 'none'
+              }}
+            />
+          ) : (
+            <WalletMultiButton 
+              style={{
+                position: 'relative',
+                background: isPressed 
+                  ? 'linear-gradient(135deg, #facc15 0%, #f97316 50%, #9333ea 100%)'
+                  : 'linear-gradient(135deg, #fbbf24 0%, #f472b6 50%, #a855f7 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.5)',
+                borderRadius: '9999px',
+                padding: '8px 24px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: 'white',
+                fontFamily: "'Comic Neue', cursive",
+                boxShadow: isPressed 
+                  ? '0 1px 0 #c026d3, 0 3px 10px rgba(0,0,0,0.3)'
+                  : '0 3px 0 #c026d3, 0 6px 15px rgba(0,0,0,0.3)',
+                textShadow: '1px 1px 3px rgba(0,0,0,0.3)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '200px',
+                transform: isPressed ? 'scale(0.95)' : 'scale(1)',
+                transition: 'all 0.1s ease',
+                pointerEvents: 'auto',
+                touchAction: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                userSelect: 'none'
+              }}
+            />
+          )}
         </div>
       </div>
     </div>,

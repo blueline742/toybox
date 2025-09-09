@@ -21,25 +21,45 @@ export function SolanaWalletProvider({ children }) {
   const wallets = useMemo(
     () => {
       const adapters = []
+      const isMobile = isMobileDevice()
       
-      // WalletConnect adapter - Primary for mobile, also available on desktop
-      // This enables users to stay in their browser while connecting through WalletConnect
-      // Works with Phantom, Solflare, and other WalletConnect-compatible wallets
-      adapters.push(
-        new WalletConnectWalletAdapter({
-          network,
-          options: walletConnectConfig
-        })
-      )
-      
-      // Desktop-specific wallet adapters
-      // Only add browser extension wallets on desktop
-      if (!isMobileDevice()) {
+      if (isMobile) {
+        // MOBILE: Only use WalletConnect adapter
+        // This prevents Phantom's deep link from opening a new tab
+        adapters.push(
+          new WalletConnectWalletAdapter({
+            network,
+            options: {
+              ...walletConnectConfig,
+              // Force WalletConnect to handle the connection
+              qrcodeModalOptions: {
+                mobileLinks: [
+                  'phantom',
+                  'solflare',
+                  'trust',
+                ],
+                desktopLinks: []
+              }
+            }
+          })
+        )
+        // DO NOT add any other adapters on mobile to prevent conflicts
+      } else {
+        // DESKTOP: Use browser extensions first, WalletConnect as fallback
+        
         // Phantom browser extension (desktop only)
         adapters.push(new PhantomWalletAdapter())
         
         // Solflare browser extension
         adapters.push(new SolflareWalletAdapter())
+        
+        // WalletConnect as a fallback option on desktop
+        adapters.push(
+          new WalletConnectWalletAdapter({
+            network,
+            options: walletConnectConfig
+          })
+        )
       }
       
       return adapters

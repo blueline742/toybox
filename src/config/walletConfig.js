@@ -15,7 +15,11 @@ export const walletConnectConfig = {
         ? `${window.location.origin}/toybox-icon.svg`
         : 'https://toyboxbrawl.netlify.app/toybox-icon.svg'
     ]
-  }
+  },
+  // Ensure WalletConnect modal is used instead of deep links
+  qrcode: true,
+  // Disable automatic deep linking on mobile
+  disableProviderPing: true
 }
 
 // Detect if we're on mobile
