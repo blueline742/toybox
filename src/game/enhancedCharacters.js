@@ -347,7 +347,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'pyroblast',
         name: 'Pyroblast',
         damage: 35,
-        chance: 0.005, // 0.5% chance - minimal for testing
+        chance: 0.6, // 60% chance - primary spell for testing targeting
         description: 'Hurls a massive fireball that explodes on impact',
         effect: 'damage',
         animation: 'pyroblast',
@@ -357,7 +357,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'lightning_zap',
         name: 'Lightning Zap',
         damage: 25,
-        chance: 0.005, // 0.5% chance - minimal for testing
+        chance: 0.2, // 20% chance
         description: 'Strikes enemies with chain lightning',
         effect: 'damage_chain',
         animation: 'lightning_zap',
@@ -368,7 +368,7 @@ export const ENHANCED_CHARACTERS = {
         name: 'ICE NOVA',
         damage: 15,
         freeze: true,
-        chance: 0.99, // 99% chance - primary spell for testing
+        chance: 0.2, // 20% chance - reduced for testing
         description: 'Freezes all enemies in ice, making them skip their next turn!',
         effect: 'freeze_all',
         animation: 'ice_nova',

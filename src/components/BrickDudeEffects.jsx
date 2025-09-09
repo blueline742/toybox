@@ -12,6 +12,7 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
 
     const casterPos = positions.caster;
     const targetPositions = positions.targets || [];
+    const timeouts = []; // Store all timeouts for cleanup
 
     if (spell.ability?.animation === 'sword_slash') {
       // Sword Slash - Physical card attack Hearthstone style
@@ -41,15 +42,18 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
       casterElement.style.zIndex = '100';
       
       // Phase 2: Smooth charge to near target (90% of distance)
-      setTimeout(() => {
+      const phase2Timeout = setTimeout(() => {
+        if (!casterElement) return;
         const attackX = moveX * 0.9;
         const attackY = moveY * 0.9;
         casterElement.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
         casterElement.style.transform = `translate(${attackX}px, ${attackY}px) scale(1.1)`;
       }, 150);
+      timeouts.push(phase2Timeout);
 
       // Phase 3: Quick strike (complete the final 10% with impact)
-      setTimeout(() => {
+      const phase3Timeout = setTimeout(() => {
+        if (!casterElement) return;
         // Final position for clean hit
         casterElement.style.transition = 'all 0.08s ease-out';
         casterElement.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.15)`;
@@ -65,30 +69,37 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
           y: target.y
         });
         setAnimationPhase('impact');
-        
-        // Camera shake DISABLED
-        // document.body.style.transition = 'transform 0.05s';
-        // document.body.style.transform = 'translateX(2px)';
-        // setTimeout(() => {
-        //   document.body.style.transform = 'translateX(-2px)';
-        //   setTimeout(() => {
-        //     document.body.style.transform = 'translateX(0)';
-        //   }, 50);
-        // }, 50);
       }, 400);
+      timeouts.push(phase3Timeout);
 
       // Phase 4: Smooth elastic return
-      setTimeout(() => {
+      const returnTimeout = setTimeout(() => {
+        if (!casterElement) return;
         casterElement.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        casterElement.style.transform = originalTransform;
-        casterElement.style.zIndex = originalZIndex;
+        casterElement.style.transform = '';
+        casterElement.style.zIndex = '';
       }, 550);
+      timeouts.push(returnTimeout);
 
-      // Cleanup
-      setTimeout(() => {
-        casterElement.style.transition = originalTransition;
+      // Cleanup - ensure complete reset
+      const cleanupTimeout = setTimeout(() => {
+        if (casterElement) {
+          // Force reset all transforms to prevent stuck positions
+          casterElement.style.cssText = '';
+        }
         onComplete();
       }, 900);
+      timeouts.push(cleanupTimeout);
+      
+      // Cleanup on unmount
+      return () => {
+        timeouts.forEach(t => clearTimeout(t));
+        // Force reset if component unmounts early
+        const el = document.getElementById(`char-${spell.caster.instanceId}`);
+        if (el) {
+          el.style.cssText = '';
+        }
+      };
 
     } else if (spell.ability?.animation === 'block_shield') {
       // Block Defence - Shield all allies
@@ -124,16 +135,19 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
       const centerX = screenWidth / 2 - rect.left - rect.width / 2;
       const centerY = screenHeight / 2 - rect.top - rect.height / 2;
 
+      const whirlwindTimeouts = [];
+      let spinInterval = null;
+
       // Phase 1: Move to center with lift (500ms)
       casterElement.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
       casterElement.style.transform = `translate(${centerX}px, ${centerY}px) scale(1.3)`;
       casterElement.style.zIndex = '200';
       
       // Phase 2: Start spinning after reaching center - 10 full spins
-      setTimeout(() => {
+      const spinTimeout = setTimeout(() => {
         // Spin animation - 10 full rotations (3600 degrees)
         let angle = 0;
-        const spinInterval = setInterval(() => {
+        spinInterval = setInterval(() => {
           angle += 120; // 120 degrees per frame
           casterElement.style.transition = 'none';
           casterElement.style.transform = `translate(${centerX}px, ${centerY}px) scale(1.3) rotate(${angle}deg)`;
@@ -144,10 +158,11 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
           }
         }, 20); // Very fast spin (20ms intervals)
       }, 500); // Start after move completes
+      whirlwindTimeouts.push(spinTimeout);
 
       // Show cascading damage AFTER reaching center and starting to spin
       targetPositions.forEach((target, index) => {
-        setTimeout(() => {
+        const damageTimeout = setTimeout(() => {
           // Play impact sound for each hit with decreasing volume
           const impactSound = new Audio('/impact.mp3');
           impactSound.volume = index === 0 ? 0.5 : index === 1 ? 0.3 : 0.2;
@@ -160,24 +175,43 @@ const BrickDudeEffects = ({ spell, positions, onComplete }) => {
           });
           
           // Clear slash effect after a moment
-          setTimeout(() => {
+          const clearSlashTimeout = setTimeout(() => {
             setSlashPosition(null);
           }, 300);
+          whirlwindTimeouts.push(clearSlashTimeout);
         }, 1100 + (100 * index)); // Start at 1100ms (after reaching center and ~5 spins)
+        whirlwindTimeouts.push(damageTimeout);
       });
 
       // Phase 3: Return to original position after all spins complete
-      setTimeout(() => {
+      const whirlwindReturnTimeout = setTimeout(() => {
+        if (!casterElement) return;
         casterElement.style.transition = 'all 0.5s ease-in-out';
-        casterElement.style.transform = originalTransform;
-        casterElement.style.zIndex = originalZIndex;
+        casterElement.style.transform = '';
+        casterElement.style.zIndex = '';
       }, 1700); // Return after spins complete
+      whirlwindTimeouts.push(whirlwindReturnTimeout);
 
-      // Cleanup
-      setTimeout(() => {
-        casterElement.style.transition = originalTransition;
+      // Cleanup - ensure complete reset
+      const whirlwindCleanupTimeout = setTimeout(() => {
+        if (casterElement) {
+          // Force reset all transforms to prevent stuck positions
+          casterElement.style.cssText = '';
+        }
         onComplete();
       }, 2200); // Complete animation
+      whirlwindTimeouts.push(whirlwindCleanupTimeout);
+      
+      // Cleanup on unmount
+      return () => {
+        whirlwindTimeouts.forEach(t => clearTimeout(t));
+        if (spinInterval) clearInterval(spinInterval);
+        // Force reset if component unmounts early
+        const el = document.getElementById(`char-${spell.caster.instanceId}`);
+        if (el) {
+          el.style.cssText = '';
+        }
+      };
     }
   }, [spell, positions, onComplete]);
 

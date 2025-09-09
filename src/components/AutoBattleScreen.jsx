@@ -12,8 +12,7 @@ import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
 import { ARENAS } from '../game/powerups'
 import ParticleEffects from './ParticleEffects'
 import MagicParticles from './MagicParticles'
-import LandscapeOverlay from './LandscapeOverlay'
-import { isPortraitMode, shouldEnforceLandscape } from '../utils/orientationDetect'
+// Landscape mode enforcement removed - works in both portrait and landscape
 // import UltimateSpellOverlay from './UltimateSpellOverlay' // Removed - custom animations for each ultimate
 import EnhancedSpellEffects from './EnhancedSpellEffects'
 import UnicornSpellEffects from './UnicornSpellEffects'
@@ -28,7 +27,7 @@ import SpellNotification from './SpellNotification'
 import CastingBar from './CastingBar'
 import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
-// import TargetingIndicator from './TargetingIndicator' // DISABLED
+import SimpleTargetingArrow from './SimpleTargetingArrow'
 import ShieldEffect from './ShieldEffect'
 // import AttackLine from './AttackLine' // DISABLED
 import GameOverScreen from './GameOverScreen'
@@ -90,7 +89,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   
   // Battle states
   const [currentTurn, setCurrentTurn] = useState('player')
-  const [activeCharacterIndex, setActiveCharacterIndex] = useState(0)
+  const [playerCharacterIndex, setPlayerCharacterIndex] = useState(0)
+  const [aiCharacterIndex, setAiCharacterIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [spellNotification, setSpellNotification] = useState(null)
   const [castingInfo, setCastingInfo] = useState(null)
@@ -111,6 +111,17 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [damageBuffedCharacters, setDamageBuffedCharacters] = useState(new Map()) // Track damage buffs
   const [criticalBuffedCharacters, setCriticalBuffedCharacters] = useState(new Map()) // Track critical buffs
   const [isPaused] = useState(false) // Remove pause functionality
+  
+  // Targeting system states
+  const [isTargeting, setIsTargeting] = useState(false)
+  const [targetingCaster, setTargetingCaster] = useState(null)
+  const [targetingAbility, setTargetingAbility] = useState(null)
+  const [selectedTarget, setSelectedTarget] = useState(null)
+  const [validTargets, setValidTargets] = useState([])
+  const [targetingTimer, setTargetingTimer] = useState(10)
+  const targetingIntervalRef = useRef(null)
+  const [hoveredTarget, setHoveredTarget] = useState(null)
+  const [casterElement, setCasterElement] = useState(null)
   
   // Battle Statistics Tracking
   const [battleStats, setBattleStats] = useState({
@@ -135,8 +146,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [particleIntensity, setParticleIntensity] = useState('normal')
   // const [ultimateSpell, setUltimateSpell] = useState(null) // Removed - custom animations for each ultimate
   
-  // Landscape mode state
-  const [showLandscapeOverlay, setShowLandscapeOverlay] = useState(false)
+  // Landscape mode removed - no longer enforced
   
   const damageNumberId = useRef(0)
   const videoRef = useRef(null)
@@ -153,32 +163,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     }
   }, [])
   
-  // Landscape mode enforcement for battles only
-  useEffect(() => {
-    const checkOrientation = () => {
-      if (shouldEnforceLandscape()) {
-        setShowLandscapeOverlay(isPortraitMode())
-      } else {
-        setShowLandscapeOverlay(false)
-      }
-    }
-    
-    // Check on mount
-    checkOrientation()
-    
-    // Listen for orientation changes
-    window.addEventListener('resize', checkOrientation)
-    window.addEventListener('orientationchange', checkOrientation)
-    
-    // Also check on load
-    window.addEventListener('load', checkOrientation)
-    
-    return () => {
-      window.removeEventListener('resize', checkOrientation)
-      window.removeEventListener('orientationchange', checkOrientation)
-      window.removeEventListener('load', checkOrientation)
-    }
-  }, [])
+  // Orientation check removed - app works in both portrait and landscape
   
   // Helper functions for battle statistics
   const trackDamage = (casterId, amount) => {
@@ -244,20 +229,106 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         setTurnCounter(0)
         setCurrentTurn(pvpData.playerNumber === 1 ? 'player' : 'ai')
         
-        // Update teams from server state, ensuring character IDs are preserved
+        // Update teams from server state, ensuring character IDs and shields are preserved
         const processTeam = (team) => team.map(char => ({
           ...char,
           id: char.id || char.instanceId?.split('-')[1], // Ensure id is set
+          shields: char.shields || 0 // Preserve shield values from server
         }))
         
-        setPlayerTeamState(processTeam(pvpData.playerNumber === 1 ? state.player1Team : state.player2Team))
-        setAiTeamState(processTeam(pvpData.playerNumber === 1 ? state.player2Team : state.player1Team))
+        const playerTeam = processTeam(pvpData.playerNumber === 1 ? state.player1Team : state.player2Team)
+        const aiTeam = processTeam(pvpData.playerNumber === 1 ? state.player2Team : state.player1Team)
+        
+        setPlayerTeamState(playerTeam)
+        setAiTeamState(aiTeam)
+        
+        // Update shield visuals based on server state
+        const newShieldedChars = new Map()
+        const allTeamMembers = [...playerTeam, ...aiTeam]
+        allTeamMembers.forEach(char => {
+          if (char.shields > 0) {
+            newShieldedChars.set(char.instanceId, {
+              amount: char.shields,
+              type: 'normal'
+            })
+          }
+        })
+        setShieldedCharacters(newShieldedChars)
       })
       
       // Listen for battle actions from server
+      // Listen for target requests from server (PvP mode)
+      socket.on('request_target', ({ ability, caster, validTargets, timeout }) => {
+        console.log('Server requesting target selection:', { ability, caster, validTargets })
+        
+        // Show spell notification first (like in single player)
+        setSpellNotification({
+          ability: ability,
+          caster: caster
+        })
+        
+        // Clear notification after 2 seconds but keep targeting active
+        setTimeout(() => setSpellNotification(null), 2000)
+        
+        // Find the caster element using the instanceId directly
+        const casterEl = document.getElementById(`char-${caster.instanceId}`)
+        
+        // Start targeting mode
+        setIsTargeting(true)
+        setCasterElement(casterEl)
+        setTargetingTimer(timeout / 1000) // Convert to seconds
+        
+        // Store valid targets for validation
+        window.pvpValidTargets = validTargets.map(t => t.instanceId)
+        window.pvpAbility = ability
+        window.pvpCaster = caster
+        
+        // Start timer countdown
+        const interval = setInterval(() => {
+          setTargetingTimer(prev => {
+            if (prev <= 1) {
+              clearInterval(interval)
+              // Auto-select random target if time runs out
+              if (validTargets.length > 0) {
+                const randomTarget = validTargets[Math.floor(Math.random() * validTargets.length)]
+                socket.emit('select_target', {
+                  battleId: pvpData.battleId,
+                  targetId: randomTarget.instanceId,
+                  wallet: publicKey?.toString()
+                })
+              }
+              setIsTargeting(false)
+              setCasterElement(null)
+              setHoveredTarget(null)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+        
+        // Store interval ID for cleanup
+        window.pvpTargetingInterval = interval
+      })
+      
       socket.on('battle_action', ({ action, state }) => {
         console.log('Received battle action from server:', action)
         console.log('New state from server:', state)
+        
+        // Clear any active targeting when action is received
+        if (window.pvpTargetingInterval) {
+          clearInterval(window.pvpTargetingInterval)
+          window.pvpTargetingInterval = null
+        }
+        setIsTargeting(false)
+        setCasterElement(null)
+        setHoveredTarget(null)
+        setTargetingTimer(0)
+        
+        // Immediately clear any stuck animations from previous turn
+        setActiveAttacker(null)
+        setAttackInProgress(false)
+        setActiveTargets([])
+        setHealingTargets([])
         
         // Update turn tracking from server
         setTurnCounter(state.currentTurn)
@@ -299,6 +370,28 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           }
           return char
         }))
+        
+        // Update shield visuals based on the new state
+        const newShieldedChars = new Map()
+        const allChars = [...updatedPlayerTeam, ...updatedAiTeam]
+        allChars.forEach(char => {
+          if (char.shields > 0) {
+            newShieldedChars.set(char.instanceId, {
+              amount: char.shields,
+              type: 'normal'
+            })
+          }
+        })
+        setShieldedCharacters(newShieldedChars)
+        
+        // Update frozen status
+        const newFrozenChars = new Set()
+        allChars.forEach(char => {
+          if (char.status?.frozen) {
+            newFrozenChars.add(char.instanceId)
+          }
+        })
+        setFrozenCharacters(newFrozenChars)
         
         // Display the action with animations
         setTimeout(() => {
@@ -379,9 +472,15 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       return () => {
         socket.off('battle_initialized')
+        socket.off('request_target')
         socket.off('battle_action')
         socket.off('battle_complete')
         socket.off('opponent_disconnected')
+        // Clean up any active targeting interval
+        if (window.pvpTargetingInterval) {
+          clearInterval(window.pvpTargetingInterval)
+          window.pvpTargetingInterval = null
+        }
       }
     }
   }, [isPvP, pvpData])
@@ -434,6 +533,12 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     }
     
     if (action.type === 'ability_used') {
+      // Always clear previous animation state first
+      setActiveAttacker(null)
+      setAttackInProgress(false)
+      setActiveTargets([])
+      setHealingTargets([])
+      
       setIsAnimating(true)
       
       // Find the caster and target elements
@@ -443,6 +548,12 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       const targetChars = action.targets.map(t => 
         [...playerTeamState, ...aiTeamState].find(c => c.instanceId === t.instanceId)
       ).filter(Boolean)
+      
+      // Don't set any attack animation states - let the spell effects handle everything
+      // Just set targets for highlighting
+      if (targetChars.length > 0) {
+        setActiveTargets(targetChars.map(t => t.instanceId))
+      }
       
       // Show spell notification - prefer server data which has the image
       const notificationCaster = action.caster.image ? action.caster : (casterChar || action.caster)
@@ -491,6 +602,27 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                 console.log('🧊 Updated frozen characters:', Array.from(newMap.keys()))
                 return newMap
               })
+            }
+            
+            // Track shield effects for visual display in PvP mode
+            if (effect.type === 'shield' && isPvP) {
+              console.log('🛡️ PvP SHIELD DETECTED:', {
+                targetId: effect.targetId,
+                amount: effect.amount
+              })
+              // Set healing targets to show the shield animation
+              setHealingTargets(prev => {
+                const prevArray = Array.isArray(prev) ? prev : []
+                return [...new Set([...prevArray, effect.targetId])]
+              })
+              
+              // Clear healing targets after animation
+              setTimeout(() => {
+                setHealingTargets(prev => {
+                  const prevArray = Array.isArray(prev) ? prev : []
+                  return prevArray.filter(id => id !== effect.targetId)
+                })
+              }, 2000)
             }
           })
           
@@ -567,7 +699,33 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         }, 500)
       }
       
-      // Clear effects after animation
+      // Clear attack animation states earlier for physical attacks
+      setTimeout(() => {
+        console.log('Clearing attack animation states in PvP')
+        setActiveAttacker(null)
+        setAttackInProgress(false)
+        setActiveTargets([])
+        setHealingTargets([])
+        
+        // Force reset any stuck transform and position styles
+        const allCharElements = document.querySelectorAll('[id^="char-"]')
+        allCharElements.forEach(el => {
+          // Reset transform
+          if (el.style.transform && el.style.transform !== 'scale(1)') {
+            console.log('Force resetting stuck transform on:', el.id)
+            el.style.transform = 'scale(1)'
+          }
+          // Reset any position changes
+          if (el.style.position === 'absolute' || el.style.position === 'fixed') {
+            el.style.position = ''
+          }
+          if (el.style.top) el.style.top = ''
+          if (el.style.left) el.style.left = ''
+          if (el.style.zIndex) el.style.zIndex = ''
+        })
+      }, 1000)  // Reduced from 1500 to 1000ms for faster clear
+      
+      // Clear other effects after animation
       setTimeout(() => {
         setSpellNotification(null)
         setActiveSpell(null)
@@ -670,6 +828,191 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     }, 3000)
   }
 
+  // New function to execute ability on selected target
+  const executeAbilityOnTarget = (caster, ability, targets, isPlayerTurn) => {
+    // Update spell notification with targets
+    setSpellNotification({ 
+      ability: ability, 
+      caster: caster,
+      targets: targets.map(t => ({
+        name: t.name,
+        emoji: t.emoji,
+        image: t.image,
+        team: isPlayerTurn ? 'ai' : 'player'
+      }))
+    })
+    
+    // Reset all character transforms before new attack (fix for stuck positions in PvP)
+    const allCharElements = document.querySelectorAll('[id^="char-"]')
+    allCharElements.forEach(el => {
+      el.style.transform = ''
+      el.style.transition = ''
+      el.style.zIndex = ''
+      el.style.position = ''
+    })
+    
+    // Set up attack focus
+    const mainTarget = targets[0]
+    if (mainTarget) {
+      setActiveAttacker(caster)
+      setAttackInProgress(true)
+      
+      // Clear previous indicators
+      setActiveTargets([])
+      setHealingTargets([])
+      
+      // Set indicators based on ability type
+      if (caster.id !== 'unicorn_warrior' && caster.id !== 'phoenix_dragon' && caster.id !== 'robo_fighter' && caster.id !== 'wizard_toy') {
+        if (ability.effect === 'heal' || ability.effect === 'heal_shield') {
+          setHealingTargets([mainTarget.instanceId])
+        } else if (ability.effect === 'heal_all') {
+          setHealingTargets(targets.map(t => t.instanceId))
+        } else if (ability.effect === 'shield' || ability.effect === 'shield_all') {
+          setHealingTargets(targets.map(t => t.instanceId))
+        } else {
+          setActiveTargets(targets.map(t => t.instanceId))
+        }
+      }
+    }
+    
+    // Execute ability animation
+    setTimeout(() => {
+      if (targets.length > 0) {
+        const casterElement = document.getElementById(`char-${caster.instanceId}`)
+        const targetElements = targets.map(t => document.getElementById(`char-${t.instanceId}`))
+        
+        if (casterElement && targetElements.length > 0) {
+          const casterCard = casterElement.querySelector('.w-40') || casterElement
+          const casterRect = casterCard.getBoundingClientRect()
+          
+          const targetPositions = targetElements
+            .filter(el => el !== null)
+            .map(el => {
+              const targetCard = el.querySelector('.w-40') || el
+              const rect = targetCard.getBoundingClientRect()
+              return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+              }
+            })
+          
+          if (targetPositions.length > 0) {
+            setSpellPositions({
+              caster: {
+                x: casterRect.left + casterRect.width / 2,
+                y: casterRect.top + casterRect.height / 2
+              },
+              targets: targetPositions
+            })
+            
+            setActiveSpell({
+              ability: ability,
+              caster: caster,
+              targets: targets
+            })
+          }
+        }
+        
+        setIsAnimating(true)
+      }
+      
+      // Apply effects after animation
+      setTimeout(() => {
+        applyAbilityEffects(ability, caster, targets, isPlayerTurn)
+        
+        // Clear spell effects
+        setTimeout(() => {
+          setActiveSpell(null)
+          setSpellPositions(null)
+          setParticleIntensity('normal')
+          setActiveAttacker(null)
+          setAttackInProgress(false)
+          setActiveTargets([])
+          setHealingTargets([])
+        }, 500)
+        
+        // Handle multi-hit abilities
+        if (ability.hits && ability.hits > 1) {
+          let hitCount = 1
+          const defendingTeam = isPlayerTurn ? aiTeamState : playerTeamState
+          const hitInterval = setInterval(() => {
+            if (hitCount >= ability.hits) {
+              clearInterval(hitInterval)
+              endTurn()
+              return
+            }
+            
+            const newTarget = selectRandomTarget(defendingTeam)
+            if (newTarget) {
+              applyAbilityEffects(ability, caster, [newTarget], isPlayerTurn)
+            }
+            hitCount++
+          }, 300)
+        } else {
+          endTurn()
+        }
+      }, 1500 / battleSpeed)
+    }, 200)
+  }
+  
+  // Handle player target selection
+  const handleTargetSelect = (target, event) => {
+    // Prevent any propagation
+    if (event) {
+      event.stopPropagation()
+      event.preventDefault()
+    }
+    
+    // Handle PvP targeting
+    if (isPvP && window.pvpValidTargets) {
+      console.log('PvP target selected:', target.instanceId, 'Event type:', event?.type)
+      if (!isTargeting || !window.pvpValidTargets.includes(target.instanceId)) return
+      
+      // Clear PvP timer
+      if (window.pvpTargetingInterval) {
+        clearInterval(window.pvpTargetingInterval)
+        window.pvpTargetingInterval = null
+      }
+      
+      // Send target selection to server
+      pvpData.socket.emit('select_target', {
+        battleId: pvpData.battleId,
+        targetId: target.instanceId,
+        wallet: publicKey?.toString()
+      })
+      
+      // Clear targeting state
+      setIsTargeting(false)
+      setCasterElement(null)
+      setHoveredTarget(null)
+      setTargetingTimer(0)
+      window.pvpValidTargets = null
+      window.pvpAbility = null
+      window.pvpCaster = null
+      return
+    }
+    
+    // Handle single-player targeting
+    if (!isTargeting || !validTargets.includes(target)) return
+    
+    // Clear timer
+    if (targetingIntervalRef.current) {
+      clearInterval(targetingIntervalRef.current)
+    }
+    
+    // Execute ability on selected target
+    executeAbilityOnTarget(targetingCaster, targetingAbility, [target], true)
+    
+    // Clear targeting state
+    setIsTargeting(false)
+    setTargetingCaster(null)
+    setTargetingAbility(null)
+    setValidTargets([])
+    setSelectedTarget(null)
+    setHoveredTarget(null)
+    setCasterElement(null)
+  }
+
   const executeTurn = () => {
     const isPlayerTurn = currentTurn === 'player'
     const attackingTeam = isPlayerTurn ? playerTeamState : aiTeamState
@@ -679,7 +1022,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     if (isPvP && pvpData?.socket && isPlayerTurn) {
       const action = {
         type: 'turn',
-        characterIndex: activeCharacterIndex,
+        characterIndex: playerCharacterIndex,
         timestamp: Date.now()
       }
       pvpData.socket.emit('battle_action', {
@@ -696,10 +1039,13 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       return
     }
     
-    const activeCharacter = aliveAttackers[activeCharacterIndex % aliveAttackers.length]
+    // Use the appropriate index for the current team
+    const currentIndex = isPlayerTurn ? playerCharacterIndex : aiCharacterIndex
+    const characterToUse = currentIndex % aliveAttackers.length
+    const activeCharacter = aliveAttackers[characterToUse]
     
     // Debug logging
-    console.log(`${activeCharacter.name} (${activeCharacter.id}) is taking their turn`)
+    console.log(`Turn ${turnCounter}: ${isPlayerTurn ? 'PLAYER' : 'AI'} - Character ${characterToUse + 1}/${aliveAttackers.length}: ${activeCharacter.name} (${activeCharacter.id})`)
     
     // Check if character is frozen - if so, skip their turn
     if (frozenCharacters.has(activeCharacter.instanceId)) {
@@ -827,72 +1173,107 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       }
     }, 100)
     
-    // Determine targets based on ability effect
-    // IMPORTANT: Offensive spells target enemies, support spells target allies
+    // Determine valid targets based on ability effect
+    const determineValidTargets = (ability) => {
+      // Offensive abilities - target ENEMIES only
+      if (ability.effect === 'damage' || ability.effect === 'multi_damage' || ability.effect === 'damage_burn') {
+        return defendingTeam.filter(char => char.currentHealth > 0)
+      } else if (ability.effect === 'damage_all' || ability.effect === 'damage_cascade' || ability.effect === 'freeze_all' || ability.effect === 'damage_chain') {
+        return defendingTeam.filter(char => char.currentHealth > 0)
+      }
+      // Healing/Support abilities - target ALLIES only
+      else if (ability.effect === 'heal' || ability.effect === 'shield' || ability.effect === 'heal_shield') {
+        return attackingTeam.filter(char => char.currentHealth > 0)
+      } else if (ability.effect === 'heal_all' || ability.effect === 'shield_all') {
+        return attackingTeam.filter(char => char.currentHealth > 0)
+      } else if (ability.effect === 'heal_revive_all') {
+        return attackingTeam // Include dead allies for revival
+      }
+      // Default to enemies
+      else {
+        return defendingTeam.filter(char => char.currentHealth > 0)
+      }
+    }
+    
+    // Check if this is the player's turn and targeting is enabled
+    // For now, only enable targeting in single player mode
+    // PvP battles are server-controlled and would need major backend changes
+    const shouldPlayerTarget = isPlayerTurn && !isPvP
+    
+    // Debug logging
+    console.log('Targeting check:', {
+      isPlayerTurn,
+      isPvP,
+      shouldPlayerTarget,
+      ability: selectedAbility.name,
+      effect: selectedAbility.effect,
+      caster: activeCharacter.name
+    })
+    
+    if (shouldPlayerTarget && (selectedAbility.effect === 'damage' || selectedAbility.effect === 'damage_burn' || selectedAbility.effect === 'multi_damage' || selectedAbility.effect === 'heal' || selectedAbility.effect === 'shield')) {
+      // Single target abilities - let player choose
+      const validTargetsForAbility = determineValidTargets(selectedAbility)
+      
+      console.log('Starting targeting mode for', selectedAbility.name, 'with targets:', validTargetsForAbility.map(t => t.name))
+      
+      if (validTargetsForAbility.length > 0) {
+        // Start targeting mode
+        setIsTargeting(true)
+        setTargetingCaster(activeCharacter)
+        setTargetingAbility(selectedAbility)
+        setValidTargets(validTargetsForAbility)
+        setTargetingTimer(10)
+        
+        // Set caster element for arrow
+        setTimeout(() => {
+          const casterEl = document.getElementById(`char-${activeCharacter.instanceId}`)
+          setCasterElement(casterEl)
+        }, 100)
+        
+        // Start countdown timer
+        targetingIntervalRef.current = setInterval(() => {
+          setTargetingTimer(prev => {
+            if (prev <= 1) {
+              // Time's up - select random target
+              clearInterval(targetingIntervalRef.current)
+              const randomTarget = validTargetsForAbility[Math.floor(Math.random() * validTargetsForAbility.length)]
+              executeAbilityOnTarget(activeCharacter, selectedAbility, [randomTarget], isPlayerTurn)
+              setIsTargeting(false)
+              setTargetingCaster(null)
+              setTargetingAbility(null)
+              setValidTargets([])
+              return 10
+            }
+            return prev - 1
+          })
+        }, 1000)
+        
+        return // Wait for player to select target
+      }
+    }
+    
+    // Auto-target for AI or AOE abilities
     let targets = []
     
-    // Offensive abilities - target ENEMIES only
-    if (selectedAbility.effect === 'damage' || selectedAbility.effect === 'multi_damage' || selectedAbility.effect === 'damage_burn') {
-      const validTargets = defendingTeam.filter(char => char.currentHealth > 0)
-      if (validTargets.length > 0) {
-        const target = validTargets[Math.floor(Math.random() * validTargets.length)]
-        targets = [target]
-      }
-    } else if (selectedAbility.effect === 'damage_all' || selectedAbility.effect === 'damage_cascade') {
-      targets = defendingTeam.filter(char => char.currentHealth > 0)
-    } else if (selectedAbility.effect === 'freeze_all') {
-      // Ice Nova - targets all living enemies
+    if (selectedAbility.effect === 'damage_all' || selectedAbility.effect === 'damage_cascade' || selectedAbility.effect === 'freeze_all') {
       targets = defendingTeam.filter(char => char.currentHealth > 0)
     } else if (selectedAbility.effect === 'damage_chain') {
-      // Lightning chain - targets up to 3 enemies
       const validTargets = defendingTeam.filter(char => char.currentHealth > 0)
       targets = validTargets.slice(0, 3)
-    } 
-    // Healing/Support abilities - target ALLIES only
-    else if (selectedAbility.effect === 'heal' || selectedAbility.effect === 'shield' || selectedAbility.effect === 'heal_shield') {
-      const validTargets = attackingTeam.filter(char => char.currentHealth > 0)
-      if (validTargets.length > 0) {
-        // Prioritize low health allies for healing
-        const sortedByHealth = validTargets.sort((a, b) => (a.currentHealth / a.maxHealth) - (b.currentHealth / b.maxHealth))
-        const target = sortedByHealth[0]
-        targets = [target]
-      }
-    } else if (selectedAbility.effect === 'heal_all') {
-      targets = attackingTeam.filter(char => char.currentHealth > 0)
-    } else if (selectedAbility.effect === 'shield_all') {
-      // Shield all living allies
+    } else if (selectedAbility.effect === 'heal_all' || selectedAbility.effect === 'shield_all') {
       targets = attackingTeam.filter(char => char.currentHealth > 0)
     } else if (selectedAbility.effect === 'heal_revive_all') {
-      // Include ALL allies, dead or alive, for revival ultimate
       targets = attackingTeam
-    } 
-    // Mixed abilities
-    else if (selectedAbility.effect === 'both') {
+    } else if (selectedAbility.effect === 'both' || selectedAbility.effect === 'chaos' || selectedAbility.effect === 'supernova' || selectedAbility.effect === 'apocalypse') {
       const enemyTargets = defendingTeam.filter(char => char.currentHealth > 0)
       const allyTargets = attackingTeam.filter(char => char.currentHealth > 0)
-      
-      if (enemyTargets.length > 0) {
-        const damageTarget = enemyTargets[Math.floor(Math.random() * enemyTargets.length)]
-        targets.push({ ...damageTarget, isDamage: true })
-      }
-      if (allyTargets.length > 0) {
-        const healTarget = allyTargets[Math.floor(Math.random() * allyTargets.length)]
-        targets.push({ ...healTarget, isHeal: true })
-      }
-    } else if (selectedAbility.effect === 'chaos' || selectedAbility.effect === 'supernova' || selectedAbility.effect === 'apocalypse') {
-      // Special ultimate effects - damage all enemies, heal all allies
-      const enemyTargets = defendingTeam.filter(char => char.currentHealth > 0)
-      const allyTargets = attackingTeam.filter(char => char.currentHealth > 0)
-      
       targets = [
         ...enemyTargets.map(t => ({ ...t, isDamage: true })),
         ...allyTargets.map(t => ({ ...t, isHeal: true }))
       ]
-    }
-    
-    // Default to damage effect if not specified
-    else {
-      const validTargets = defendingTeam.filter(char => char.currentHealth > 0)
+    } else {
+      // Single target - random selection
+      const validTargets = determineValidTargets(selectedAbility)
       if (validTargets.length > 0) {
         const target = validTargets[Math.floor(Math.random() * validTargets.length)]
         targets = [target]
@@ -903,6 +1284,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       endTurn()
       return
     }
+    
+    // Execute ability immediately for AI or AOE
+    executeAbilityOnTarget(activeCharacter, selectedAbility, targets, isPlayerTurn)
     
     // Update spell notification with targets
     setSpellNotification({ 
@@ -1509,12 +1893,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       return
     }
     
-    // Update active character index
+    // Switch turns and increment the appropriate character index
     if (currentTurn === 'player') {
-      setActiveCharacterIndex(prev => (prev + 1) % 3)
+      // Player turn ends, increment player index for next time
+      setPlayerCharacterIndex(prev => prev + 1)
       setCurrentTurn('ai')
     } else {
-      setActiveCharacterIndex(prev => (prev + 1) % 3)
+      // AI turn ends, increment AI index for next time
+      setAiCharacterIndex(prev => prev + 1)
       setCurrentTurn('player')
       setComboCounter(0) // Reset combo on AI turn
     }
@@ -1612,11 +1998,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Landscape Mode Overlay - Only shown in portrait on mobile during battle */}
-      <LandscapeOverlay isVisible={showLandscapeOverlay} />
-      
       {/* Battle Wrapper - All battle content */}
-      <div id="battle-wrapper" className={`h-full flex flex-col relative ${showLandscapeOverlay ? 'hidden' : ''}`}>
+      <div id="battle-wrapper" className="h-full flex flex-col relative">
         {/* Static Background (always visible) - randomly selected arena */}
         <div 
           className="absolute inset-0 w-full h-full bg-cover bg-center"
@@ -1777,6 +2160,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           spell={activeSpell}
           positions={spellPositions}
           onComplete={() => {
+            // Reset the brick dude character element to prevent stuck positions
+            const brickElement = document.getElementById(`char-${activeSpell.caster.instanceId}`)
+            if (brickElement) {
+              brickElement.style.transform = ''
+              brickElement.style.transition = ''
+              brickElement.style.zIndex = ''
+              brickElement.style.position = ''
+            }
             setActiveSpell(null)
             setSpellPositions(null)
           }}
@@ -1792,6 +2183,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
               spell={activeSpell}
               positions={spellPositions}
               onComplete={() => {
+                // Reset the wind-up soldier character element to prevent stuck positions
+                const soldierElement = document.getElementById(`char-${activeSpell.caster.instanceId}`)
+                if (soldierElement) {
+                  soldierElement.style.transform = ''
+                  soldierElement.style.transition = ''
+                  soldierElement.style.zIndex = ''
+                  soldierElement.style.position = ''
+                }
                 setActiveSpell(null)
                 setSpellPositions(null)
               }}
@@ -1824,9 +2223,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       
       {/* Battle Arena */}
-      <div className="battle-arena flex-1 relative z-10 flex flex-col md:flex-row items-center justify-between px-2 md:px-8 gap-4 md:gap-0">
+      <div className="flex-1 relative z-10 flex flex-col md:flex-row items-center justify-center md:justify-between px-2 md:px-8 lg:px-16 py-4 w-full">
         {/* Blue Team (Player) */}
-        <div className="team-section relative w-full md:w-auto order-2 md:order-1">
+        <div className="relative w-auto">
           {/* Atmospheric Blue Mist Background */}
           <div className="absolute -inset-20 pointer-events-none">
             {/* Misty fog effect */}
@@ -1878,7 +2277,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Player Team Cards */}
-          <div className="flex flex-row md:flex-col gap-1 md:gap-4 justify-around md:justify-start">
+          <div className="flex flex-row md:flex-col gap-0.5 sm:gap-2 md:gap-4 justify-center md:justify-start scale-[0.85] sm:scale-95 md:scale-100 origin-center">
             {playerTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -1887,22 +2286,38 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
               const isFrozen = frozenCharacters.has(char.instanceId)
               const shouldBlur = attackInProgress && !isAttacking && currentTurn === 'player'
               
+              const isValidTarget = isTargeting && (isPvP ? window.pvpValidTargets?.includes(char.instanceId) : validTargets.includes(char))
+              const isTargetingCaster = isTargeting && targetingCaster?.instanceId === char.instanceId
+              
               return (
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
                   className={`character-card-container relative transition-all duration-500 ease-in-out ${
-                    isAttacking ? 'scale-110 z-50' :
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
-                  }`}
+                  } ${isValidTarget ? 'valid-target' : ''} ${isTargetingCaster ? 'targeting-caster' : ''}`}
                   style={{
-                    filter: shouldBlur ? 'blur(4px)' : isAttacking ? 'drop-shadow(0 0 20px rgba(255,255,0,0.6))' : 'none',
-                    transform: isAttacking ? 'scale(1.1) translateZ(0)' : shouldBlur ? 'scale(0.95)' : 'scale(1)'
+                    filter: shouldBlur ? 'blur(4px)' : 
+                           isValidTarget ? 'drop-shadow(0 0 30px rgba(255,215,0,0.8))' : 'none',
+                    transform: shouldBlur ? 'scale(0.95)' : 
+                              isValidTarget ? 'scale(1.02)' : 'scale(1)',
+                    cursor: isValidTarget ? 'pointer' : 'default'
+                  }}
+                  onClick={(e) => isValidTarget && handleTargetSelect(char, e)}
+                  onMouseEnter={() => {
+                    if (isValidTarget && isTargeting) {
+                      setHoveredTarget(document.getElementById(`char-${char.instanceId}`))
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (isTargeting) {
+                      setHoveredTarget(null)
+                    }
                   }}
                 >
                   <CharacterCard
                     character={char}
-                    isActive={currentTurn === 'player' && index === activeCharacterIndex % 3 && char.currentHealth > 0}
+                    isActive={currentTurn === 'player' && playerTeamState.filter(c => c.currentHealth > 0).indexOf(char) === (playerCharacterIndex % playerTeamState.filter(c => c.currentHealth > 0).length)}
                     currentHealth={char.currentHealth}
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
@@ -2059,9 +2474,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
         </div>
         
+        {/* Middle Spacer */}
+        <div className="w-8 md:w-32 lg:w-48 h-4 md:h-auto"></div>
         
         {/* Red Team (AI) */}
-        <div className="team-section relative w-full md:w-auto order-3">
+        <div className="relative w-auto">
           {/* Atmospheric Fire Mist Background */}
           <div className="absolute -inset-20 pointer-events-none">
             {/* Fiery fog effect */}
@@ -2113,7 +2530,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* AI Team Cards */}
-          <div className="flex flex-row md:flex-col gap-1 md:gap-4 justify-around md:justify-start">
+          <div className="flex flex-row md:flex-col gap-0.5 sm:gap-2 md:gap-4 justify-center md:justify-start scale-[0.85] sm:scale-95 md:scale-100 origin-center">
             {aiTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2122,27 +2539,41 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
               const isFrozen = frozenCharacters.has(char.instanceId)
               const shouldBlur = attackInProgress && !isAttacking && !isBeingTargeted && currentTurn === 'ai'
               
+              const isValidTarget = isTargeting && (isPvP ? window.pvpValidTargets?.includes(char.instanceId) : validTargets.includes(char))
+              const isTargetingCaster = isTargeting && targetingCaster?.instanceId === char.instanceId
+              
               return (
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
                   className={`character-card-container relative transition-all duration-500 ease-in-out ${
-                    isAttacking ? 'scale-110 z-50' :
                     isBeingTargeted ? 'scale-105 z-40' :
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
-                  }`}
+                  } ${isValidTarget ? 'valid-target' : ''} ${isTargetingCaster ? 'targeting-caster' : ''}`}
                   style={{
                     filter: shouldBlur ? 'blur(4px)' : 
-                           isAttacking ? 'drop-shadow(0 0 20px rgba(255,255,0,0.6))' :
-                           isBeingTargeted ? 'drop-shadow(0 0 15px rgba(255,0,0,0.8))' : 'none',
-                    transform: isAttacking ? 'scale(1.1) translateZ(0)' : 
-                              isBeingTargeted ? 'scale(1.05)' :
-                              shouldBlur ? 'scale(0.95)' : 'scale(1)'
+                           isBeingTargeted ? 'drop-shadow(0 0 15px rgba(255,0,0,0.8))' : 
+                           isValidTarget ? 'drop-shadow(0 0 30px rgba(255,215,0,0.8))' : 'none',
+                    transform: isBeingTargeted ? 'scale(1.05)' :
+                              shouldBlur ? 'scale(0.95)' : 
+                              isValidTarget ? 'scale(1.02)' : 'scale(1)',
+                    cursor: isValidTarget ? 'pointer' : 'default'
+                  }}
+                  onClick={(e) => isValidTarget && handleTargetSelect(char, e)}
+                  onMouseEnter={() => {
+                    if (isValidTarget && isTargeting) {
+                      setHoveredTarget(document.getElementById(`char-${char.instanceId}`))
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (isTargeting) {
+                      setHoveredTarget(null)
+                    }
                   }}
                 >
                   <CharacterCard
                     character={char}
-                    isActive={currentTurn === 'ai' && index === activeCharacterIndex % 3 && char.currentHealth > 0}
+                    isActive={currentTurn === 'ai' && aiTeamState.filter(c => c.currentHealth > 0).indexOf(char) === (aiCharacterIndex % aiTeamState.filter(c => c.currentHealth > 0).length)}
                     currentHealth={char.currentHealth}
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
@@ -2199,6 +2630,60 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       </div>
       
       
+      {/* Targeting UI Overlay */}
+      {isTargeting && (
+        <>
+          {/* Targeting Timer */}
+          <div className="absolute top-32 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-black/80 backdrop-blur-lg rounded-2xl px-8 py-4 border-2 border-yellow-400 shadow-2xl">
+              <div className="text-center">
+                <div className="text-yellow-300 font-bold text-lg mb-2">SELECT TARGET</div>
+                <div className="text-4xl font-bold text-white">{targetingTimer}</div>
+                <div className="text-sm text-gray-300 mt-2">
+                  {(() => {
+                    const ability = targetingAbility || window.pvpAbility
+                    if (!ability) return 'Choose a target'
+                    let description = ability.name || 'Choose a target'
+                    if (ability.damage) description += ` (${ability.damage} damage)`
+                    else if (ability.heal) description += ` (${ability.heal} heal)`
+                    else if (ability.shield) description += ` (${ability.shield} shield)`
+                    return description
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Highlight valid targets */}
+          <style jsx>{`
+            .valid-target {
+              cursor: pointer !important;
+              animation: targetPulse 1s ease-in-out infinite;
+            }
+            
+            @keyframes targetPulse {
+              0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+              }
+              50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 40px rgba(255, 215, 0, 1);
+              }
+            }
+          `}</style>
+        </>
+      )}
+      
+      {/* Targeting Arrow */}
+      {isTargeting && casterElement && hoveredTarget && (
+        <SimpleTargetingArrow 
+          startElement={casterElement}
+          endElement={hoveredTarget}
+        />
+      )}
+      
+      
       {/* Back Button */}
       <button
         onClick={onBack}
@@ -2222,6 +2707,27 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       )}
       
       <style jsx>{`
+        @keyframes physical-attack {
+          0% {
+            transform: scale(1) translateZ(0);
+          }
+          30% {
+            transform: scale(1.1) translateZ(0);
+          }
+          50% {
+            transform: scale(1.15) translateZ(0);
+          }
+          100% {
+            transform: scale(1) translateZ(0);
+          }
+        }
+        
+        .physical-attacking {
+          animation: physical-attack 1s ease-in-out forwards;
+          z-index: 50;
+          filter: drop-shadow(0 0 20px rgba(255,255,0,0.6));
+        }
+        
         @keyframes float-up {
           0% {
             opacity: 1;

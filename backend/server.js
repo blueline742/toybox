@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import BattleEngine from './battleEngine.js';
+import PvPBattleManager from './pvpBattleManager.js';
 // Anchor imports removed for now - will add when smart contract is deployed
 // import IDL from './idl/toybox_brawl.json' assert { type: 'json' };
 
@@ -162,30 +163,37 @@ io.on('connection', (socket) => {
       battle.ready.push(wallet);
     }
     
-    if (battle.ready.length === 2 && !battle.engine) {
-      // Both players ready and engine not yet created
+    if (battle.ready.length === 2 && !battle.manager) {
+      // Both players ready and manager not yet created
       battle.state = 'in_progress';
       
       try {
-        // Create server-side battle engine (only once!)
-        console.log('Creating battle engine for:', battleId);
+        // Create PvP battle manager
+        console.log('Creating PvP battle manager for:', battleId);
         console.log('Player 1 team:', battle.player1.teamData);
         console.log('Player 2 team:', battle.player2.teamData);
         
-        battle.engine = new BattleEngine(
+        battle.manager = new PvPBattleManager(
+          io,
           battleId,
-          { teamData: battle.player1.teamData, wallet: battle.player1.wallet },
-          { teamData: battle.player2.teamData, wallet: battle.player2.wallet }
+          battle.player1,
+          battle.player2
         );
         
         // Send initial state to both players
-        const initialState = battle.engine.getState();
+        const initialState = battle.manager.getState();
         console.log('Initial battle state:', initialState);
         
         io.to(battleId).emit('battle_initialized', {
           state: initialState,
-          seed: battle.engine.seed
+          seed: battle.manager.seed
         });
+        
+        // Start the first turn after a delay
+        setTimeout(() => {
+          battle.manager.startTurn();
+        }, 2000);
+        
       } catch (error) {
         console.error('Error creating battle:', error);
         io.to(battleId).emit('battle_error', {
@@ -194,92 +202,16 @@ io.on('connection', (socket) => {
         });
         return;
       }
-      
-      // Start automated battle turns with proper pacing
-      // Wait a bit before starting turns (only if not already started)
-      if (!battle.turnInterval) {
-        setTimeout(() => {
-          battle.turnInterval = setInterval(() => {
-          if (battle.engine.isComplete) {
-            // Prevent multiple cleanup calls
-            if (battle.cleaningUp) return;
-            battle.cleaningUp = true;
-            
-            clearInterval(battle.turnInterval);
-            
-            // Determine the winner wallet
-            let winnerWallet = null;
-            if (battle.engine.winner === 'player1') {
-              winnerWallet = battle.player1.wallet;
-            } else if (battle.engine.winner === 'player2') {
-              winnerWallet = battle.player2.wallet;
-            }
-            
-            console.log('Battle complete:', {
-              battleId,
-              engineWinner: battle.engine.winner,
-              winnerWallet,
-              player1: battle.player1.wallet,
-              player2: battle.player2.wallet
-            });
-            
-            // Check who's in the room before sending
-            const socketsInRoom = io.sockets.adapter.rooms.get(battleId);
-            console.log(`Sockets in battle room ${battleId}:`, socketsInRoom ? Array.from(socketsInRoom) : 'ROOM IS EMPTY!');
-            
-            // Send final results
-            io.to(battleId).emit('battle_complete', {
-              winner: winnerWallet,
-              finalState: battle.engine.getState()
-            });
-            console.log('Emitted battle_complete event to room:', battleId);
-            
-            // Clean up battle room and data after a delay to ensure clients receive the event
-            setTimeout(() => {
-              // Clean up battle room - all sockets leave
-              const socketsInRoom = io.sockets.adapter.rooms.get(battleId);
-              if (socketsInRoom) {
-                socketsInRoom.forEach(socketId => {
-                  io.sockets.sockets.get(socketId)?.leave(battleId);
-                });
-              }
-              
-              // Clean up battle data
-              activeBattles.delete(battleId);
-              console.log(`Cleaned up battle ${battleId}`);
-            }, 5000);
-            
-            return;
-          }
-          
-          // Double-check battle isn't complete before executing turn
-          if (battle.engine.isComplete || battle.cleaningUp) {
-            return;
-          }
-          
-          // Execute next turn on server
-          const action = battle.engine.executeTurn();
-          if (action) {
-            console.log('Broadcasting action:', action);
-            // Broadcast action to both players
-            io.to(battleId).emit('battle_action', {
-              action,
-              state: battle.engine.getState()
-            });
-          } else {
-            // No action returned - check if battle should end
-            const state = battle.engine.getState();
-            console.log('No action returned, checking battle state:', {
-              isComplete: battle.engine.isComplete,
-              winner: battle.engine.winner,
-              player1Alive: state.player1Team.filter(c => c.isAlive).length,
-              player2Alive: state.player2Team.filter(c => c.isAlive).length
-            });
-          }
-        }, 4000); // 4 seconds per turn for smoother animations
-      }, 2000); // Wait 2 seconds before starting
-      }
     }
+  });
+  
+  // Handle target selection from players
+  socket.on('select_target', ({ battleId, targetId, wallet }) => {
+    const battle = activeBattles.get(battleId);
+    if (!battle || !battle.manager) return;
+    
+    // Pass target selection to the battle manager
+    battle.manager.handleTargetSelection(wallet, targetId);
   });
   
   // Remove old battle_action handler - server now controls all battle logic

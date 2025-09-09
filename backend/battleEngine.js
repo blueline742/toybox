@@ -17,7 +17,8 @@ class BattleEngine {
     // Track battle state
     this.isComplete = false;
     this.winner = null;
-    this.activeCharacterIndex = { player1: 0, player2: 0 };
+    this.player1CharacterIndex = 0;
+    this.player2CharacterIndex = 0;
   }
   
   generateSeed(battleId) {
@@ -61,12 +62,12 @@ class BattleEngine {
     }));
   }
   
-  executeTurn() {
+  executeTurn(selectedTargetId = null) {
     if (this.isComplete) return null;
     
     const attackingTeam = this.turnOrder === 'player1' ? this.player1Team : this.player2Team;
     const defendingTeam = this.turnOrder === 'player1' ? this.player2Team : this.player1Team;
-    const activeIndex = this.activeCharacterIndex[this.turnOrder];
+    const currentIndex = this.turnOrder === 'player1' ? this.player1CharacterIndex : this.player2CharacterIndex;
     
     // Find next alive character
     const aliveAttackers = attackingTeam.filter(char => char.isAlive);
@@ -75,7 +76,11 @@ class BattleEngine {
       return null;
     }
     
-    const activeCharacter = aliveAttackers[activeIndex % aliveAttackers.length];
+    // Use proper index cycling through alive characters
+    const characterToUse = currentIndex % aliveAttackers.length;
+    const activeCharacter = aliveAttackers[characterToUse];
+    
+    console.log(`${this.turnOrder} turn - Character ${characterToUse + 1}/${aliveAttackers.length}: ${activeCharacter.name}`);
     
     // Check if frozen
     if (activeCharacter.status.frozen) {
@@ -106,8 +111,23 @@ class BattleEngine {
     // Select ability using seeded random
     const ability = this.selectAbility(activeCharacter);
     
-    // Select targets
-    const targets = this.selectTargets(ability, activeCharacter, defendingTeam, attackingTeam);
+    // Select targets - use player selection if provided
+    let targets;
+    if (selectedTargetId) {
+      // Player selected a specific target
+      const selectedTarget = [...defendingTeam, ...attackingTeam].find(
+        char => char.instanceId === selectedTargetId
+      );
+      if (selectedTarget) {
+        targets = [selectedTarget];
+      } else {
+        // Fallback to automatic selection if target not found
+        targets = this.selectTargets(ability, activeCharacter, defendingTeam, attackingTeam);
+      }
+    } else {
+      // Automatic target selection
+      targets = this.selectTargets(ability, activeCharacter, defendingTeam, attackingTeam);
+    }
     
     // Calculate effects
     const effects = this.calculateEffects(ability, activeCharacter, targets);
@@ -446,8 +466,12 @@ class BattleEngine {
   }
   
   advanceTurn() {
-    // Update active character index
-    this.activeCharacterIndex[this.turnOrder]++;
+    // Increment the appropriate character index
+    if (this.turnOrder === 'player1') {
+      this.player1CharacterIndex++;
+    } else {
+      this.player2CharacterIndex++;
+    }
     
     // Switch turn order
     this.turnOrder = this.turnOrder === 'player1' ? 'player2' : 'player1';
