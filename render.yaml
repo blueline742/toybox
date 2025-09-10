@@ -9,8 +9,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://main--toysbox.netlify.app # Your Netlify URL
+        value: https://toyboxsol.netlify.app # Your Netlify URL
       - key: CORS_ORIGIN
-        value: https://main--toysbox.netlify.app
+        value: https://toyboxsol.netlify.app
     healthCheckPath: /health
     autoDeploy: true # Automatically deploy on push to main branch

@@ -12,7 +12,7 @@ const app = express();
 const httpServer = createServer(app);
 // CORS configuration
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL || 'https://main--toysbox.netlify.app']
+  ? [process.env.FRONTEND_URL || 'https://toyboxsol.netlify.app']
   : ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"];
 
 const io = new Server(httpServer, {
