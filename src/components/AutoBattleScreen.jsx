@@ -655,15 +655,15 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           return {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
-          })
-          
-          positions = {
-            caster: {
-              x: casterRect.left + casterRect.width / 2,
-              y: casterRect.top + casterRect.height / 2
-            },
-            targets: targetPositions
           }
+        })
+        
+        positions = {
+          caster: {
+            x: casterRect.left + casterRect.width / 2,
+            y: casterRect.top + casterRect.height / 2
+          },
+          targets: targetPositions
         }
       }
       
