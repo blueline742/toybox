@@ -2223,11 +2223,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       
       {/* Battle Arena */}
-      <div className="flex-1 relative z-10 flex flex-col md:flex-row items-center justify-center md:justify-between px-2 md:px-8 lg:px-16 py-4 w-full">
+      <div className="flex-1 relative z-10 flex flex-row items-center justify-between px-2 sm:px-4 md:px-8 lg:px-16 py-2 sm:py-4 w-full">
         {/* Blue Team (Player) */}
         <div className="relative w-auto">
           {/* Atmospheric Blue Mist Background */}
-          <div className="absolute -inset-20 pointer-events-none">
+          <div className="absolute -inset-10 sm:-inset-20 pointer-events-none hidden sm:block">
             {/* Misty fog effect */}
             <div className="absolute inset-0 bg-gradient-radial from-blue-400/20 via-cyan-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
             <div className="absolute inset-0 bg-gradient-to-t from-blue-600/30 to-transparent rounded-full blur-2xl" />
@@ -2248,7 +2248,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Team Label */}
-          <div className="absolute -top-16 md:-top-20 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="hidden sm:block absolute -top-12 sm:-top-16 md:-top-20 left-1/2 transform -translate-x-1/2 z-20">
             <div className="relative">
               {/* Glowing orb behind text */}
               <div className="absolute inset-0 bg-gradient-radial from-blue-400 to-transparent blur-2xl scale-150 animate-pulse" />
@@ -2277,7 +2277,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Player Team Cards */}
-          <div className="flex flex-row md:flex-col gap-0.5 sm:gap-2 md:gap-4 justify-center md:justify-start scale-[0.85] sm:scale-95 md:scale-100 origin-center">
+          <div className="flex flex-col gap-1 sm:gap-2 md:gap-4 justify-center scale-[0.65] sm:scale-[0.8] md:scale-100 origin-center">
             {playerTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2378,7 +2378,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         )}
         
         {/* Enhanced VS Indicator with Dynamic Colors */}
-        <div className="absolute top-16 md:top-24 left-1/2 transform -translate-x-1/2 text-center z-25">
+        <div className="absolute top-8 sm:top-16 md:top-24 left-1/2 transform -translate-x-1/2 text-center z-25">
           <div className="relative">
             {/* Glowing background effect */}
             <div 
@@ -2409,7 +2409,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             >
               {/* VS Text */}
               <div 
-                className={`text-5xl sm:text-6xl md:text-7xl font-black tracking-wider transition-all duration-500 ${
+                className={`text-3xl sm:text-5xl md:text-7xl font-black tracking-wider transition-all duration-500 ${
                   currentTurn === 'player'
                     ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300'
                     : 'text-transparent bg-clip-text bg-gradient-to-r from-red-300 to-orange-300'
@@ -2475,12 +2475,12 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         </div>
         
         {/* Middle Spacer */}
-        <div className="w-8 md:w-32 lg:w-48 h-4 md:h-auto"></div>
+        <div className="w-2 sm:w-8 md:w-32 lg:w-48 h-4 md:h-auto"></div>
         
         {/* Red Team (AI) */}
         <div className="relative w-auto">
           {/* Atmospheric Fire Mist Background */}
-          <div className="absolute -inset-20 pointer-events-none">
+          <div className="absolute -inset-10 sm:-inset-20 pointer-events-none hidden sm:block">
             {/* Fiery fog effect */}
             <div className="absolute inset-0 bg-gradient-radial from-red-400/20 via-orange-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
             <div className="absolute inset-0 bg-gradient-to-t from-red-600/30 to-transparent rounded-full blur-2xl" />
@@ -2501,7 +2501,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Team Label */}
-          <div className="absolute -top-16 md:-top-20 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="hidden sm:block absolute -top-12 sm:-top-16 md:-top-20 left-1/2 transform -translate-x-1/2 z-20">
             <div className="relative">
               {/* Glowing orb behind text */}
               <div className="absolute inset-0 bg-gradient-radial from-red-400 to-transparent blur-2xl scale-150 animate-pulse" />
@@ -2530,7 +2530,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* AI Team Cards */}
-          <div className="flex flex-row md:flex-col gap-0.5 sm:gap-2 md:gap-4 justify-center md:justify-start scale-[0.85] sm:scale-95 md:scale-100 origin-center">
+          <div className="flex flex-col gap-1 sm:gap-2 md:gap-4 justify-center scale-[0.65] sm:scale-[0.8] md:scale-100 origin-center">
             {aiTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2634,12 +2634,12 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       {isTargeting && (
         <>
           {/* Targeting Timer */}
-          <div className="absolute top-32 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-black/80 backdrop-blur-lg rounded-2xl px-8 py-4 border-2 border-yellow-400 shadow-2xl">
+          <div className="absolute top-20 sm:top-32 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-black/80 backdrop-blur-lg rounded-xl sm:rounded-2xl px-4 sm:px-8 py-2 sm:py-4 border-2 border-yellow-400 shadow-2xl">
               <div className="text-center">
-                <div className="text-yellow-300 font-bold text-lg mb-2">SELECT TARGET</div>
-                <div className="text-4xl font-bold text-white">{targetingTimer}</div>
-                <div className="text-sm text-gray-300 mt-2">
+                <div className="text-yellow-300 font-bold text-sm sm:text-lg mb-1 sm:mb-2">SELECT TARGET</div>
+                <div className="text-2xl sm:text-4xl font-bold text-white">{targetingTimer}</div>
+                <div className="text-xs sm:text-sm text-gray-300 mt-1 sm:mt-2">
                   {(() => {
                     const ability = targetingAbility || window.pvpAbility
                     if (!ability) return 'Choose a target'

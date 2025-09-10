@@ -45,15 +45,15 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
   }
 
   return (
-    <div className="fixed bottom-16 md:bottom-20 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
-      <div className="animate-spell-appear scale-75 md:scale-100">
+    <div className="fixed bottom-12 sm:bottom-16 md:bottom-20 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
+      <div className="animate-spell-appear scale-50 sm:scale-75 md:scale-100">
         {/* Main Card Container */}
         <div className={`
           relative bg-gradient-to-br ${getRarityGradient(caster.rarity)}
           p-1 rounded-2xl shadow-2xl
           transform animate-pulse shadow-2xl
         `}>
-          <div className="bg-gray-900 rounded-lg md:rounded-xl p-3 md:p-6 relative overflow-hidden">
+          <div className="bg-gray-900 rounded-lg md:rounded-xl p-2 sm:p-3 md:p-6 relative overflow-hidden">
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
@@ -62,15 +62,15 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
             {/* Content */}
             <div className="relative z-10">
               {/* Main Section - Spell Name and Targets */}
-              <div className="flex items-center justify-center gap-3 md:gap-4 mb-3">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-3">
                 {/* Spell Icon */}
-                <span className="text-2xl md:text-4xl animate-bounce">
+                <span className="text-xl sm:text-2xl md:text-4xl animate-bounce">
                   {getAbilityTypeIcon(ability.effect)}
                 </span>
                 
                 {/* Spell Name */}
                 <div className={`
-                  text-2xl md:text-4xl font-black font-toy
+                  text-lg sm:text-2xl md:text-4xl font-black font-toy
                   bg-gradient-to-r ${getRarityGradient(caster.rarity)}
                   bg-clip-text text-transparent
                   animate-text-shimmer
@@ -81,12 +81,12 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                 {/* Arrow and Target Portraits */}
                 {targets && targets.length > 0 && (
                   <>
-                    <span className="text-white/70 text-xl md:text-2xl">→</span>
+                    <span className="text-white/70 text-base sm:text-xl md:text-2xl">→</span>
                     <div className="flex items-center gap-1">
                       {targets.slice(0, 4).map((target, idx) => (
                         <div key={idx} className="relative">
                           <div className={`
-                            w-10 h-10 md:w-14 md:h-14 rounded-full 
+                            w-8 h-8 sm:w-10 sm:h-10 md:w-14 md:h-14 rounded-full 
                             bg-gradient-to-br ${target.team === 'player' ? 'from-blue-500 to-cyan-500' : 'from-red-500 to-orange-500'}
                             p-0.5 shadow-lg
                             ${ability.effect.includes('damage') ? 'animate-shake' : ability.effect.includes('heal') ? 'animate-pulse' : ''}
@@ -121,7 +121,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                 {/* Damage/Heal Amount */}
                 {(ability.damage || ability.heal) && (
                   <div className={`
-                    text-xl md:text-3xl font-bold
+                    text-base sm:text-xl md:text-3xl font-bold
                     ${ability.damage ? 'text-red-400' : 'text-green-400'}
                   `}>
                     {ability.damage ? `-${ability.damage}` : `+${ability.heal}`}
@@ -131,7 +131,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
               
               {/* Description Section */}
               {ability.description && (
-                <div className="text-center text-white/60 text-xs md:text-sm mb-2 italic">
+                <div className="text-center text-white/60 text-[10px] sm:text-xs md:text-sm mb-1 sm:mb-2 italic">
                   "{ability.description}"
                 </div>
               )}
@@ -141,7 +141,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                 {/* Small Caster Portrait */}
                 {caster && (
                   <div className={`
-                    w-12 h-12 md:w-14 md:h-14 rounded-full
+                    w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full
                     bg-gradient-to-br ${getRarityGradient(caster?.rarity || 'common')}
                     p-0.5
                   `}>
@@ -167,7 +167,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                 )}
                 
                 {/* Caster Name */}
-                <div className="text-white/80 text-sm md:text-base font-toy">
+                <div className="text-white/80 text-xs sm:text-sm md:text-base font-toy">
                   {caster.name}
                 </div>
                 
@@ -198,8 +198,8 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
             
             {/* Ultimate Badge */}
             {ability.isUltimate && (
-              <div className="absolute top-2 right-2">
-                <div className="bg-gradient-to-r from-yellow-400 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+              <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
+                <div className="bg-gradient-to-r from-yellow-400 to-red-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full animate-pulse">
                   ULTIMATE
                 </div>
               </div>
