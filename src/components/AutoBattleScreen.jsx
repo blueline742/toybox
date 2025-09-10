@@ -9,6 +9,7 @@ import {
   generateAITeam 
 } from '../game/enhancedCharacters.js'
 import SeededRandom, { createBattleSeed } from '../utils/seededRandom'
+import { getAnimationQueue } from '../utils/AnimationQueue'
 import { ARENAS } from '../game/powerups'
 import ParticleEffects from './ParticleEffects'
 import MagicParticles from './MagicParticles'
@@ -46,6 +47,9 @@ import {
 
 const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP = false, pvpData = null }) => {
   const { publicKey } = useWallet()
+  
+  // Initialize animation queue
+  const animationQueue = useRef(getAnimationQueue())
   
   // Randomly select arena background (50/50 chance)
   const [arenaBackground] = useState(() => {
@@ -513,34 +517,33 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const displayServerAction = (action) => {
     // Display action from server in PvP mode
     if (action.type === 'skip_turn') {
-      setSpellNotification({
-        ability: { name: 'FROZEN', description: 'Skips turn due to being frozen!' },
-        caster: action.caster
+      // Queue skip turn notification
+      animationQueue.current.add({
+        type: 'notification',
+        duration: 2000,
+        onStart: () => {
+          setSpellNotification({
+            ability: { name: 'FROZEN', description: 'Skips turn due to being frozen!' },
+            caster: action.caster
+          })
+        },
+        onComplete: () => {
+          setSpellNotification(null)
+          // Clear frozen status after skip turn
+          if (action.reason === 'frozen' && isPvP) {
+            setFrozenCharacters(prev => {
+              const newMap = new Map(prev)
+              newMap.delete(action.caster.instanceId)
+              console.log(`🔥 Clearing frozen for ${action.caster.name} after skip turn`)
+              return newMap
+            })
+          }
+        }
       })
-      
-      // Clear frozen status after skip turn
-      if (action.reason === 'frozen' && isPvP) {
-        setFrozenCharacters(prev => {
-          const newMap = new Map(prev)
-          newMap.delete(action.caster.instanceId)
-          console.log(`🔥 Clearing frozen for ${action.caster.name} after skip turn`)
-          return newMap
-        })
-      }
-      
-      setTimeout(() => setSpellNotification(null), 2000)
       return
     }
     
     if (action.type === 'ability_used') {
-      // Always clear previous animation state first
-      setActiveAttacker(null)
-      setAttackInProgress(false)
-      setActiveTargets([])
-      setHealingTargets([])
-      
-      setIsAnimating(true)
-      
       // Find the caster and target elements
       const casterChar = [...playerTeamState, ...aiTeamState].find(
         c => c.instanceId === action.caster.instanceId
@@ -636,102 +639,215 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       }
       
       // Calculate spell positions for animations
-      setTimeout(() => {
-        const casterElement = document.getElementById(`char-${action.caster.instanceId}`)
-        const targetElements = action.targets.map(t => 
-          document.getElementById(`char-${t.instanceId}`)
-        ).filter(Boolean)
+      const casterElement = document.getElementById(`char-${action.caster.instanceId}`)
+      const targetElements = action.targets.map(t => 
+        document.getElementById(`char-${t.instanceId}`)
+      ).filter(Boolean)
+      
+      let positions = null
+      if (casterElement && targetElements.length > 0) {
+        const casterCard = casterElement.querySelector('.w-40') || casterElement
+        const casterRect = casterCard.getBoundingClientRect()
         
-        if (casterElement && targetElements.length > 0) {
-          const casterCard = casterElement.querySelector('.w-40') || casterElement
-          const casterRect = casterCard.getBoundingClientRect()
-          
-          const targetPositions = targetElements.map(el => {
-            const targetCard = el.querySelector('.w-40') || el
-            const rect = targetCard.getBoundingClientRect()
-            return {
-              x: rect.left + rect.width / 2,
-              y: rect.top + rect.height / 2
-            }
+        const targetPositions = targetElements.map(el => {
+          const targetCard = el.querySelector('.w-40') || el
+          const rect = targetCard.getBoundingClientRect()
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
           })
           
-          setSpellPositions({
+          positions = {
             caster: {
               x: casterRect.left + casterRect.width / 2,
               y: casterRect.top + casterRect.height / 2
             },
             targets: targetPositions
-          })
-          
-          // Show spell effects with proper data
-          // The server now sends the character's id directly
-          setActiveSpell({
-            ability: action.ability,
-            caster: {
-              ...(casterChar || action.caster),
-              id: action.caster.id // Use the ID sent from server
-            },
-            targets: targetChars.length > 0 ? targetChars : action.targets
-          })
+          }
         }
-      }, 100)
-      
-      // Show damage numbers
-      if (action.effects) {
-        setTimeout(() => {
-          action.effects.forEach(effect => {
-            let displayAmount = effect.amount
-            let displayType = 'damage'
-            
-            if (effect.type === 'damage') {
-              displayType = effect.isCritical ? 'critical' : 'damage'
-            } else if (effect.type === 'heal') {
-              displayType = 'heal'
-            } else if (effect.type === 'shield') {
-              displayType = 'shield'
-            } else if (effect.type === 'revive') {
-              displayType = 'heal'
-              displayAmount = 'REVIVED!'
-            }
-            
-            showDamageNumber(displayAmount, displayType, effect.targetId, effect.isCritical)
-          })
-        }, 500)
       }
       
-      // Clear attack animation states earlier for physical attacks
-      setTimeout(() => {
-        console.log('Clearing attack animation states in PvP')
-        setActiveAttacker(null)
-        setAttackInProgress(false)
-        setActiveTargets([])
-        setHealingTargets([])
+      // Queue the spell sequence from server
+      animationQueue.current.queueSpellSequence({
+        caster: action.caster,
+        ability: action.ability,
+        targets: action.targets,
+        positions: positions,
+        effects: action.effects || [],
         
-        // Force reset any stuck transform and position styles
-        const allCharElements = document.querySelectorAll('[id^="char-"]')
-        allCharElements.forEach(el => {
-          // Reset transform
-          if (el.style.transform && el.style.transform !== 'scale(1)') {
-            console.log('Force resetting stuck transform on:', el.id)
-            el.style.transform = 'scale(1)'
+        onCastStart: () => {
+          // Clear previous animation state
+          setActiveAttacker(null)
+          setAttackInProgress(false)
+          setActiveTargets([])
+          setHealingTargets([])
+          
+          setIsAnimating(true)
+          
+          // Don't set any attack animation states - let the spell effects handle everything
+          // Just set targets for highlighting
+          if (targetChars.length > 0) {
+            setActiveTargets(targetChars.map(t => t.instanceId))
           }
-          // Reset any position changes
-          if (el.style.position === 'absolute' || el.style.position === 'fixed') {
-            el.style.position = ''
+          
+          // Show spell notification - prefer server data which has the image
+          const notificationCaster = action.caster.image ? action.caster : (casterChar || action.caster)
+          console.log('Action caster from server:', action.caster)
+          console.log('Local casterChar found:', casterChar)
+          console.log('Final notification caster:', notificationCaster)
+          console.log('Has image?', notificationCaster?.image)
+          
+          setSpellNotification({
+            ability: action.ability,
+            caster: notificationCaster,
+            targets: targetChars.length > 0 ? targetChars.map((char, idx) => ({
+              ...char,
+              ...action.targets[idx]
+            })) : action.targets
+          })
+        },
+        
+        onProjectileStart: () => {
+          if (positions) {
+            setSpellPositions(positions)
+            // Show spell effects with proper data
+            setActiveSpell({
+              ability: action.ability,
+              caster: {
+                ...(casterChar || action.caster),
+                id: action.caster.id // Use the ID sent from server
+              },
+              targets: targetChars.length > 0 ? targetChars : action.targets
+            })
           }
-          if (el.style.top) el.style.top = ''
-          if (el.style.left) el.style.left = ''
-          if (el.style.zIndex) el.style.zIndex = ''
-        })
-      }, 1000)  // Reduced from 1500 to 1000ms for faster clear
+        },
+        
+        onImpact: () => {
+          // Track battle statistics and effects
+          if (action.effects) {
+            setBattleStats(prev => {
+              const newStats = { ...prev }
+              
+              action.effects.forEach(effect => {
+                if (effect.type === 'damage') {
+                  // Track damage dealt by the caster
+                  const casterId = action.caster.id || action.caster.instanceId
+                  newStats.damageDealt[casterId] = (newStats.damageDealt[casterId] || 0) + effect.amount
+                  newStats.totalDamage = (newStats.totalDamage || 0) + effect.amount
+                } else if (effect.type === 'heal') {
+                  // Track healing done by the caster
+                  const casterId = action.caster.id || action.caster.instanceId
+                  newStats.healingDone[casterId] = (newStats.healingDone[casterId] || 0) + effect.amount
+                }
+                
+                // Track freeze effects for visual display in PvP mode
+                if ((effect.type === 'freeze' || effect.freeze) && isPvP) {
+                  console.log('🧊 PvP FREEZE DETECTED in AutoBattleScreen:', {
+                    targetId: effect.targetId,
+                    effectType: effect.type,
+                    hasFreeze: effect.freeze,
+                    isPvP: isPvP
+                  })
+                  setFrozenCharacters(prev => {
+                    const newMap = new Map(prev)
+                    newMap.set(effect.targetId, { frozen: true, turnsRemaining: 1 })
+                    console.log('🧊 Updated frozen characters:', Array.from(newMap.keys()))
+                    return newMap
+                  })
+                }
+                
+                // Track shield effects for visual display in PvP mode
+                if (effect.type === 'shield' && isPvP) {
+                  console.log('🛡️ PvP SHIELD DETECTED:', {
+                    targetId: effect.targetId,
+                    amount: effect.amount
+                  })
+                  // Set healing targets to show the shield animation
+                  setHealingTargets(prev => {
+                    const prevArray = Array.isArray(prev) ? prev : []
+                    return [...new Set([...prevArray, effect.targetId])]
+                  })
+                  
+                  // Clear healing targets after animation
+                  setTimeout(() => {
+                    setHealingTargets(prev => {
+                      const prevArray = Array.isArray(prev) ? prev : []
+                      return prevArray.filter(id => id !== effect.targetId)
+                    })
+                  }, 2000)
+                }
+              })
+              
+              // Track ultimates
+              if (action.ability.isUltimate) {
+                newStats.ultimatesUsed = (newStats.ultimatesUsed || 0) + 1
+              }
+              
+              return newStats
+            })
+          }
+        },
+        
+        onDamageNumbers: () => {
+          // Show damage numbers
+          if (action.effects) {
+            action.effects.forEach(effect => {
+              let displayAmount = effect.amount
+              let displayType = 'damage'
+              
+              if (effect.type === 'damage') {
+                displayType = effect.isCritical ? 'critical' : 'damage'
+              } else if (effect.type === 'heal') {
+                displayType = 'heal'
+              } else if (effect.type === 'shield') {
+                displayType = 'shield'
+              } else if (effect.type === 'revive') {
+                displayType = 'heal'
+                displayAmount = 'REVIVED!'
+              }
+              
+              showDamageNumber(displayAmount, displayType, effect.targetId, effect.isCritical)
+            })
+          }
+        }
+      })
       
-      // Clear other effects after animation
-      setTimeout(() => {
-        setSpellNotification(null)
-        setActiveSpell(null)
-        setSpellPositions(null)
-        setIsAnimating(false)
-      }, 3000)
+      // Set up animation complete handler for cleanup
+      animationQueue.current.onAnimationComplete = (animation) => {
+        if (animation.type === 'spell_impact') {
+          // Clear attack animation states
+          console.log('Clearing attack animation states in PvP')
+          setActiveAttacker(null)
+          setAttackInProgress(false)
+          setActiveTargets([])
+          setHealingTargets([])
+          
+          // Force reset any stuck transform and position styles
+          const allCharElements = document.querySelectorAll('[id^="char-"]')
+          allCharElements.forEach(el => {
+            // Reset transform
+            if (el.style.transform && el.style.transform !== 'scale(1)') {
+              console.log('Force resetting stuck transform on:', el.id)
+              el.style.transform = 'scale(1)'
+            }
+            // Reset any position changes
+            if (el.style.position === 'absolute' || el.style.position === 'fixed') {
+              el.style.position = ''
+            }
+            if (el.style.top) el.style.top = ''
+            if (el.style.left) el.style.left = ''
+            if (el.style.zIndex) el.style.zIndex = ''
+          })
+          
+          // Clear other effects after a short delay
+          setTimeout(() => {
+            setSpellNotification(null)
+            setActiveSpell(null)
+            setSpellPositions(null)
+            setIsAnimating(false)
+          }, 500)
+        }
+      }
     }
   }
   
@@ -830,105 +946,128 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
 
   // New function to execute ability on selected target
   const executeAbilityOnTarget = (caster, ability, targets, isPlayerTurn) => {
-    // Update spell notification with targets
-    setSpellNotification({ 
-      ability: ability, 
-      caster: caster,
-      targets: targets.map(t => ({
-        name: t.name,
-        emoji: t.emoji,
-        image: t.image,
-        team: isPlayerTurn ? 'ai' : 'player'
-      }))
-    })
+    // Calculate positions for animations
+    const casterElement = document.getElementById(`char-${caster.instanceId}`)
+    const targetElements = targets.map(t => document.getElementById(`char-${t.instanceId}`))
     
-    // Reset all character transforms before new attack (fix for stuck positions in PvP)
-    const allCharElements = document.querySelectorAll('[id^="char-"]')
-    allCharElements.forEach(el => {
-      el.style.transform = ''
-      el.style.transition = ''
-      el.style.zIndex = ''
-      el.style.position = ''
-    })
-    
-    // Set up attack focus
-    const mainTarget = targets[0]
-    if (mainTarget) {
-      setActiveAttacker(caster)
-      setAttackInProgress(true)
+    let positions = null
+    if (casterElement && targetElements.length > 0) {
+      const casterCard = casterElement.querySelector('.w-40') || casterElement
+      const casterRect = casterCard.getBoundingClientRect()
       
-      // Clear previous indicators
-      setActiveTargets([])
-      setHealingTargets([])
+      const targetPositions = targetElements
+        .filter(el => el !== null)
+        .map(el => {
+          const targetCard = el.querySelector('.w-40') || el
+          const rect = targetCard.getBoundingClientRect()
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+          }
+        })
       
-      // Set indicators based on ability type
-      if (caster.id !== 'unicorn_warrior' && caster.id !== 'phoenix_dragon' && caster.id !== 'robo_fighter' && caster.id !== 'wizard_toy') {
-        if (ability.effect === 'heal' || ability.effect === 'heal_shield') {
-          setHealingTargets([mainTarget.instanceId])
-        } else if (ability.effect === 'heal_all') {
-          setHealingTargets(targets.map(t => t.instanceId))
-        } else if (ability.effect === 'shield' || ability.effect === 'shield_all') {
-          setHealingTargets(targets.map(t => t.instanceId))
-        } else {
-          setActiveTargets(targets.map(t => t.instanceId))
+      if (targetPositions.length > 0) {
+        positions = {
+          caster: {
+            x: casterRect.left + casterRect.width / 2,
+            y: casterRect.top + casterRect.height / 2
+          },
+          targets: targetPositions
         }
       }
     }
     
-    // Execute ability animation
-    setTimeout(() => {
-      if (targets.length > 0) {
-        const casterElement = document.getElementById(`char-${caster.instanceId}`)
-        const targetElements = targets.map(t => document.getElementById(`char-${t.instanceId}`))
+    // Queue the full spell sequence
+    animationQueue.current.queueSpellSequence({
+      caster: caster,
+      ability: ability,
+      targets: targets,
+      positions: positions,
+      effects: [], // Will be populated when damage is calculated
+      
+      // Animation callbacks
+      onCastStart: () => {
+        // Show spell notification
+        setSpellNotification({ 
+          ability: ability, 
+          caster: caster,
+          targets: targets.map(t => ({
+            name: t.name,
+            emoji: t.emoji,
+            image: t.image,
+            team: isPlayerTurn ? 'ai' : 'player'
+          }))
+        })
         
-        if (casterElement && targetElements.length > 0) {
-          const casterCard = casterElement.querySelector('.w-40') || casterElement
-          const casterRect = casterCard.getBoundingClientRect()
+        // Reset all character transforms
+        const allCharElements = document.querySelectorAll('[id^="char-"]')
+        allCharElements.forEach(el => {
+          el.style.transform = ''
+          el.style.transition = ''
+          el.style.zIndex = ''
+          el.style.position = ''
+        })
+        
+        // Set up attack focus
+        const mainTarget = targets[0]
+        if (mainTarget) {
+          setActiveAttacker(caster)
+          setAttackInProgress(true)
+          setActiveTargets([])
+          setHealingTargets([])
           
-          const targetPositions = targetElements
-            .filter(el => el !== null)
-            .map(el => {
-              const targetCard = el.querySelector('.w-40') || el
-              const rect = targetCard.getBoundingClientRect()
-              return {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-              }
-            })
-          
-          if (targetPositions.length > 0) {
-            setSpellPositions({
-              caster: {
-                x: casterRect.left + casterRect.width / 2,
-                y: casterRect.top + casterRect.height / 2
-              },
-              targets: targetPositions
-            })
-            
-            setActiveSpell({
-              ability: ability,
-              caster: caster,
-              targets: targets
-            })
+          // Set indicators based on ability type
+          if (caster.id !== 'unicorn_warrior' && caster.id !== 'phoenix_dragon' && caster.id !== 'robo_fighter' && caster.id !== 'wizard_toy') {
+            if (ability.effect === 'heal' || ability.effect === 'heal_shield') {
+              setHealingTargets([mainTarget.instanceId])
+            } else if (ability.effect === 'heal_all') {
+              setHealingTargets(targets.map(t => t.instanceId))
+            } else if (ability.effect === 'shield' || ability.effect === 'shield_all') {
+              setHealingTargets(targets.map(t => t.instanceId))
+            } else {
+              setActiveTargets(targets.map(t => t.instanceId))
+            }
           }
         }
-        
-        setIsAnimating(true)
-      }
+      },
       
-      // Apply effects after animation
-      setTimeout(() => {
+      onProjectileStart: () => {
+        // Show spell positions and active spell
+        if (positions) {
+          setSpellPositions(positions)
+          setActiveSpell({
+            ability: ability,
+            caster: caster,
+            targets: targets
+          })
+          setIsAnimating(true)
+        }
+      },
+      
+      onImpact: () => {
+        // Apply damage/healing effects
         applyAbilityEffects(ability, caster, targets, isPlayerTurn)
-        
-        // Clear spell effects
+      },
+      
+      onDamageNumbers: () => {
+        // Damage numbers are shown automatically by applyAbilityEffects
+      }
+    })
+    
+    // Set up animation complete handler
+    animationQueue.current.onAnimationComplete = (animation) => {
+      if (animation.type === 'spell_impact') {
+        // Clear spell effects after impact
         setTimeout(() => {
           setActiveSpell(null)
           setSpellPositions(null)
+          setSpellNotification(null)
           setParticleIntensity('normal')
           setActiveAttacker(null)
           setAttackInProgress(false)
           setActiveTargets([])
           setHealingTargets([])
+          setIsAnimating(false)
         }, 500)
         
         // Handle multi-hit abilities
@@ -951,8 +1090,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         } else {
           endTurn()
         }
-      }, 1500 / battleSpeed)
-    }, 200)
+      }
+    }
   }
   
   // Handle player target selection
