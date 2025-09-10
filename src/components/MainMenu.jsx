@@ -13,8 +13,8 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [floatingToys, setFloatingToys] = useState([])
 
   useEffect(() => {
-    // Start menu music
-    musicManager.playMenuMusic()
+    // Menu music disabled - only sound effects
+    // musicManager.playMenuMusic()
     
     // Generate floating toy emojis (fewer for cleaner look)
     const toys = ['🧸', '🎮', '🚀', '🤖', '🦖', '🎨', '⚽', '🎯']

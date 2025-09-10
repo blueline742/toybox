@@ -120,8 +120,8 @@ const PvPBattleScreen = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBac
   };
   
   useEffect(() => {
-    // Start battle music
-    musicManager.crossFade('/battlemusic.mp3', 'battle', 1000);
+    // Battle music disabled - only sound effects
+    // musicManager.crossFade('/battlemusic.mp3', 'battle', 1000);
     
     if (!pvpData?.socket) {
       console.error('No socket in pvpData!');
@@ -247,6 +247,31 @@ const PvPBattleScreen = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBac
       socket.off('battle_error');
     };
   }, [pvpData, publicKey]);
+  
+  // Play turn notification sound when it becomes our turn
+  useEffect(() => {
+    if (!currentTurn || !battleState || battleState !== 'in_progress') return;
+    
+    const isOurTurn = (isPlayer1 && currentTurn === 'player1') || (!isPlayer1 && currentTurn === 'player2');
+    const wasOurTurn = (isPlayer1 && lastTurnRef.current === 'player1') || (!isPlayer1 && lastTurnRef.current === 'player2');
+    
+    // Only play sound if it just became our turn (not on initial load or if it was already our turn)
+    if (isOurTurn && !wasOurTurn && lastTurnRef.current !== null) {
+      // Cycle through the 4 sound files
+      const soundFiles = ['yourturn.wav', 'yourturn1.wav', 'yourturn2.wav', 'yourturn3.wav'];
+      const soundToPlay = soundFiles[turnSoundIndex];
+      
+      const turnSound = new Audio(`/${soundToPlay}`);
+      turnSound.volume = 0.6;
+      turnSound.play().catch(err => console.log('Could not play turn sound:', err));
+      
+      // Update index for next time (cycle through 0-3)
+      setTurnSoundIndex((prevIndex) => (prevIndex + 1) % 4);
+    }
+    
+    // Update last turn reference
+    lastTurnRef.current = currentTurn;
+  }, [currentTurn, battleState, isPlayer1, turnSoundIndex]);
   
   const displayAction = (action) => {
     if (action.type === 'skip_turn') {

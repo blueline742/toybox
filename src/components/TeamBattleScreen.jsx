@@ -90,8 +90,8 @@ const TeamBattleScreen = ({ playerTeam, onBattleEnd, onBack }) => {
 
   // Initialize battle
   useEffect(() => {
-    // Start battle music with crossfade from menu music
-    musicManager.crossFade('/battlemusic.mp3', 'battle', 1000)
+    // Battle music disabled - only sound effects
+    // musicManager.crossFade('/battlemusic.mp3', 'battle', 1000)
     
     addToBattleLog('⚔️ Team Battle Begins!')
     addToBattleLog(`📍 Arena: ${currentArena.name}`)
@@ -616,8 +616,8 @@ const TeamBattleScreen = ({ playerTeam, onBattleEnd, onBack }) => {
       }
       
       setTimeout(() => {
-        // Transition back to menu music when battle ends
-        musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
+        // Menu music disabled - only sound effects
+        // musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
         onBattleEnd(result)
       }, 2000)
     }

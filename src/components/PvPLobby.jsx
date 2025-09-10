@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useSocket } from '../contexts/SocketContext';
+import { useTouchClick } from '../hooks/useTouchClick';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
 const RPC_ENDPOINT = 'https://api.devnet.solana.com';
@@ -203,64 +204,74 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
     }
   };
 
-  return (
-    <div className="pvp-lobby h-screen overflow-y-auto overflow-x-hidden">
-      <div className="min-h-screen relative bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        {/* Epic 3D Background - Add your AI generated background here */}
-        <div className="fixed inset-0 pointer-events-none">
-        {/* Placeholder for AI background image */}
-        <div 
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'url(/pvp-arena-bg.jpg)', // Add your AI generated background here
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'brightness(0.7)'
-          }}
-        />
-        
-        {/* Animated toy blocks falling */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-fall"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: '-50px',
-                animationDelay: `${Math.random() * 10}s`,
-                animationDuration: `${10 + Math.random() * 10}s`
-              }}
-            >
-              <div 
-                className={`w-8 h-8 md:w-12 md:h-12 rounded-lg ${
-                  ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'][Math.floor(Math.random() * 6)]
-                } opacity-60 transform rotate-45`}
-                style={{
-                  boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.5), 0 2px 20px rgba(0,0,0,0.3)'
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        
-        {/* Lightning effects */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="lightning-container">
-            <div className="lightning lightning-1" />
-            <div className="lightning lightning-2" />
-          </div>
-        </div>
+  // Touch handlers for mobile - must be after function definitions
+  const backButtonHandlers = useTouchClick(onBack);
+  const findMatchHandlers = useTouchClick(findMatch);
+  const cancelMatchmakingHandlers = useTouchClick(cancelMatchmaking);
 
-        {/* Animated gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-purple-900/40 animate-gradient-shift" />
+  return (
+    <div className="pvp-lobby h-screen overflow-y-auto overflow-x-hidden relative">
+      {/* Background Layer - Not scaled */}
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 pointer-events-none">
+        {/* Epic 3D Background - Add your AI generated background here */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Placeholder for AI background image */}
+          <div 
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: 'url(/pvp-arena-bg.jpg)', // Add your AI generated background here
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'brightness(0.7)'
+            }}
+          />
+          
+          {/* Animated toy blocks falling */}
+          <div className="absolute inset-0">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-fall"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: '-50px',
+                  animationDelay: `${Math.random() * 10}s`,
+                  animationDuration: `${10 + Math.random() * 10}s`
+                }}
+              >
+                <div 
+                  className={`w-8 h-8 md:w-12 md:h-12 rounded-lg ${
+                    ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'][Math.floor(Math.random() * 6)]
+                  } opacity-60 transform rotate-45`}
+                  style={{
+                    boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.5), 0 2px 20px rgba(0,0,0,0.3)'
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          
+          {/* Lightning effects */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="lightning-container">
+              <div className="lightning lightning-1" />
+              <div className="lightning lightning-2" />
+            </div>
+          </div>
+
+          {/* Animated gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-purple-900/40 animate-gradient-shift" />
+        </div>
       </div>
+
+      {/* Content Layer - Scaled on mobile */}
+      <div id="pvp-wrapper" className="min-h-screen relative z-10 pointer-events-auto">
 
       {/* Main Content */}
       <div className="relative z-10 px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
         {/* Back Button */}
         <button
-          onClick={onBack}
+          {...backButtonHandlers}
           className="mb-4 md:mb-6 px-4 py-2 md:px-6 md:py-3 bg-black/50 backdrop-blur-md hover:bg-black/70 text-white rounded-full font-bold transition-all transform hover:scale-105 shadow-xl border border-white/20"
         >
           ← Back
@@ -373,7 +384,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
                 ].map((stake) => (
                   <button
                     key={stake.amount}
-                    onClick={() => setWagerAmount(stake.amount)}
+                    {...useTouchClick(() => setWagerAmount(stake.amount))}
                     className={`
                       relative p-3 md:p-6 rounded-2xl transition-all transform hover:scale-105 hover:-rotate-2
                       ${wagerAmount === stake.amount 
@@ -415,7 +426,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
             {/* Matchmaking Button */}
             {!matchmaking ? (
               <button
-                onClick={findMatch}
+                {...findMatchHandlers}
                 disabled={!selectedTeam || selectedTeam.length === 0}
                 className="w-full relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -479,7 +490,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
 
                 {/* Cancel Button */}
                 <button
-                  onClick={cancelMatchmaking}
+                  {...cancelMatchmakingHandlers}
                   className="w-full py-3 md:py-4 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white font-bold text-lg md:text-xl rounded-2xl transition-all transform hover:scale-[1.02] shadow-xl border-2 border-red-400/50"
                 >
                   ❌ CANCEL SEARCH
@@ -575,6 +586,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           </div>
         </div>
       </div>
+      </div> {/* Close #pvp-wrapper */}
 
       <style jsx>{`
         @keyframes gradient-x {
@@ -737,7 +749,6 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           }
         }
       `}</style>
-      </div>
     </div>
   );
 };

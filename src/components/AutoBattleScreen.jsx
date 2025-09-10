@@ -217,8 +217,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   
   // Initialize battle
   useEffect(() => {
-    // Start battle music with crossfade
-    musicManager.crossFade('/battlemusic.mp3', 'battle', 1000)
+    // Battle music disabled - only sound effects
+    // musicManager.crossFade('/battlemusic.mp3', 'battle', 1000)
     
     // Setup PvP socket listeners if in PvP mode
     if (isPvP && pvpData?.socket) {
@@ -2098,8 +2098,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   }
   
   const handleGameOverContinue = () => {
-    // Transition back to menu music
-    musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
+    // Menu music disabled - only sound effects
+    // musicManager.crossFade('/menumusic.mp3', 'menu', 1000)
     
     if (gameOverData) {
       const result = {

@@ -566,7 +566,7 @@
    Mobile Responsive Styles - Scaling Approach
    ======================================== */
 
-/* Game wrapper - no transform scaling to preserve hitboxes */
+/* Game wrapper - simple scaling approach for mobile */
 #game-wrapper {
   display: flex;
   flex-direction: column;
@@ -574,6 +574,46 @@
   justify-content: center;
   width: 100%;
   position: relative;
+}
+
+/* Simple mobile scaling - desktop design stays the same, just smaller */
+@media (max-width: 768px) {
+  #game-wrapper,
+  #pvp-wrapper {
+    zoom: 0.85;
+    -moz-transform: scale(0.85);
+    -moz-transform-origin: top center;
+  }
+}
+
+@media (max-width: 480px) {
+  #game-wrapper,
+  #pvp-wrapper {
+    zoom: 0.7;
+    -moz-transform: scale(0.7);
+    -moz-transform-origin: top center;
+  }
+}
+
+/* Mobile touch optimizations - applied globally for all touch devices */
+@media (pointer: coarse) {
+  /* Ensure all buttons work with touch despite transform scaling */
+  button,
+  [role="button"],
+  .clickable,
+  a {
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* Active state for better touch feedback */
+  button:active,
+  [role="button"]:active,
+  .clickable:active {
+    opacity: 0.8;
+  }
 }
 
 /* Battle wrapper - specific to battle screens */
@@ -969,76 +1009,7 @@
 }
 
 /* Landscape Mode Adjustments */
-/* ========================================
-   PvP Lobby & Bet Selection Responsive 
-   ======================================== */
-@media (max-width: 768px) {
-  /* PvP Lobby Title */
-  .pvp-lobby h1 {
-    font-size: 2.5rem !important;
-  }
-  
-  /* Bet selection grid */
-  .pvp-lobby .grid-cols-3 {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 0.5rem !important;
-  }
-  
-  /* Bet amount buttons */
-  .pvp-lobby button[onClick*="setWagerAmount"] {
-    padding: 0.75rem !important;
-    font-size: 0.875rem !important;
-  }
-  
-  .pvp-lobby button[onClick*="setWagerAmount"] .text-2xl,
-  .pvp-lobby button[onClick*="setWagerAmount"] .text-4xl {
-    font-size: 1.25rem !important;
-  }
-  
-  .pvp-lobby button[onClick*="setWagerAmount"] .text-lg {
-    font-size: 0.875rem !important;
-  }
-  
-  /* Stats cards */
-  .pvp-lobby .grid-cols-1.md\\:grid-cols-3 {
-    grid-template-columns: 1fr !important;
-    gap: 0.75rem !important;
-  }
-  
-  .pvp-lobby .text-3xl.md\\:text-5xl {
-    font-size: 1.875rem !important;
-  }
-  
-  .pvp-lobby .text-4xl.md\\:text-6xl {
-    font-size: 2.25rem !important;
-  }
-  
-  /* Matchmaking button */
-  .pvp-lobby button[onClick*="startMatchmaking"] {
-    padding: 0.75rem 1.5rem !important;
-    font-size: 1rem !important;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Even smaller adjustments for mobile */
-  .pvp-lobby h1 {
-    font-size: 1.875rem !important;
-  }
-  
-  .pvp-lobby .text-lg.md\\:text-2xl {
-    font-size: 1rem !important;
-  }
-  
-  /* Bet selection on very small screens */
-  .pvp-lobby button[onClick*="setWagerAmount"] {
-    padding: 0.5rem !important;
-  }
-  
-  .pvp-lobby button[onClick*="setWagerAmount"] .text-xs {
-    font-size: 0.625rem !important;
-  }
-}
+/* PvP Lobby - removed individual styles, using wrapper scaling only */
 
 /* ========================================
    Victory/Defeat Screen Responsive 
@@ -1172,22 +1143,7 @@
    Flexible Units for Better Scaling
    ======================================== */
    
-/* PvP Lobby Flexible Units */
-.pvp-lobby {
-  font-size: clamp(0.875rem, 2vw, 1rem);
-}
-
-.pvp-lobby button {
-  min-width: 20vw;
-  max-width: 200px;
-  min-height: 6vh;
-  padding: 1.5vh 2vw;
-}
-
-.pvp-lobby .stats-card {
-  min-height: 10vh;
-  padding: 2vh 2vw;
-}
+/* PvP Lobby - using wrapper scaling, no individual adjustments */
 
 /* Game Over Screen Flexible Units */
 .game-over-screen {
@@ -1226,7 +1182,6 @@
 
 /* Ensure touch targets meet minimum size */
 @media (pointer: coarse) {
-  .pvp-lobby button,
   .game-over-screen button,
   .team-select .character-card {
     min-height: 44px;
