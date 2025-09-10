@@ -159,7 +159,7 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   }
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
+    <div className="team-select h-full flex flex-col relative overflow-hidden">
       {/* Static Background */}
       <div 
         className="absolute inset-0 w-full h-full bg-cover bg-center"
@@ -228,7 +228,16 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
           <div className="battle-button-container">
             <button
               onClick={handleConfirmTeam}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                handleConfirmTeam();
+              }}
               className="enhanced-toy-button text-base px-5 py-2 font-toy animate-pulse"
+              style={{ 
+                pointerEvents: 'auto',
+                position: 'relative',
+                zIndex: 300
+              }}
             >
               Battle! ⚔️
             </button>

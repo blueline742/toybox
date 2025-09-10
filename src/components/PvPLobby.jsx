@@ -204,7 +204,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
   };
 
   return (
-    <div className="h-screen overflow-y-auto overflow-x-hidden">
+    <div className="pvp-lobby h-screen overflow-y-auto overflow-x-hidden">
       <div className="min-h-screen relative bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
         {/* Epic 3D Background - Add your AI generated background here */}
         <div className="fixed inset-0 pointer-events-none">

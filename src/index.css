@@ -27,11 +27,17 @@
     width: 100vw;
   }
   
-  /* Ensure ALL canvases never block interactions - global rule */
+  /* Ensure ALL canvases and effects never block interactions - global rule */
   canvas,
   canvas *,
   .canvas-container,
-  .three-canvas {
+  .three-canvas,
+  canvas[data-engine],
+  .react-three-fiber,
+  .particle-effects,
+  .particles,
+  .particle-container,
+  [class*="particle"] {
     pointer-events: none !important;
   }
   
@@ -47,6 +53,8 @@
   .character-select-card,
   .team-select-card,
   .spell-button,
+  .enhanced-toy-button,
+  .battle-button-container button,
   a,
   input,
   select,
@@ -558,9 +566,8 @@
    Mobile Responsive Styles - Scaling Approach
    ======================================== */
 
-/* Game wrapper - no scaling on desktop, proper centering */
+/* Game wrapper - no transform scaling to preserve hitboxes */
 #game-wrapper {
-  transform-origin: center center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -671,6 +678,8 @@
   max-width: 800px !important;
   margin: 0 auto 1rem auto !important;
   box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 50 !important;
 }
 
 .team-preview-label {
@@ -713,39 +722,44 @@
 .battle-button-container {
   flex-shrink: 0 !important;
   margin-left: 1rem !important;
+  position: relative !important;
+  z-index: 9999 !important;
+  isolation: isolate !important;
 }
 
-/* Only scale on actual mobile/tablet devices */
-@media (max-width: 1024px) and (min-width: 769px) {
-  #game-wrapper {
-    transform: scale(0.9);
-    transform-origin: center center;
+.battle-button-container button {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 9999 !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Force battle button to be on top on mobile */
+@media (max-width: 768px) {
+  .battle-button-container {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    margin: 0 !important;
+    z-index: 99999 !important;
+  }
+  
+  .battle-button-container button {
+    min-width: 100px !important;
+    min-height: 44px !important;
+    font-size: 1rem !important;
+    padding: 12px 24px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
   }
 }
 
-/* Tablet devices */
-@media (max-width: 768px) and (min-width: 481px) {
-  #game-wrapper {
-    transform: scale(0.8);
-    transform-origin: center center;
-  }
-}
-
-/* Mobile devices */
-@media (max-width: 480px) {
-  #game-wrapper {
-    transform: scale(0.65);
-    transform-origin: center center;
-  }
-}
-
-/* Very small devices */
-@media (max-width: 375px) {
-  #game-wrapper {
-    transform: scale(0.55);
-    transform-origin: center center;
-  }
-}
+/* Remove ALL scaling - use responsive design only */
+/* No zoom, no transform - pure responsive layout */
 
 /* Portrait Mode Battle Adjustments */
 @media (max-width: 768px) and (orientation: portrait) {
@@ -963,6 +977,271 @@
 }
 
 /* Landscape Mode Adjustments */
+/* ========================================
+   PvP Lobby & Bet Selection Responsive 
+   ======================================== */
+@media (max-width: 768px) {
+  /* PvP Lobby Title */
+  .pvp-lobby h1 {
+    font-size: 2.5rem !important;
+  }
+  
+  /* Bet selection grid */
+  .pvp-lobby .grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  /* Bet amount buttons */
+  .pvp-lobby button[onClick*="setWagerAmount"] {
+    padding: 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  .pvp-lobby button[onClick*="setWagerAmount"] .text-2xl,
+  .pvp-lobby button[onClick*="setWagerAmount"] .text-4xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .pvp-lobby button[onClick*="setWagerAmount"] .text-lg {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Stats cards */
+  .pvp-lobby .grid-cols-1.md\\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  .pvp-lobby .text-3xl.md\\:text-5xl {
+    font-size: 1.875rem !important;
+  }
+  
+  .pvp-lobby .text-4xl.md\\:text-6xl {
+    font-size: 2.25rem !important;
+  }
+  
+  /* Matchmaking button */
+  .pvp-lobby button[onClick*="startMatchmaking"] {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Even smaller adjustments for mobile */
+  .pvp-lobby h1 {
+    font-size: 1.875rem !important;
+  }
+  
+  .pvp-lobby .text-lg.md\\:text-2xl {
+    font-size: 1rem !important;
+  }
+  
+  /* Bet selection on very small screens */
+  .pvp-lobby button[onClick*="setWagerAmount"] {
+    padding: 0.5rem !important;
+  }
+  
+  .pvp-lobby button[onClick*="setWagerAmount"] .text-xs {
+    font-size: 0.625rem !important;
+  }
+}
+
+/* ========================================
+   Victory/Defeat Screen Responsive 
+   ======================================== */
+@media (max-width: 768px) {
+  /* Game over modal */
+  .game-over-screen,
+  .victory-screen,
+  .defeat-screen {
+    padding: 1rem !important;
+  }
+  
+  /* Victory/Defeat title */
+  .game-over-screen h1,
+  .victory-screen h1,
+  .defeat-screen h1 {
+    font-size: 2.5rem !important;
+  }
+  
+  /* Reward amount display */
+  .game-over-screen .text-4xl,
+  .victory-screen .text-4xl {
+    font-size: 1.875rem !important;
+  }
+  
+  /* Stats display */
+  .game-over-screen .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+  
+  /* Continue button */
+  .game-over-screen button,
+  .victory-screen button,
+  .defeat-screen button {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+  }
+  
+  /* MVP display */
+  .mvp-section {
+    padding: 0.75rem !important;
+  }
+  
+  .mvp-section .text-2xl {
+    font-size: 1.25rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-over-screen h1,
+  .victory-screen h1,
+  .defeat-screen h1 {
+    font-size: 1.875rem !important;
+  }
+  
+  .game-over-screen .text-4xl,
+  .victory-screen .text-4xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* ========================================
+   Toy/Team Selection Screen Responsive 
+   ======================================== */
+@media (max-width: 768px) {
+  /* Team select grid */
+  .team-select-grid,
+  .character-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  /* Character cards in selection */
+  .character-select-card,
+  .team-select-card {
+    padding: 0.5rem !important;
+    min-height: 120px !important;
+  }
+  
+  .character-select-card img,
+  .team-select-card img {
+    width: 60px !important;
+    height: 60px !important;
+  }
+  
+  .character-select-card .text-sm,
+  .team-select-card .text-sm {
+    font-size: 0.75rem !important;
+  }
+  
+  .character-select-card .text-xs,
+  .team-select-card .text-xs {
+    font-size: 0.625rem !important;
+  }
+  
+  /* Rarity headers */
+  .rarity-header {
+    font-size: 1rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  /* Selected team display */
+  .selected-team-bar {
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+  }
+  
+  .selected-team-slot {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Single column on very small screens */
+  .team-select-grid,
+  .character-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  .character-select-card,
+  .team-select-card {
+    min-height: 100px !important;
+  }
+}
+
+/* ========================================
+   Flexible Units for Better Scaling
+   ======================================== */
+   
+/* PvP Lobby Flexible Units */
+.pvp-lobby {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+}
+
+.pvp-lobby button {
+  min-width: 20vw;
+  max-width: 200px;
+  min-height: 6vh;
+  padding: 1.5vh 2vw;
+}
+
+.pvp-lobby .stats-card {
+  min-height: 10vh;
+  padding: 2vh 2vw;
+}
+
+/* Game Over Screen Flexible Units */
+.game-over-screen {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+}
+
+.game-over-screen .modal-content {
+  width: 90vw;
+  max-width: 800px;
+  padding: 3vh 3vw;
+}
+
+.game-over-screen h1 {
+  font-size: clamp(2rem, 8vw, 4rem);
+}
+
+.game-over-screen .reward-display {
+  font-size: clamp(1.5rem, 5vw, 3rem);
+}
+
+/* Team Select Flexible Units */
+.team-select {
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+}
+
+.team-select .character-card {
+  width: clamp(80px, 15vw, 150px);
+  height: clamp(100px, 20vh, 200px);
+  padding: 1vh 1vw;
+}
+
+.team-select .character-grid {
+  gap: clamp(0.5rem, 2vw, 1.5rem);
+  padding: 2vh 2vw;
+}
+
+/* Ensure touch targets meet minimum size */
+@media (pointer: coarse) {
+  .pvp-lobby button,
+  .game-over-screen button,
+  .team-select .character-card {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* Touch optimization for character selection */
 .character-select-card {
   -webkit-tap-highlight-color: transparent;
