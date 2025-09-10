@@ -17,10 +17,23 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: function(origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('Socket.IO CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+    allowedHeaders: ["Content-Type"]
+  },
+  transports: ['polling', 'websocket']
 });
 
 app.use(cors({
@@ -41,6 +54,15 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 app.use(express.json());
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'Toybox Battle Server Running',
+    cors: allowedOrigins,
+    timestamp: new Date().toISOString() 
+  });
+});
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
@@ -352,6 +374,8 @@ app.get('/api/queue/:wagerAmount', (req, res) => {
 const PORT = process.env.PORT || 3003;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Allowed origins:`, allowedOrigins);
   console.log(`WebSocket server ready for connections`);
 });
 
