@@ -738,23 +738,15 @@
   -webkit-user-select: none !important;
 }
 
-/* Force battle button to be on top on mobile */
+/* Keep battle button in original position on mobile */
 @media (max-width: 768px) {
   .battle-button-container {
-    position: fixed !important;
-    bottom: 20px !important;
-    right: 20px !important;
-    margin: 0 !important;
     z-index: 99999 !important;
   }
   
   .battle-button-container button {
     min-width: 100px !important;
     min-height: 44px !important;
-    font-size: 1rem !important;
-    padding: 12px 24px !important;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
   }
 }
 

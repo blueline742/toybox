@@ -233,11 +233,6 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                 handleConfirmTeam();
               }}
               className="enhanced-toy-button text-base px-5 py-2 font-toy animate-pulse"
-              style={{ 
-                pointerEvents: 'auto',
-                position: 'relative',
-                zIndex: 300
-              }}
             >
               Battle! ⚔️
             </button>
