@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
+import { getSocketUrl } from '../config/api';
 
-// Backend server runs on port 3002
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
+// Get backend URL from centralized config
+const BACKEND_URL = getSocketUrl();
 
 const SocketContext = createContext(null);
 

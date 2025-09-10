@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: toybox-brawl-backend
+    runtime: node
+    region: oregon # You can change this to your preferred region
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://main--toysbox.netlify.app # Your Netlify URL
+      - key: CORS_ORIGIN
+        value: https://main--toysbox.netlify.app
+    healthCheckPath: /health
+    autoDeploy: true # Automatically deploy on push to main branch

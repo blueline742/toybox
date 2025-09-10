@@ -10,20 +10,31 @@ import PvPBattleManager from './pvpBattleManager.js';
 
 const app = express();
 const httpServer = createServer(app);
+// CORS configuration
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.FRONTEND_URL || 'https://main--toysbox.netlify.app']
+  : ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // Allow all origins for testing
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+  origin: allowedOrigins,
   credentials: true,
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
 app.use(express.json());
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
 
 // Solana configuration
 const NETWORK = 'https://api.devnet.solana.com';
