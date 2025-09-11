@@ -41,86 +41,109 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
   const style = getShieldStyle()
   
   return (
-    <div className="absolute inset-0 pointer-events-none z-30">
-      {/* Outer Shield Bubble */}
-      <div 
-        className="absolute inset-[-20px] rounded-full"
-        style={{
-          background: `radial-gradient(circle at center, transparent 40%, ${style.pulseColor} 60%, ${style.pulseColor} 70%, transparent 100%)`,
-          animation: 'shieldPulse 3s ease-in-out infinite',
-          filter: `drop-shadow(0 0 30px ${style.glowColor})`
-        }}
-      />
-      
-      {/* Inner Shield Ring */}
-      <div 
-        className={`absolute inset-[-15px] rounded-full border-2 bg-gradient-to-r ${style.gradient}`}
-        style={{
-          borderColor: style.glowColor,
-          opacity: 0.6,
-          animation: 'shieldRotate 4s linear infinite',
-          background: `conic-gradient(from 0deg, ${style.glowColor}22, transparent, ${style.glowColor}22, transparent, ${style.glowColor}22)`
-        }}
-      />
-      
-      {/* Hexagonal Pattern */}
-      <svg className="absolute inset-[-20px] w-full h-full" style={{ animation: 'shieldRotate 8s linear infinite reverse' }}>
-        <defs>
-          <pattern id="hexagon" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-            <polygon 
-              points="20,5 35,15 35,25 20,35 5,25 5,15" 
-              fill="none" 
-              stroke={style.glowColor}
-              strokeWidth="0.5"
-              opacity="0.3"
-            />
-          </pattern>
-        </defs>
-        <circle cx="50%" cy="50%" r="45%" fill="url(#hexagon)" />
-      </svg>
-      
-      {/* Energy Particles */}
-      {[...Array(6)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute"
+    <>
+    <div className="absolute pointer-events-none" 
+      style={{
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '180px',
+        height: '180px',
+        zIndex: 30
+      }}
+    >
+        {/* Outer Shield Bubble with strong glow */}
+        <div 
+          className="absolute rounded-full"
           style={{
-            width: '4px',
-            height: '4px',
-            background: style.glowColor,
-            borderRadius: '50%',
-            left: '50%',
-            top: '50%',
-            transform: `rotate(${i * 60}deg) translateX(60px)`,
-            animation: `orbitParticle 3s linear infinite`,
-            animationDelay: `${i * 0.5}s`,
-            boxShadow: `0 0 10px ${style.glowColor}`
+            left: '-10px',
+            right: '-10px',
+            top: '-10px',
+            bottom: '-10px',
+            background: `radial-gradient(circle at center, transparent 35%, ${style.pulseColor} 55%, ${style.pulseColor} 70%, transparent 90%)`,
+            animation: 'shieldPulse 3s ease-in-out infinite',
+            filter: `drop-shadow(0 0 30px ${style.glowColor}) drop-shadow(0 0 50px ${style.glowColor})`,
+            boxShadow: `0 0 60px ${style.glowColor}, inset 0 0 40px ${style.pulseColor}`
           }}
         />
-      ))}
-      
-      {/* Center Glow */}
-      <div 
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `radial-gradient(circle at center, ${style.pulseColor} 0%, transparent 50%)`,
-          animation: 'centerGlow 2s ease-in-out infinite'
-        }}
-      />
-      
-      {/* Shield Icon */}
-      <div className="absolute top-[-30px] left-1/2 transform -translate-x-1/2">
+        
+        {/* Inner Shield Ring with enhanced visibility */}
         <div 
-          className="text-2xl"
+          className="absolute rounded-full inset-0"
           style={{
-            color: style.glowColor,
-            textShadow: `0 0 20px ${style.glowColor}`,
-            animation: 'iconFloat 2s ease-in-out infinite'
+            borderColor: style.glowColor,
+            borderWidth: '3px',
+            borderStyle: 'solid',
+            opacity: 0.8,
+            animation: 'shieldRotate 4s linear infinite',
+            background: `conic-gradient(from 0deg, ${style.glowColor}44, transparent, ${style.glowColor}44, transparent, ${style.glowColor}44)`,
+            boxShadow: `0 0 30px ${style.glowColor}, inset 0 0 20px ${style.pulseColor}`
           }}
-        >
-          🛡️
+        />
+      
+        {/* Hexagonal Pattern */}
+        <svg className="absolute inset-0 w-full h-full" style={{ animation: 'shieldRotate 8s linear infinite reverse' }}>
+          <defs>
+            <pattern id="hexagon" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <polygon 
+                points="20,5 35,15 35,25 20,35 5,25 5,15" 
+                fill="none" 
+                stroke={style.glowColor}
+                strokeWidth="0.5"
+                opacity="0.3"
+              />
+            </pattern>
+          </defs>
+          <circle cx="50%" cy="50%" r="45%" fill="url(#hexagon)" />
+        </svg>
+        
+        {/* Energy Particles - Positioned relative to circle center */}
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute"
+            style={{
+              width: '10px',
+              height: '10px',
+              background: style.glowColor,
+              borderRadius: '50%',
+              left: '50%',
+              top: '50%',
+              marginLeft: '-5px',
+              marginTop: '-5px',
+              transform: `rotate(${i * 60}deg) translateX(85px)`,
+              transformOrigin: '5px 5px',
+              animation: `orbitParticle${i} 3s linear infinite`,
+              animationDelay: `${i * 0.5}s`,
+              boxShadow: `0 0 20px ${style.glowColor}, 0 0 40px ${style.glowColor}`,
+              filter: `brightness(1.5)`
+            }}
+          />
+        ))}
+        
+        {/* Center Glow */}
+        <div 
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `radial-gradient(circle at center, ${style.pulseColor} 0%, transparent 50%)`,
+            animation: 'centerGlow 2s ease-in-out infinite'
+          }}
+        />
+        
+        {/* Shield Icon */}
+        <div className="absolute left-1/2 transform -translate-x-1/2" style={{ top: '-25px' }}>
+          <div 
+            className="text-2xl"
+            style={{
+              color: style.glowColor,
+              textShadow: `0 0 20px ${style.glowColor}`,
+              animation: 'iconFloat 2s ease-in-out infinite'
+            }}
+          >
+            🛡️
+          </div>
         </div>
-      </div>
+    </div>
       
       <style jsx>{`
         @keyframes shieldPulse {
@@ -143,14 +166,52 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
           }
         }
         
-        @keyframes orbitParticle {
+        @keyframes orbitParticle0 {
           from {
-            transform: rotate(var(--rotation)) translateX(60px) scale(1);
-            opacity: 1;
+            transform: rotate(0deg) translateX(85px);
           }
           to {
-            transform: rotate(calc(var(--rotation) + 360deg)) translateX(60px) scale(1);
-            opacity: 1;
+            transform: rotate(360deg) translateX(85px);
+          }
+        }
+        @keyframes orbitParticle1 {
+          from {
+            transform: rotate(60deg) translateX(85px);
+          }
+          to {
+            transform: rotate(420deg) translateX(85px);
+          }
+        }
+        @keyframes orbitParticle2 {
+          from {
+            transform: rotate(120deg) translateX(85px);
+          }
+          to {
+            transform: rotate(480deg) translateX(85px);
+          }
+        }
+        @keyframes orbitParticle3 {
+          from {
+            transform: rotate(180deg) translateX(85px);
+          }
+          to {
+            transform: rotate(540deg) translateX(85px);
+          }
+        }
+        @keyframes orbitParticle4 {
+          from {
+            transform: rotate(240deg) translateX(85px);
+          }
+          to {
+            transform: rotate(600deg) translateX(85px);
+          }
+        }
+        @keyframes orbitParticle5 {
+          from {
+            transform: rotate(300deg) translateX(85px);
+          }
+          to {
+            transform: rotate(660deg) translateX(85px);
           }
         }
         
@@ -172,7 +233,7 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
           }
         }
       `}</style>
-    </div>
+    </>
   )
 }
 

@@ -2136,7 +2136,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   }
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
+    <div className="h-full flex flex-col relative overflow-hidden"
+      style={{
+        zoom: window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 1 : 1
+      }}
+    >
       {/* Battle Wrapper - All battle content */}
       <div id="battle-wrapper" className="h-full flex flex-col relative">
         {/* Static Background (always visible) - randomly selected arena */}
@@ -2161,6 +2165,29 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         
         {/* Dark overlay for better visibility */}
         <div className="absolute inset-0 bg-black bg-opacity-30" />
+        
+        {/* Turn Counter Bar - Fixed at top of screen */}
+        <div className={`
+          fixed top-0 left-0 right-0 h-10 sm:h-12 md:h-14 
+          flex items-center justify-center 
+          text-sm sm:text-base md:text-lg font-bold z-[100]
+          transition-colors duration-300
+          ${(isPvP ? serverTurnOrder === 'player1' : currentTurn === 'player') 
+            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' 
+            : 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg'}
+        `}>
+          <div className="flex items-center gap-3">
+            <span className="text-white/80 text-xs sm:text-sm">Round</span>
+            <span className="text-base sm:text-lg md:text-xl font-black">{Math.floor(turnCounter / 2) + 1}</span>
+            <span className="mx-2 text-white/50">|</span>
+            <span className="flex items-center gap-1">
+              {(isPvP ? serverTurnOrder === 'player1' : currentTurn === 'player') 
+                ? <><span className="text-lg">🔵</span> <span>Blue Turn</span></> 
+                : <><span className="text-lg">🔴</span> <span>Red Turn</span></>
+              }
+            </span>
+          </div>
+        </div>
         
         {/* Critical Hit Flash Effect */}
         {criticalFlash && (
@@ -2362,9 +2389,12 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       
       {/* Battle Arena */}
-      <div className="flex-1 relative z-10 flex flex-row items-center justify-between px-2 sm:px-4 md:px-8 lg:px-16 py-2 sm:py-4 w-full">
-        {/* Blue Team (Player) */}
-        <div className="relative w-auto">
+      <div className="flex-1 relative z-10 w-full overflow-hidden
+                      flex sm:grid sm:grid-cols-2 items-center justify-evenly sm:justify-stretch gap-12
+                      sm:gap-x-48 md:gap-x-64 lg:gap-x-80 pl-0 pr-2 sm:px-20 md:px-32 lg:px-40 
+                      pt-8 sm:pt-14 md:pt-16 pb-2 sm:pb-4 max-w-full mx-auto">
+        {/* Blue Team (Player) - left column */}
+        <div className="blue-team relative w-[120px] sm:w-auto sm:flex sm:justify-end">
           {/* Atmospheric Blue Mist Background */}
           <div className="absolute -inset-10 sm:-inset-20 pointer-events-none hidden sm:block">
             {/* Misty fog effect */}
@@ -2416,7 +2446,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* Player Team Cards */}
-          <div className="flex flex-col gap-1 sm:gap-2 md:gap-4 justify-center scale-[0.65] sm:scale-[0.8] md:scale-100 origin-center">
+          <div className="grid grid-cols-1 gap-2 sm:gap-3 md:gap-4 items-start mr-0 sm:mr-0">
             {playerTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2432,7 +2462,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
-                  className={`character-card-container relative transition-all duration-500 ease-in-out ${
+                  className={`character-card-container relative w-[110px] sm:w-[140px] md:w-[160px] transition-all duration-500 ease-in-out ${
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
                   } ${isValidTarget ? 'valid-target' : ''} ${isTargetingCaster ? 'targeting-caster' : ''}`}
                   style={{
@@ -2510,114 +2540,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             })}
           </div>
         </div>
+        {/* End of Blue Team */}
         
-        {/* Background Dim During Attack */}
-        {attackInProgress && (
-          <div className="absolute inset-0 bg-black/20 z-5 transition-all duration-500" />
-        )}
-        
-        {/* Enhanced VS Indicator with Dynamic Colors */}
-        <div className="absolute top-8 sm:top-16 md:top-24 left-1/2 transform -translate-x-1/2 text-center z-25">
-          <div className="relative">
-            {/* Glowing background effect */}
-            <div 
-              className={`absolute inset-0 blur-3xl opacity-60 transition-all duration-700 ${
-                (isPvP ? serverTurnOrder === 'player1' : currentTurn === 'player')
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
-                  : 'bg-gradient-to-r from-red-500 to-orange-500'
-              }`}
-              style={{
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                transform: 'scale(1.5)'
-              }}
-            />
-            
-            {/* Main VS container */}
-            <div 
-              className={`relative px-8 py-4 rounded-2xl backdrop-blur-md border-2 transition-all duration-500 ${
-                (isPvP ? serverTurnOrder === 'player1' : currentTurn === 'player')
-                  ? 'bg-gradient-to-br from-blue-600/30 to-cyan-600/30 border-blue-400 shadow-blue-500/50'
-                  : 'bg-gradient-to-br from-red-600/30 to-orange-600/30 border-red-400 shadow-red-500/50'
-              }`}
-              style={{
-                boxShadow: (isPvP ? serverTurnOrder === 'player1' : currentTurn === 'player')
-                  ? '0 0 40px rgba(59, 130, 246, 0.5), inset 0 0 20px rgba(59, 130, 246, 0.2)'
-                  : '0 0 40px rgba(239, 68, 68, 0.5), inset 0 0 20px rgba(239, 68, 68, 0.2)',
-                animation: 'vsFloat 3s ease-in-out infinite'
-              }}
-            >
-              {/* VS Text */}
-              <div 
-                className={`text-3xl sm:text-5xl md:text-7xl font-black tracking-wider transition-all duration-500 ${
-                  currentTurn === 'player'
-                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300'
-                    : 'text-transparent bg-clip-text bg-gradient-to-r from-red-300 to-orange-300'
-                }`}
-                style={{
-                  textShadow: currentTurn === 'player'
-                    ? '0 0 30px rgba(147, 197, 253, 0.8)'
-                    : '0 0 30px rgba(252, 165, 165, 0.8)',
-                  animation: 'vsPulse 1.5s ease-in-out infinite',
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  fontStyle: 'italic'
-                }}
-              >
-                VS
-              </div>
-              
-              {/* Turn indicator */}
-              <div 
-                className={`text-sm md:text-base font-bold mt-2 tracking-wide transition-all duration-500 ${
-                  currentTurn === 'player' ? 'text-blue-200' : 'text-red-200'
-                }`}
-                style={{
-                  animation: 'fadeInOut 2s ease-in-out infinite'
-                }}
-              >
-                {isPvP 
-                  ? (serverTurnOrder === 'player1' ? '⚔️ BLUE TEAM TURN ⚔️' : '🔥 RED TEAM TURN 🔥')
-                  : (currentTurn === 'player' ? '⚔️ BLUE TEAM TURN ⚔️' : '🔥 RED TEAM TURN 🔥')
-                }
-              </div>
-              
-              {/* Round Counter */}
-              <div className="mt-1">
-                <div 
-                  className="text-xs md:text-sm font-medium tracking-widest uppercase"
-                  style={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    textShadow: '0 0 15px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)',
-                    letterSpacing: '0.15em'
-                  }}
-                >
-                  ROUND {Math.floor(turnCounter / 2) + 1}
-                </div>
-              </div>
-              
-              {/* Animated dots */}
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
-                {[0, 1, 2].map(i => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full ${
-                      currentTurn === 'player' ? 'bg-blue-400' : 'bg-red-400'
-                    }`}
-                    style={{
-                      animation: `dotPulse 1.5s ease-in-out infinite`,
-                      animationDelay: `${i * 0.2}s`
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Middle Spacer */}
-        <div className="w-2 sm:w-8 md:w-32 lg:w-48 h-4 md:h-auto"></div>
-        
-        {/* Red Team (AI) */}
-        <div className="relative w-auto">
+        {/* Red Team (AI) - right column */}
+        <div className="red-team relative w-[120px] sm:w-auto sm:flex sm:justify-start">
           {/* Atmospheric Fire Mist Background */}
           <div className="absolute -inset-10 sm:-inset-20 pointer-events-none hidden sm:block">
             {/* Fiery fog effect */}
@@ -2669,7 +2595,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           </div>
           
           {/* AI Team Cards */}
-          <div className="flex flex-col gap-1 sm:gap-2 md:gap-4 justify-center scale-[0.65] sm:scale-[0.8] md:scale-100 origin-center">
+          <div className="grid grid-cols-1 gap-2 sm:gap-3 md:gap-4 items-start">
             {aiTeamState.map((char, index) => {
               const isAttacking = activeAttacker && activeAttacker.instanceId === char.instanceId
               const isBeingTargeted = activeTargets.includes(char.instanceId)
@@ -2685,7 +2611,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                 <div 
                   key={char.instanceId} 
                   id={`char-${char.instanceId}`} 
-                  className={`character-card-container relative transition-all duration-500 ease-in-out ${
+                  className={`character-card-container relative w-[110px] sm:w-[140px] md:w-[160px] transition-all duration-500 ease-in-out ${
                     isBeingTargeted ? 'scale-105 z-40' :
                     shouldBlur ? 'blur-sm opacity-50 scale-95' : ''
                   } ${isValidTarget ? 'valid-target' : ''} ${isTargetingCaster ? 'targeting-caster' : ''}`}
@@ -2766,6 +2692,9 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             })}
           </div>
         </div>
+        {/* End of Red Team */}
+      </div>
+      {/* End of Battle Arena */}
       </div>
       
       
@@ -2812,6 +2741,11 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             }
           `}</style>
         </>
+      )}
+      
+      {/* Background Dim During Attack */}
+      {attackInProgress && (
+        <div className="absolute inset-0 bg-black/20 z-5 transition-all duration-500" />
       )}
       
       {/* Targeting Arrow */}
@@ -2943,7 +2877,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           animation: float-particle 4s ease-in-out infinite;
         }
       `}</style>
-      </div> {/* End of battle-wrapper */}
+      
+      {/* End of battle-wrapper */}
     </div>
   )
 }
