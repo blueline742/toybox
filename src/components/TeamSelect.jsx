@@ -16,6 +16,9 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   const [hoverDelayTimer, setHoverDelayTimer] = useState(null)
   const [touchStartTime, setTouchStartTime] = useState(null)
   const [isTouchDevice, setIsTouchDevice] = useState(false)
+  const [touchStartY, setTouchStartY] = useState(null)
+  const [touchStartX, setTouchStartX] = useState(null)
+  const [isScrolling, setIsScrolling] = useState(false)
   
   const [selectedTeam, setSelectedTeam] = useState([])
   
@@ -159,7 +162,12 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
   }
 
   return (
-    <div className="team-select h-full flex flex-col relative overflow-hidden">
+    <div 
+      className="team-select h-full flex flex-col relative overflow-hidden"
+      style={{
+        zoom: window.innerWidth <= 480 ? 0.7 : window.innerWidth <= 768 ? 0.85 : 1
+      }}
+    >
       {/* Static Background */}
       <div 
         className="absolute inset-0 w-full h-full bg-cover bg-center"
@@ -185,7 +193,6 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
       
       {/* Team Preview */}
       <div className="relative z-10 bg-black bg-opacity-40 backdrop-blur rounded-xl mb-4 team-preview-bar">
-        <div className="team-preview-label text-white font-toy">Your Team:</div>
         <div className="team-preview-slots">
           {[0, 1, 2].map(index => {
             const member = selectedTeam[index]
@@ -194,31 +201,34 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                 key={index}
                 className={`
                   team-preview-slot rounded-xl border-2 border-dashed
-                  flex items-center justify-center transition-all
+                  flex items-center justify-center transition-all relative
                   ${member ? 'border-yellow-400 bg-gradient-to-br from-purple-800/50 to-indigo-800/50' : 'border-gray-600'}
                 `}
               >
+                {/* Slot Number Badge */}
+                <div className="absolute -top-2 -left-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full w-6 h-6 flex items-center justify-center text-white font-bold text-xs z-10">
+                  {index + 1}
+                </div>
+                
                 {member ? (
-                  <div className="w-full h-full relative">
+                  <div className="w-full h-full relative p-1">
                     {member.image ? (
                       <img 
                         src={member.image}
                         alt={member.name}
-                        className="w-full h-full object-cover rounded-lg"
+                        className="w-full h-full object-contain rounded-lg"
+                        style={{ maxHeight: '100%', maxWidth: '100%' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center emoji-container">
-                        <div className="text-4xl" style={{ color: member.color }}>
+                        <div className="text-5xl md:text-6xl" style={{ color: member.color }}>
                           {member.emoji}
                         </div>
                       </div>
                     )}
-                    <div className="character-name bg-black/70 text-white rounded-b-lg">
-                      {member.name}
-                    </div>
                   </div>
                 ) : (
-                  <div className="text-gray-500 text-3xl">?</div>
+                  <div className="text-gray-500 text-4xl md:text-5xl opacity-50">?</div>
                 )}
               </div>
             )
@@ -328,22 +338,45 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                   }
                 }}
                 onTouchStart={(e) => {
-                  e.preventDefault() // Prevent mouse events from firing
+                  // Don't prevent default - we need scrolling to work
                   setTouchStartTime(Date.now())
+                  setTouchStartY(e.touches[0].clientY)
+                  setTouchStartX(e.touches[0].clientX)
+                  setIsScrolling(false)
                   
                   // Start long press timer
                   const timer = setTimeout(() => {
-                    setPreviewCharacter(character)
-                    // Vibrate if available
-                    if (navigator.vibrate) {
-                      navigator.vibrate(50)
+                    if (!isScrolling) {
+                      setPreviewCharacter(character)
+                      // Vibrate if available
+                      if (navigator.vibrate) {
+                        navigator.vibrate(50)
+                      }
                     }
                   }, 500) // Show after 500ms hold
                   setLongPressTimer(timer)
                 }}
-                onTouchEnd={(e) => {
-                  e.preventDefault() // Prevent mouse events from firing
+                onTouchMove={(e) => {
+                  // Detect if user is scrolling
+                  const touchY = e.touches[0].clientY
+                  const touchX = e.touches[0].clientX
+                  const deltaY = Math.abs(touchY - touchStartY)
+                  const deltaX = Math.abs(touchX - touchStartX)
                   
+                  // Increased threshold and check both X and Y movement
+                  if (deltaY > 5 || deltaX > 5) { // Lower threshold but still effective
+                    setIsScrolling(true)
+                    // Cancel long press if scrolling
+                    if (longPressTimer) {
+                      clearTimeout(longPressTimer)
+                      setLongPressTimer(null)
+                    }
+                    if (previewCharacter) {
+                      setPreviewCharacter(null)
+                    }
+                  }
+                }}
+                onTouchEnd={(e) => {
                   // Clear long press timer
                   if (longPressTimer) {
                     clearTimeout(longPressTimer)
@@ -352,15 +385,21 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                   
                   const touchDuration = Date.now() - touchStartTime
                   
-                  if (touchDuration < 400 && !previewCharacter) {
-                    // Quick tap - select/deselect
+                  // Only register tap if not scrolling and it was a quick tap
+                  if (!isScrolling && touchDuration < 300 && !previewCharacter) {
+                    e.preventDefault() // Only prevent default for actual taps
                     handleCharacterClick(character)
                   } else if (previewCharacter) {
                     // Was showing preview - just close it
                     setPreviewCharacter(null)
                   }
                   
+                  // Reset all touch states
                   setTouchStartTime(null)
+                  setTouchStartY(null)
+                  setTouchStartX(null)
+                  // Reset scrolling state after a small delay to prevent re-selection
+                  setTimeout(() => setIsScrolling(false), 100)
                 }}
                 onTouchCancel={() => {
                   // Cancel any ongoing timers if touch is cancelled
@@ -369,6 +408,8 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                     setLongPressTimer(null)
                   }
                   setTouchStartTime(null)
+                  setTouchStartY(null)
+                  setIsScrolling(false)
                   setPreviewCharacter(null)
                 }}
                 className={`
@@ -376,7 +417,7 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
                   ${isSelected ? 'scale-95' : 'hover:scale-105'}
                   ${!character.owned ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
-                style={{ touchAction: 'manipulation' }}
+                style={{ touchAction: 'auto' }} // Allow scrolling
               >
                 {/* NFT Card - Redesigned to match preview */}
                 <div 
@@ -559,11 +600,9 @@ const TeamSelect = ({ onTeamSelected, onBack }) => {
         </div>
       </div>
       
-      {/* Instructions */}
-      <div className="bg-black bg-opacity-50 backdrop-blur p-3 text-center relative z-10">
-        <p className="text-white text-sm font-comic">
-          💡 Tip: Build a balanced team with different abilities! Mix attackers, defenders, and support characters.
-        </p>
+      {/* Bottom Fade Effect */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-20">
+        <div className="h-full bg-gradient-to-t from-black/80 via-black/40 to-transparent backdrop-blur-sm" />
       </div>
       
       {/* Back Button */}
