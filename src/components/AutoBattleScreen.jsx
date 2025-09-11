@@ -25,7 +25,6 @@ import RubberDuckieEffects from './RubberDuckieEffects'
 import BrickDudeEffects from './BrickDudeEffects'
 import WindUpSoldierEffects from './WindUpSoldierEffects'
 import SpellNotification from './SpellNotification'
-import CastingBar from './CastingBar'
 import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
 import SimpleTargetingArrow from './SimpleTargetingArrow'
@@ -97,8 +96,6 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [aiCharacterIndex, setAiCharacterIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [spellNotification, setSpellNotification] = useState(null)
-  const [castingInfo, setCastingInfo] = useState(null)
-  const [castingProgress, setCastingProgress] = useState(0)
   const [activeSpell, setActiveSpell] = useState(null)
   const [spellPositions, setSpellPositions] = useState(null)
   const [comboCounter, setComboCounter] = useState(0)
@@ -1268,22 +1265,6 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       trackUltimate() // Track ultimate usage for stats
       // Ultimate overlay removed - each ultimate has custom animations
     }
-    
-    // Start casting bar animation
-    setCastingInfo({ caster: activeCharacter, ability: selectedAbility })
-    setCastingProgress(0)
-    
-    // Animate casting progress
-    let progress = 0
-    const castingInterval = setInterval(() => {
-      progress += 10
-      if (progress >= 100) {
-        clearInterval(castingInterval)
-        setCastingInfo(null)
-      } else {
-        setCastingProgress(progress)
-      }
-    }, 150)
     
     // Calculate positions for spell effects
     // Use a timeout to ensure DOM is ready
@@ -2527,14 +2508,6 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                       </div>
                     </div>
                   )}
-                  {/* Casting Bar */}
-                  {castingInfo && castingInfo.caster.id === char.id && (
-                    <CastingBar
-                      caster={castingInfo.caster}
-                      ability={castingInfo.ability}
-                      progress={castingProgress}
-                    />
-                  )}
                 </div>
               )
             })}
@@ -2678,14 +2651,6 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                         <div className="text-cyan-300 text-xs font-bold animate-pulse">FROZEN</div>
                       </div>
                     </div>
-                  )}
-                  {/* Casting Bar */}
-                  {castingInfo && castingInfo.caster.id === char.id && (
-                    <CastingBar
-                      caster={castingInfo.caster}
-                      ability={castingInfo.ability}
-                      progress={castingProgress}
-                    />
                   )}
                 </div>
               )
