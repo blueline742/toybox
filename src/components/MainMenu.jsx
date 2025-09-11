@@ -11,6 +11,8 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
   const [floatingToys, setFloatingToys] = useState([])
+  const [titleSize, setTitleSize] = useState('5rem')
+  const [subtitleSize, setSubtitleSize] = useState('4rem')
 
   useEffect(() => {
     // Menu music disabled - only sound effects
@@ -30,6 +32,26 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
       })
     }
     setFloatingToys(newFloatingToys)
+    
+    // Set initial font sizes based on window width
+    const updateFontSizes = () => {
+      const width = window.innerWidth
+      if (width <= 480) {
+        setTitleSize('3.5rem')
+        setSubtitleSize('3rem')
+      } else if (width <= 768) {
+        setTitleSize('4rem')
+        setSubtitleSize('3.5rem')
+      } else {
+        setTitleSize('5rem')
+        setSubtitleSize('4rem')
+      }
+    }
+    
+    updateFontSizes()
+    window.addEventListener('resize', updateFontSizes)
+    
+    return () => window.removeEventListener('resize', updateFontSizes)
   }, [])
 
   // Enable/disable scrolling when NFT section is shown/hidden
@@ -121,9 +143,10 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
 
         {/* Game wrapper for scaling on mobile */}
         <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto">
-          {/* Main Title - Smaller for better fit */}
-          <h1 className="game-title text-3xl sm:text-4xl md:text-6xl font-toy mb-1"
+          {/* Main Title - Larger size */}
+          <h1 className="game-title font-toy mb-1"
               style={{
+                fontSize: titleSize,
                 animation: 'title-dance 6s ease-in-out infinite',
                 display: 'inline-block'
               }}>
@@ -132,8 +155,9 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             <span className="text-orange-500" style={{ textShadow: '3px 3px 0 #ff1493, 6px 6px 0 #ff69b4' }}>BOX</span>
           </h1>
           
-          <h2 className="text-3xl md:text-4xl font-toy mb-8 text-pink-500"
+          <h2 className="game-subtitle font-toy mb-8 text-pink-500"
               style={{
+                fontSize: subtitleSize,
                 textShadow: '2px 2px 0 #ff69b4, 4px 4px 0 #ff1493',
                 animation: 'pulse 3s ease-in-out infinite'
               }}>

@@ -17,6 +17,16 @@
     font-family: 'Comic Neue', cursive !important;
   }
   
+  /* Force title sizes on mobile */
+  @media (max-width: 480px) {
+    .game-title {
+      font-size: 3.5rem !important;
+    }
+    .game-subtitle {
+      font-size: 3rem !important;
+    }
+  }
+  
   /* Ensure consistent font across all elements */
   body, button, input, select, textarea {
     font-family: 'Comic Neue', cursive !important;
