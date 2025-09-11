@@ -53,9 +53,7 @@
       "Read(C:\\Users\\samta\\OneDrive\\Pictures\\Screenshots/**)",
       "Bash(npm start)",
       "Bash(npm run build:*)",
-      "Read(//c/Users/samta/OneDrive/Pictures/Screenshots/**)",
-      "Bash(git pull:*)",
-      "Bash(git revert:*)"
+      "Read(//c/Users/samta/OneDrive/Pictures/Screenshots/**)"
     ],
     "deny": [],
     "ask": []
