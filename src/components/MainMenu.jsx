@@ -11,7 +11,6 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
   const [floatingToys, setFloatingToys] = useState([])
-  const [zoomLevel, setZoomLevel] = useState(1)
 
   useEffect(() => {
     // Menu music disabled - only sound effects
@@ -31,25 +30,6 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
       })
     }
     setFloatingToys(newFloatingToys)
-  }, [])
-  
-  // Handle zoom level based on window size
-  useEffect(() => {
-    const updateZoom = () => {
-      const width = window.innerWidth
-      if (width <= 480) {
-        setZoomLevel(0.65)  // Even smaller for phones
-      } else if (width <= 768) {
-        setZoomLevel(0.8)   // Smaller for tablets
-      } else {
-        setZoomLevel(1)     // Normal for desktop
-      }
-    }
-    
-    updateZoom()
-    window.addEventListener('resize', updateZoom)
-    
-    return () => window.removeEventListener('resize', updateZoom)
   }, [])
 
   // Enable/disable scrolling when NFT section is shown/hidden
@@ -140,8 +120,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         <WalletButtonPortal />
 
         {/* Game wrapper for scaling on mobile */}
-        <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto"
-             style={{ zoom: zoomLevel }}>
+        <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto">
           {/* Main Title - Smaller for better fit */}
           <h1 className="game-title text-3xl sm:text-4xl md:text-6xl font-toy mb-1"
               style={{
