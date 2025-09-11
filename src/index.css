@@ -23,8 +23,19 @@
   }
 
   #root {
-    height: 100vh;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     width: 100vw;
+  }
+  
+  /* Fix for mobile browsers viewport height */
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
   
   /* Ensure ALL canvases and effects never block interactions - global rule */
@@ -793,6 +804,34 @@
 /* Remove ALL scaling - use responsive design only */
 /* No zoom, no transform - pure responsive layout */
 
+/* Fix for mobile browsers stretching content */
+.App {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Mobile-specific fixes for viewport issues */
+@media (max-width: 768px) {
+  /* Prevent stretching on mobile browsers */
+  html, body {
+    overflow-x: hidden;
+    position: relative;
+  }
+  
+  #root {
+    position: relative;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  /* Fix button and container heights on mobile */
+  .button, button {
+    max-height: 80px;
+  }
+}
+
 /* Portrait Mode Battle Adjustments */
 @media (max-width: 768px) and (orientation: portrait) {
   #battle-wrapper {
@@ -853,33 +892,30 @@
 @media (max-width: 768px) {
   .team-preview-bar {
     flex-wrap: wrap !important;
-    padding: 0.75rem 1rem !important;
+    padding: 0.5rem !important;
     width: 95% !important;
   }
   
   .team-preview-label {
-    font-size: 1rem !important;
-    width: 100% !important;
-    text-align: center !important;
-    margin-bottom: 0.5rem !important;
+    display: none !important; /* Hide "Your Team" label on mobile */
   }
   
   .team-preview-slots {
-    gap: 0.5rem !important;
+    gap: 0.75rem !important;
+    justify-content: center !important;
   }
   
   .team-preview-slot {
-    width: 60px !important;
-    height: 60px !important;
+    width: 90px !important;
+    height: 90px !important;
   }
   
   .team-preview-slot .text-4xl {
-    font-size: 1.75rem !important;
+    font-size: 3rem !important;
   }
   
   .team-preview-slot .character-name {
-    font-size: 0.5rem !important;
-    padding: 1px !important;
+    display: none !important; /* Hide character names to maximize image space */
   }
   
   .battle-button-container {
@@ -1178,6 +1214,18 @@
 .team-select .character-grid {
   gap: clamp(0.5rem, 2vw, 1.5rem);
   padding: 2vh 2vw;
+}
+
+/* Better mobile spacing for character cards */
+@media (max-width: 480px) {
+  .character-select-card {
+    margin: 0.25rem;
+  }
+  
+  .team-select .grid {
+    gap: 0.75rem !important;
+    padding: 0.5rem;
+  }
 }
 
 /* Ensure touch targets meet minimum size */
