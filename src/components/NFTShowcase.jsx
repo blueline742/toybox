@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useTouchClick } from '../hooks/useTouchClick'
 
 const NFT_PACKS = [
   {
@@ -60,9 +61,29 @@ const NFT_PACKS = [
   }
 ]
 
-const NFTShowcase = ({ onMintClick }) => {
+const NFTShowcase = ({ onMintClick, onClose }) => {
   const [selectedPack, setSelectedPack] = useState(null)
   const [hoveredPack, setHoveredPack] = useState(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  
+  // Handle zoom level for mobile
+  useEffect(() => {
+    const updateZoom = () => {
+      const width = window.innerWidth
+      if (width <= 480) {
+        setZoomLevel(0.7)  // Scale down for mobile
+      } else if (width <= 768) {
+        setZoomLevel(0.85) // Scale for tablet
+      } else {
+        setZoomLevel(1)    // Normal for desktop
+      }
+    }
+    
+    updateZoom()
+    window.addEventListener('resize', updateZoom)
+    
+    return () => window.removeEventListener('resize', updateZoom)
+  }, [])
 
   const handleMintClick = (pack) => {
     if (onMintClick) {
@@ -72,10 +93,24 @@ const NFTShowcase = ({ onMintClick }) => {
     }
   }
 
+  // Create touch handlers for back button
+  const backButtonHandlers = useTouchClick(() => {
+    // Close the NFT showcase
+    if (onClose) {
+      onClose()
+    }
+  })
+  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-black to-purple-900 py-16 px-4 relative overflow-hidden" id="nft-showcase">
+    <div className="py-8 md:py-16 px-4" 
+         id="nft-showcase"
+         style={{ 
+           zoom: zoomLevel,
+           minHeight: '100vh',
+           paddingBottom: '100px'
+         }}>
       {/* Animated Background Elements */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
@@ -115,19 +150,8 @@ const NFTShowcase = ({ onMintClick }) => {
 
         {/* Back to Menu Button - positioned to avoid audio button */}
         <button
-          onClick={() => {
-            // Scroll back to the menu at the top
-            const menuElement = document.getElementById('main-menu')
-            if (menuElement) {
-              menuElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            } else {
-              // Fallback methods
-              window.scrollTo({ top: 0, behavior: 'smooth' })
-              document.documentElement.scrollTop = 0
-              document.body.scrollTop = 0
-            }
-          }}
-          className="fixed bottom-20 right-4 z-50 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all"
+          {...backButtonHandlers}
+          className="fixed top-4 left-4 z-50 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all"
           title="Back to Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

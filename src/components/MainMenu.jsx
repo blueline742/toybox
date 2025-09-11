@@ -54,20 +54,25 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
     return () => window.removeEventListener('resize', updateFontSizes)
   }, [])
 
-  // Enable/disable scrolling when NFT section is shown/hidden
+  // Enable scrolling when NFT section is shown
   useEffect(() => {
     if (showNFTSection) {
-      document.body.style.overflow = 'auto'
-      document.documentElement.style.overflow = 'auto'
-    } else {
-      document.body.style.overflow = 'hidden'
-      document.documentElement.style.overflow = 'hidden'
+      // Force enable scrolling
+      document.body.style.overflow = 'visible'
+      document.documentElement.style.overflow = 'visible'
+      document.body.style.height = 'auto'
+      document.body.style.position = 'static'
+      // Remove any height restrictions
+      const root = document.getElementById('root')
+      if (root) {
+        root.style.height = 'auto'
+        root.style.overflow = 'visible'
+      }
     }
     
-    // Cleanup
+    // Cleanup - don't restore overflow hidden on cleanup
     return () => {
-      document.body.style.overflow = 'hidden'
-      document.documentElement.style.overflow = 'hidden'
+      // Let other components handle their own overflow
     }
   }, [showNFTSection])
 
@@ -285,10 +290,15 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
       
       {/* NFT Showcase Section */}
       {showNFTSection && (
-        <NFTShowcase onMintClick={(pack) => {
-          console.log('Minting pack:', pack)
-          // Web3 integration will be added here
-        }} />
+        <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-purple-900 via-black to-purple-900">
+          <NFTShowcase 
+            onClose={() => setShowNFTSection(false)}
+            onMintClick={(pack) => {
+              console.log('Minting pack:', pack)
+              // Web3 integration will be added here
+            }} 
+          />
+        </div>
       )}
       
       {/* My Toybox Collection Modal */}
