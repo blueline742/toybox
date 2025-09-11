@@ -11,7 +11,6 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
   const [floatingToys, setFloatingToys] = useState([])
-  const [zoomLevel, setZoomLevel] = useState(1)
 
   useEffect(() => {
     // Menu music disabled - only sound effects
@@ -31,25 +30,6 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
       })
     }
     setFloatingToys(newFloatingToys)
-  }, [])
-  
-  // Handle zoom level based on window size
-  useEffect(() => {
-    const updateZoom = () => {
-      const width = window.innerWidth
-      if (width <= 480) {
-        setZoomLevel(0.65)  // Even smaller for phones
-      } else if (width <= 768) {
-        setZoomLevel(0.8)   // Smaller for tablets
-      } else {
-        setZoomLevel(1)     // Normal for desktop
-      }
-    }
-    
-    updateZoom()
-    window.addEventListener('resize', updateZoom)
-    
-    return () => window.removeEventListener('resize', updateZoom)
   }, [])
 
   // Enable/disable scrolling when NFT section is shown/hidden
@@ -140,8 +120,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
         <WalletButtonPortal />
 
         {/* Game wrapper for scaling on mobile */}
-        <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto"
-             style={{ zoom: zoomLevel }}>
+        <div id="game-wrapper" className="text-center z-10 max-w-4xl mx-auto">
           {/* Main Title - Smaller for better fit */}
           <h1 className="game-title text-3xl sm:text-4xl md:text-6xl font-toy mb-1"
               style={{
@@ -161,20 +140,20 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             BRAWL
           </h2>
 
-          {/* Game Buttons - Refined Toy Style with No Spacing */}
-          <div className="flex flex-col gap-2 sm:gap-0 items-center w-full max-w-xs sm:max-w-sm mx-auto px-4 sm:px-0">
+          {/* Game Buttons - Refined Toy Style with Responsive Spacing */}
+          <div className="flex flex-col items-center justify-center w-full mx-auto px-4 space-y-8 md:space-y-4">
             
             {/* PvP Battle Button - Custom Image */}
             <button
               {...pvpBattleHandlers}
-              className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              className="menu-button w-full max-w-[280px] sm:max-w-[340px] relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
               {/* Button Image */}
               <img 
                 src="/pvpbattlebutton.svg" 
                 alt="PvP Battle" 
-                className="w-full h-auto drop-shadow-xl"
+                className="w-full h-auto block drop-shadow-xl"
               />
               
               {/* Hover Glow Effect */}
@@ -186,14 +165,14 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             {/* Free Play Button - Custom Image */}
             <button
               {...freePlayHandlers}
-              className="menu-button w-full relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
+              className="menu-button w-full max-w-[280px] sm:max-w-[340px] relative group disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.05] active:scale-[0.96] transition-transform duration-200"
               disabled={!connected}
             >
               {/* Button Image */}
               <img 
                 src="/freeplaybutton.svg" 
                 alt="Free Play" 
-                className="w-full h-auto drop-shadow-lg"
+                className="w-full h-auto block drop-shadow-lg"
               />
               
               {/* Hover Glow Effect */}
@@ -210,7 +189,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             </button>
             
             {/* Utility Buttons - Smaller Size */}
-            <div className="flex flex-col md:flex-row gap-2 w-full mt-2">
+            <div className="flex flex-col md:flex-row gap-10 md:gap-2 w-full max-w-[280px] sm:max-w-[340px] mb-20 md:mb-0">
               {/* Mint Toys Button - Custom Image */}
               <button
                 {...mintToysHandlers}
@@ -219,7 +198,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
                 <img 
                   src="/minttoysbutton.svg" 
                   alt="Mint Toys" 
-                  className="w-full h-auto drop-shadow-md"
+                  className="w-full h-auto block drop-shadow-md"
                 />
                 
                 {/* Hover Glow Effect */}
@@ -241,7 +220,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
                 <img 
                   src="/mytoyboxbutton.svg" 
                   alt="My Toybox" 
-                  className="w-full h-auto drop-shadow-md"
+                  className="w-full h-auto block drop-shadow-md"
                 />
                 
                 {/* Hover Glow Effect */}
@@ -252,7 +231,7 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
             </div>
             
             {/* Game Slogan - Moved to bottom */}
-            <div className="flex justify-center gap-4 mt-6 text-white/80">
+            <div className="flex justify-center gap-4 pt-8 md:pt-0 mt-6 md:mt-6 mb-10 md:mb-0 text-white/80">
               <span className="text-sm uppercase tracking-wider font-bold">Battle</span>
               <span className="text-white/60">•</span>
               <span className="text-sm uppercase tracking-wider font-bold">Win</span>
