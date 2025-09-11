@@ -6,7 +6,6 @@ import TeamSelect from './components/TeamSelect'
 import AutoBattleScreen from './components/AutoBattleScreen'
 import ResultsScreen from './components/ResultsScreen'
 import PvPLobby from './components/PvPLobby'
-import LoadingScreen from './components/LoadingScreen'
 import InitialLoadingScreen from './components/InitialLoadingScreen'
 import GlobalTouchHandler from './components/GlobalTouchHandler'
 import musicManager from './utils/musicManager'
@@ -45,22 +44,13 @@ function App() {
 
   const handlePvPBattleStart = (battleData) => {
     setPvpBattleData(battleData)
-    setShowLoadingScreen(true)
     setGameState(GAME_STATES.TEAM_BATTLE)
   }
-
-  const [showLoadingScreen, setShowLoadingScreen] = useState(false)
 
   const handleTeamSelected = (team) => {
     setSelectedTeam(team)
-    setShowLoadingScreen(true)
-    // Start loading the battle screen immediately
+    // Start the battle screen immediately
     setGameState(GAME_STATES.TEAM_BATTLE)
-  }
-
-  const handleLoadingComplete = () => {
-    // Just hide the loading screen
-    setShowLoadingScreen(false)
   }
 
   const handleBattleEnd = (result) => {
@@ -208,26 +198,14 @@ function App() {
         )}
         
         {gameState === GAME_STATES.TEAM_BATTLE && (
-          <>
-            <AutoBattleScreen
-              playerTeam={selectedTeam}
-              opponentTeam={pvpBattleData?.opponentTeam}
-              onBattleEnd={handleBattleEnd}
-              onBack={() => setGameState(pvpBattleData ? GAME_STATES.PVP_LOBBY : GAME_STATES.TEAM_SELECT)}
-              isPvP={!!pvpBattleData}
-              pvpData={pvpBattleData}
-            />
-            
-            {/* Loading screen overlay */}
-            {showLoadingScreen && (
-              <LoadingScreen
-                onLoadComplete={handleLoadingComplete}
-                battleType={pvpBattleData ? 'pvp' : 'single'}
-                playerAddress={pvpBattleData?.playerAddress}
-                opponentAddress={pvpBattleData?.opponentAddress}
-              />
-            )}
-          </>
+          <AutoBattleScreen
+            playerTeam={selectedTeam}
+            opponentTeam={pvpBattleData?.opponentTeam}
+            onBattleEnd={handleBattleEnd}
+            onBack={() => setGameState(pvpBattleData ? GAME_STATES.PVP_LOBBY : GAME_STATES.TEAM_SELECT)}
+            isPvP={!!pvpBattleData}
+            pvpData={pvpBattleData}
+          />
         )}
         
         {gameState === GAME_STATES.RESULTS && (

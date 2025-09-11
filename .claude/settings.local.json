@@ -54,7 +54,8 @@
       "Bash(npm start)",
       "Bash(npm run build:*)",
       "Read(//c/Users/samta/OneDrive/Pictures/Screenshots/**)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

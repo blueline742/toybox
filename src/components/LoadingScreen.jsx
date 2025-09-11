@@ -1,295 +1,189 @@
-import React, { useState, useEffect } from 'react';
+// LoadingScreen.jsx - Shows loading progress while preloading assets
+import React, { useEffect, useState } from 'react';
+import assetPreloader, { gameAssets } from '../utils/AssetPreloader';
 
-const LOADING_TIPS = [
-  "Mythic toys have the most powerful special abilities!",
-  "Legendary toys can turn the tide of battle with unique ultimates.",
-  "Building a balanced team creates powerful synergies.",
-  "Epic toys have higher chances to trigger special abilities.",
-  "Some toys have hidden combo attacks when paired together!",
-  "The rarer the toy, the more damage their abilities deal.",
-  "Speed stat determines who attacks first in combat.",
-  "Tank toys protect your damage dealers in battle.",
-  "Critical hits deal double damage - luck matters!",
-  "Each toy has unique stats affecting battle performance.",
-  "Ultimate abilities can hit multiple enemies at once.",
-  "The Phoenix Dragon is one of the most powerful mythic toys!",
-  "Rare toys have better base stats than common ones.",
-  "Collecting full sets of toys unlocks special bonuses.",
-  "Your toys gain experience with each battle!",
-  "Some toys are only available during special events.",
-  "Combine strategy and luck to dominate the arena!",
-  "Watch for enemy patterns to predict their moves.",
-  "Save your ultimate abilities for critical moments!",
-  "Different toy types counter each other in battle."
-];
-
-const BACKGROUND_IMAGES = [
-  '/assets/images/cosmicjack.jpeg',
-  '/assets/images/duckie.jpeg',
-  '/assets/images/mechadino.jpeg',
-  '/assets/images/rockinghorse.jpeg',
-  '/assets/images/windupsoldier.jpeg'
-];
-
-const LoadingScreen = ({ onLoadComplete, battleType = 'single', playerAddress = null, opponentAddress = null }) => {
-  const [countdown, setCountdown] = useState(5);
-  const [currentTip] = useState(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
-  const [showVS, setShowVS] = useState(false);
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
-  const [fadeOut, setFadeOut] = useState(false);
+const LoadingScreen = ({ onComplete }) => {
+  const [progress, setProgress] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [status, setStatus] = useState('Initializing...');
+  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    // Show VS animation after 500ms
-    const vsTimer = setTimeout(() => setShowVS(true), 500);
+    loadAssets();
+  }, []);
 
-    // Background image cycling
-    const bgInterval = setInterval(() => {
-      setCurrentBgIndex(prev => (prev + 1) % BACKGROUND_IMAGES.length);
-    }, 1000); // Change every second
+  const loadAssets = async () => {
+    // Set up progress tracking
+    assetPreloader.onProgress((percent, loaded, total) => {
+      setProgress(Math.round(percent));
+      setLoadedCount(loaded);
+      setTotalCount(total);
+      
+      // Update status message based on progress
+      if (percent < 30) {
+        setStatus('Loading toy sprites...');
+      } else if (percent < 60) {
+        setStatus('Loading spell effects...');
+      } else if (percent < 90) {
+        setStatus('Loading audio...');
+      } else {
+        setStatus('Almost ready...');
+      }
+    });
 
-    // Countdown timer
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        // Start fade at 3 seconds
-        if (prev === 3 && !fadeOut) {
-          setFadeOut(true);
-        }
-        
-        if (prev <= 1) {
-          clearInterval(countdownInterval);
-          clearInterval(bgInterval);
-          // Wait for fade to complete then notify parent
-          setTimeout(() => onLoadComplete(), 2500);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    assetPreloader.onLoadComplete(async (assets) => {
+      setStatus('Creating texture atlas...');
+      
+      // Create texture atlas for better performance
+      await assetPreloader.createAtlasFromLoadedImages();
+      
+      setStatus('Ready to play!');
+      setIsComplete(true);
+      
+      // Small delay to show completion
+      setTimeout(() => {
+        if (onComplete) onComplete(assets);
+      }, 500);
+    });
 
-    // Play sound effect
-    const battleStartSound = new Audio('/battlestart.wav');
-    battleStartSound.volume = 0.3;
-    battleStartSound.play().catch(err => console.log('Could not play sound:', err));
+    // Filter assets that actually exist
+    const existingAssets = gameAssets.filter(asset => {
+      // For now, we'll attempt to load all defined assets
+      // In production, you'd check if files exist first
+      return true;
+    });
 
-    return () => {
-      clearTimeout(vsTimer);
-      clearInterval(countdownInterval);
-      clearInterval(bgInterval);
-    };
-  }, [onLoadComplete]);
+    // Start loading
+    setStatus('Loading game assets...');
+    setTotalCount(existingAssets.length);
+    
+    try {
+      await assetPreloader.loadAssets(existingAssets);
+    } catch (error) {
+      console.error('Some assets failed to load:', error);
+      setStatus('Loading complete (some assets failed)');
+      setIsComplete(true);
+      setTimeout(() => {
+        if (onComplete) onComplete(assetPreloader.assets);
+      }, 1000);
+    }
+  };
 
   return (
-    <div 
-      className="fixed inset-0 z-[100]"
-      style={{
-        backgroundColor: 'black',
-        filter: fadeOut ? 'blur(40px)' : 'blur(0px)',
-        opacity: fadeOut ? 0 : 1,
-        transform: fadeOut ? 'scale(1.2)' : 'scale(1)',
-        transition: fadeOut ? 'all 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
-        pointerEvents: fadeOut ? 'none' : 'auto'
-      }}
-    >
-        <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        {/* Cycling Background Images */}
-        <div className="absolute inset-0">
-        {BACKGROUND_IMAGES.map((img, index) => (
-          <div
-            key={img}
-            className="absolute inset-0 transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${img})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity: index === currentBgIndex ? 1 : 0
-            }}
-          />
-        ))}
-        {/* Dark overlay for better text visibility */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/80 to-indigo-900/80" />
-      </div>
-      
-      {/* Animated particles overlay */}
-      <div className="absolute inset-0 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 bg-white rounded-full opacity-30 animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${5 + Math.random() * 5}s`
-            }}
-          />
-        ))}
-      </div>
+    <div className="loading-screen fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-purple-900 flex items-center justify-center z-50">
+      <div className="loading-content text-center max-w-md mx-auto p-8">
+        {/* Logo/Title */}
+        <div className="mb-8">
+          <h1 className="text-6xl font-bold font-toy mb-2">
+            <span className="text-yellow-400" style={{ textShadow: '3px 3px 0 #ff6b35' }}>TOY</span>
+            {' '}
+            <span className="text-orange-500" style={{ textShadow: '3px 3px 0 #ff1493' }}>BOX</span>
+          </h1>
+          <h2 className="text-4xl font-toy text-pink-500" style={{ textShadow: '2px 2px 0 #ff69b4' }}>
+            BRAWL
+          </h2>
+        </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-        {/* VS Animation */}
-        {showVS && (
-          <div className="mb-8 animate-vs-zoom">
-            <div className="flex items-center justify-center gap-8">
-              <div className="text-center">
-                <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-5xl md:text-6xl mb-2 animate-pulse shadow-2xl">
-                  ⚔️
-                </div>
-                <p className="text-white font-black text-lg md:text-xl">
-                  {battleType === 'pvp' && playerAddress ? (
-                    <span className="text-cyan-300">
-                      {playerAddress.slice(0, 4)}...{playerAddress.slice(-4)}
-                    </span>
-                  ) : (
-                    'YOU'
-                  )}
-                </p>
+        {/* Loading Animation */}
+        <div className="loading-animation mb-8">
+          <div className="flex justify-center space-x-2">
+            {['🧸', '🎮', '🚀', '🤖', '🦖'].map((emoji, index) => (
+              <div
+                key={index}
+                className="text-4xl animate-bounce"
+                style={{
+                  animationDelay: `${index * 0.1}s`,
+                  animationDuration: '1s'
+                }}
+              >
+                {emoji}
               </div>
-              
-              <div className="text-4xl md:text-6xl font-black text-yellow-400 animate-pulse-slow">
-                VS
-              </div>
-              
-              <div className="text-center">
-                <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-5xl md:text-6xl mb-2 animate-pulse shadow-2xl">
-                  {battleType === 'pvp' ? '⚔️' : '🤖'}
-                </div>
-                <p className="text-white font-black text-lg md:text-xl">
-                  {battleType === 'pvp' && opponentAddress ? (
-                    <span className="text-orange-300">
-                      {opponentAddress.slice(0, 4)}...{opponentAddress.slice(-4)}
-                    </span>
-                  ) : battleType === 'pvp' ? (
-                    'OPPONENT'
-                  ) : (
-                    'AI'
-                  )}
-                </p>
-              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress Bar Container */}
+        <div className="progress-container mb-4">
+          <div className="bg-gray-800 rounded-full h-8 overflow-hidden relative">
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-20">
+              <div className="h-full bg-repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.1) 10px,
+                rgba(255,255,255,0.1) 20px
+              )" />
             </div>
+            
+            {/* Progress bar fill */}
+            <div 
+              className="h-full bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 transition-all duration-300 ease-out relative"
+              style={{ 
+                width: `${progress}%`,
+                boxShadow: '0 0 20px rgba(255, 255, 255, 0.5)'
+              }}
+            >
+              {/* Animated shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-shine" />
+            </div>
+            
+            {/* Progress text */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white font-bold text-lg drop-shadow-lg">
+                {progress}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Text */}
+        <div className="status-text mb-2">
+          <p className="text-white text-lg font-medium animate-pulse">
+            {status}
+          </p>
+        </div>
+
+        {/* Asset Counter */}
+        <div className="asset-counter">
+          <p className="text-gray-400 text-sm">
+            {loadedCount} / {totalCount} assets loaded
+          </p>
+        </div>
+
+        {/* Tips (shown while loading) */}
+        {!isComplete && (
+          <div className="tips mt-8 p-4 bg-black bg-opacity-30 rounded-lg">
+            <p className="text-gray-300 text-sm italic">
+              💡 Tip: Each toy has unique abilities - experiment to find your favorite combo!
+            </p>
           </div>
         )}
-
-        {/* Battle Starting Text */}
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-8 animate-pulse">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-red-500 to-purple-500">
-            BATTLE STARTING
-          </span>
-        </h1>
-
-        {/* Countdown */}
-        <div className="mb-8">
-          {countdown > 0 && (
-            <div className="relative inline-block">
-              <div className="text-8xl md:text-9xl font-black text-white animate-countdown">
-                {countdown}
-              </div>
-              <div className="absolute inset-0 text-8xl md:text-9xl font-black text-yellow-400 opacity-50 animate-ping">
-                {countdown}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Game Tip */}
-        <div className="mb-4 px-6 py-4 bg-gradient-to-r from-purple-900/50 to-blue-900/50 backdrop-blur-sm rounded-xl border border-cyan-400/30 max-w-2xl mx-auto animate-slide-up">
-          <p className="text-sm md:text-base text-cyan-300 font-bold uppercase tracking-wider mb-2">
-            💡 Battle Tip
-          </p>
-          <p className="text-base md:text-lg text-white/90 font-medium">
-            {currentTip}
-          </p>
-        </div>
-
-        {/* Loading Bar */}
-        <div className="w-full max-w-md mx-auto">
-          <div className="h-3 bg-black/30 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full transition-all duration-1000 animate-pulse"
-              style={{ width: `${((5 - countdown) / 5) * 100}%` }}
-            />
-          </div>
-        </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
+        @keyframes shine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        
+        .animate-shine {
+          animation: shine 2s infinite;
+        }
+        
         @keyframes float {
-          0%, 100% { transform: translateY(0) translateX(0); }
-          33% { transform: translateY(-20px) translateX(10px); }
-          66% { transform: translateY(10px) translateX(-10px); }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
         }
-
-        @keyframes vs-zoom {
-          0% { 
-            transform: scale(0) rotate(-180deg);
-            opacity: 0;
-          }
-          50% {
-            transform: scale(1.2) rotate(10deg);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(1) rotate(0deg);
-            opacity: 1;
-          }
-        }
-
-        @keyframes countdown {
-          0% {
-            transform: scale(1.5);
-            opacity: 0;
-          }
-          20% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          80% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(0.9);
-            opacity: 0.8;
-          }
-        }
-
-        @keyframes slide-up {
-          0% {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          100% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.05); }
-        }
-
-        .animate-float {
-          animation: float linear infinite;
-        }
-
-        .animate-vs-zoom {
-          animation: vs-zoom 0.8s ease-out;
-        }
-
-        .animate-countdown {
-          animation: countdown 1s ease-out;
-        }
-
-        .animate-slide-up {
-          animation: slide-up 0.5s ease-out;
-        }
-
-        .animate-pulse-slow {
-          animation: pulse-slow 2s ease-in-out infinite;
+        
+        .loading-screen {
+          background-image: 
+            radial-gradient(circle at 20% 50%, rgba(255, 107, 53, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 20, 147, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(0, 255, 255, 0.2) 0%, transparent 50%);
         }
       `}</style>
-      </div>
     </div>
   );
 };

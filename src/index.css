@@ -63,6 +63,30 @@
     pointer-events: none !important;
   }
   
+  /* GPU Acceleration for animated elements */
+  .animated,
+  .toy-card,
+  .spell-effect,
+  .particle,
+  .floating-damage,
+  .battle-animation,
+  .card-flip,
+  .card-hover,
+  [data-animated="true"] {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
+  }
+
+  /* Optimize transform animations */
+  .transform-gpu {
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+  }
+
   /* Ensure ALL interactive elements are clickable across all screens */
   button,
   .menu-button,
@@ -87,6 +111,9 @@
     position: relative;
     z-index: 100 !important;
     cursor: pointer;
+    /* Add GPU acceleration for interactive elements */
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   
   /* Ensure screen containers are on top */

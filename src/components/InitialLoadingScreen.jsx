@@ -1,29 +1,108 @@
 import React, { useState, useEffect } from 'react';
+import assetPreloader, { gameAssets } from '../utils/AssetPreloader';
 
 const InitialLoadingScreen = ({ onLoadComplete }) => {
   const [progress, setProgress] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('Initializing ToyBox Arena...');
+  const [isReallyLoading, setIsReallyLoading] = useState(true);
   
   useEffect(() => {
-    // Simulate loading progress - slower for longer duration
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          // Start fade out after loading completes
-          setTimeout(() => {
-            setFadeOut(true);
-            setTimeout(() => {
-              onLoadComplete();
-            }, 800); // Wait for fade animation
-          }, 500);
-          return 100;
+    // REAL asset loading
+    const loadRealAssets = async () => {
+      // Set up progress tracking
+      assetPreloader.onProgress((percent, loaded, total) => {
+        setProgress(Math.round(percent));
+        
+        // Update status based on real progress
+        if (percent < 20) {
+          setLoadingStatus("Initializing ToyBox Arena...");
+        } else if (percent < 40) {
+          setLoadingStatus("Loading legendary toys...");
+        } else if (percent < 60) {
+          setLoadingStatus("Preparing battlefield...");
+        } else if (percent < 80) {
+          setLoadingStatus("Charging special abilities...");
+        } else if (percent < 95) {
+          setLoadingStatus("Syncing battle systems...");
+        } else {
+          setLoadingStatus("Ready to battle!");
         }
-        return prev + Math.random() * 8 + 2; // Smaller increments for longer loading
       });
-    }, 150); // Slower interval
 
-    return () => clearInterval(interval);
+      assetPreloader.onLoadComplete(async (assets) => {
+        // Create texture atlas for better performance
+        await assetPreloader.createAtlasFromLoadedImages();
+        
+        setProgress(100);
+        setLoadingStatus("Ready to battle!");
+        setIsReallyLoading(false);
+        
+        // Start fade out
+        setTimeout(() => {
+          setFadeOut(true);
+          setTimeout(() => {
+            onLoadComplete();
+          }, 800);
+        }, 500);
+      });
+
+      // All assets should now exist, so we can load them all
+      const assetsToLoad = gameAssets;
+      
+      console.log(`Starting to preload ${assetsToLoad.length} assets...`);
+
+      try {
+        await assetPreloader.loadAssets(assetsToLoad);
+      } catch (error) {
+        console.error('Asset loading failed, falling back to simulation:', error);
+        simulateLoading();
+      }
+    };
+
+    // Fallback simulated loading (for when assets don't exist)
+    const simulateLoading = () => {
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsReallyLoading(false);
+            // Start fade out after loading completes
+            setTimeout(() => {
+              setFadeOut(true);
+              setTimeout(() => {
+                onLoadComplete();
+              }, 800);
+            }, 500);
+            return 100;
+          }
+          
+          const newProgress = prev + Math.random() * 8 + 2;
+          
+          // Update status based on simulated progress
+          if (newProgress < 20) {
+            setLoadingStatus("Initializing ToyBox Arena...");
+          } else if (newProgress < 40) {
+            setLoadingStatus("Loading legendary toys...");
+          } else if (newProgress < 60) {
+            setLoadingStatus("Preparing battlefield...");
+          } else if (newProgress < 80) {
+            setLoadingStatus("Charging special abilities...");
+          } else if (newProgress < 95) {
+            setLoadingStatus("Syncing battle systems...");
+          } else {
+            setLoadingStatus("Ready to battle!");
+          }
+          
+          return newProgress;
+        });
+      }, 150);
+
+      return () => clearInterval(interval);
+    };
+
+    // Start loading real assets
+    loadRealAssets();
   }, [onLoadComplete]);
 
   return (
@@ -77,13 +156,15 @@ const InitialLoadingScreen = ({ onLoadComplete }) => {
 
       {/* Loading Text */}
       <div className="mt-4 text-white/90 text-base font-medium">
-        {progress < 20 && "Initializing ToyBox Arena..."}
-        {progress >= 20 && progress < 40 && "Loading legendary toys..."}
-        {progress >= 40 && progress < 60 && "Preparing battlefield..."}
-        {progress >= 60 && progress < 80 && "Charging special abilities..."}
-        {progress >= 80 && progress < 95 && "Syncing battle systems..."}
-        {progress >= 95 && "Ready to battle!"}
+        {loadingStatus}
       </div>
+      
+      {/* Debug info - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-2 text-white/50 text-xs">
+          {isReallyLoading ? 'Loading real assets...' : 'Simulated loading'}
+        </div>
+      )}
 
       {/* Fun Loading Tips - Under loading bar */}
       <div className="mt-6 text-center max-w-md px-4">
