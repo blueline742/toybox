@@ -25,6 +25,9 @@ import RubberDuckieEffects from './RubberDuckieEffects'
 import BrickDudeEffects from './BrickDudeEffects'
 import WindUpSoldierEffects from './WindUpSoldierEffects'
 import SpellNotification from './SpellNotification'
+import IceCubeOverlay from './IceCubeOverlay'
+import MobileShieldOverlay from './MobileShieldOverlay'
+import FrostyScreenOverlay from './FrostyScreenOverlay'
 import CharacterCard from './CharacterCard'
 import HealingGlow from './HealingGlow'
 import SimpleTargetingArrow from './SimpleTargetingArrow'
@@ -33,6 +36,7 @@ import ShieldEffect from './ShieldEffect'
 import GameOverScreen from './GameOverScreen'
 import { useWallet } from '@solana/wallet-adapter-react'
 import musicManager from '../utils/musicManager'
+import { getElementCenter } from '../utils/mobilePositioning'
 import {
   playHitSound,
   playHealSound,
@@ -108,6 +112,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [attackInProgress, setAttackInProgress] = useState(false) // Track if attack animation is happening
   const [shieldedCharacters, setShieldedCharacters] = useState(new Map()) // Track active shields
   const [frozenCharacters, setFrozenCharacters] = useState(new Map()) // Track frozen characters
+  const [frostyScreenTrigger, setFrostyScreenTrigger] = useState(0) // Trigger frosty screen effect
   const [debuffedCharacters, setDebuffedCharacters] = useState(new Map()) // Track accuracy debuffs
   const [damageBuffedCharacters, setDamageBuffedCharacters] = useState(new Map()) // Track damage buffs
   const [criticalBuffedCharacters, setCriticalBuffedCharacters] = useState(new Map()) // Track critical buffs
@@ -643,23 +648,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       let positions = null
       if (casterElement && targetElements.length > 0) {
-        const casterCard = casterElement.querySelector('.w-40') || casterElement
-        const casterRect = casterCard.getBoundingClientRect()
+        const casterPos = getElementCenter(casterElement)
         
         const targetPositions = targetElements.map(el => {
-          const targetCard = el.querySelector('.w-40') || el
-          const rect = targetCard.getBoundingClientRect()
-          return {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          }
+          return getElementCenter(el)
         })
         
         positions = {
-          caster: {
-            x: casterRect.left + casterRect.width / 2,
-            y: casterRect.top + casterRect.height / 2
-          },
+          caster: casterPos,
           targets: targetPositions
         }
       }
@@ -949,26 +945,17 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     
     let positions = null
     if (casterElement && targetElements.length > 0) {
-      const casterCard = casterElement.querySelector('.w-40') || casterElement
-      const casterRect = casterCard.getBoundingClientRect()
+      const casterPos = getElementCenter(casterElement)
       
       const targetPositions = targetElements
         .filter(el => el !== null)
         .map(el => {
-          const targetCard = el.querySelector('.w-40') || el
-          const rect = targetCard.getBoundingClientRect()
-          return {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          }
+          return getElementCenter(el)
         })
       
       if (targetPositions.length > 0) {
         positions = {
-          caster: {
-            x: casterRect.left + casterRect.width / 2,
-            y: casterRect.top + casterRect.height / 2
-          },
+          caster: casterPos,
           targets: targetPositions
         }
       }
@@ -1273,21 +1260,15 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       const targetElements = targets.map(t => document.getElementById(`char-${t.instanceId}`))
       
       if (casterElement && targetElements.length > 0) {
-        const casterRect = casterElement.getBoundingClientRect()
-        const targetRects = targetElements
+        const casterPos = getElementCenter(casterElement)
+        const targetPositions = targetElements
           .filter(el => el !== null)
-          .map(el => el.getBoundingClientRect())
+          .map(el => getElementCenter(el))
         
-        if (targetRects.length > 0) {
+        if (targetPositions.length > 0) {
           setSpellPositions({
-            caster: {
-              x: casterRect.left + casterRect.width / 2,
-              y: casterRect.top + casterRect.height / 2
-            },
-            targets: targetRects.map(rect => ({
-              x: rect.left + rect.width / 2,
-              y: rect.top + rect.height / 2
-            }))
+            caster: casterPos,
+            targets: targetPositions
           })
         }
       }
@@ -1473,26 +1454,17 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           
           if (casterElement && targetElements.length > 0) {
             // Get the actual card element position
-            const casterCard = casterElement.querySelector('.w-40') || casterElement
-            const casterRect = casterCard.getBoundingClientRect()
+            const casterPos = getElementCenter(casterElement)
             
             const targetPositions = targetElements
               .filter(el => el !== null)
               .map(el => {
-                const targetCard = el.querySelector('.w-40') || el
-                const rect = targetCard.getBoundingClientRect()
-                return {
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2
-                }
+                return getElementCenter(el)
               })
             
             if (targetPositions.length > 0) {
               setSpellPositions({
-                caster: {
-                  x: casterRect.left + casterRect.width / 2,
-                  y: casterRect.top + casterRect.height / 2
-                },
+                caster: casterPos,
                 targets: targetPositions
               })
               
@@ -2266,6 +2238,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
           spellPositions={spellPositions}
           playerPositions={playerTeamState.map(char => ({ element: document.getElementById(`char-${char.instanceId}`) }))}
           opponentPositions={aiTeamState.map(char => ({ element: document.getElementById(`char-${char.instanceId}`) }))}
+          onIceNovaCast={() => {
+            // Trigger frosty screen effect
+            setFrostyScreenTrigger(prev => prev + 1)
+          }}
           onComplete={() => {
             setActiveSpell(null)
             setSpellPositions(null)
@@ -2367,7 +2343,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         />
       )}
       
+      {/* Shield Overlay - Canvas-based for accurate mobile positioning */}
+      <MobileShieldOverlay shieldedCharacters={shieldedCharacters} />
       
+      {/* Ice Cube Overlay - Persistent ice cubes on frozen targets */}
+      <IceCubeOverlay frozenCharacters={frozenCharacters} />
+      
+      {/* Frosty Screen Overlay - Shows frosty screen effect after Ice Nova */}
+      <FrostyScreenOverlay triggerEffect={frostyScreenTrigger} duration={5000} />
       
       {/* Battle Arena */}
       <div className="flex-1 relative z-10 w-full overflow-hidden
@@ -2486,10 +2469,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                   {isBeingHealed && (
                     <HealingGlow isActive={true} targetId={char.id} />
                   )}
-                  {/* Shield Effect */}
-                  {hasShield && (
-                    <ShieldEffect isActive={true} shieldType={shieldedCharacters.get(char.instanceId)?.type} />
-                  )}
+                  {/* Shield Effect - Moved to MobileShieldOverlay */}
                   {/* Frozen Effect */}
                   {isFrozen && (
                     <div className="absolute inset-0 pointer-events-none z-35">
@@ -2630,10 +2610,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                   {isBeingHealed && (
                     <HealingGlow isActive={true} targetId={char.id} />
                   )}
-                  {/* Shield Effect */}
-                  {hasShield && (
-                    <ShieldEffect isActive={true} shieldType={shieldedCharacters.get(char.instanceId)?.type} />
-                  )}
+                  {/* Shield Effect - Moved to MobileShieldOverlay */}
                   {/* Frozen Effect */}
                   {isFrozen && (
                     <div className="absolute inset-0 pointer-events-none z-35">

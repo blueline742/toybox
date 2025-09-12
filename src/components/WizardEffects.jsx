@@ -1,9 +1,13 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import musicManager from '../utils/musicManager';
+import ImagePyroblastEffect from './ImagePyroblastEffect'; // NEW image-based effect
+import ImageChainLightningEffect from './ImageChainLightningEffect'; // NEW epic lightning!
+import ImageIceNovaEffect from './ImageIceNovaEffect'; // NEW epic ice effect!
+import PersistentIceCubes from './PersistentIceCubes'; // Persistent ice cubes on frozen targets
 
 // Lazy load Three.js components for performance
-const PyroblastEffect = lazy(() => import('./ThreeJS/PyroblastEffect'));
-const ChainLightningEffect = lazy(() => import('./ThreeJS/ChainLightningEffect'));
+const PyroblastEffectOld = lazy(() => import('./ThreeJS/PyroblastEffect')); // Keep old one as backup
+const ChainLightningEffectOld = lazy(() => import('./ThreeJS/ChainLightningEffect')); // Keep old one as backup
 const IceNovaEffect = lazy(() => import('./ThreeJS/IceNovaEffect'));
 const RealisticIceNovaEffect = lazy(() => import('./ThreeJS/RealisticIceNovaEffect'));
 const SimpleIceNovaEffect = lazy(() => import('./ThreeJS/SimpleIceNovaEffect'));
@@ -16,17 +20,20 @@ const WizardEffects = ({
   spellPositions, 
   onComplete,
   playerPositions,
-  opponentPositions
+  opponentPositions,
+  onIceNovaCast
 }) => {
   const [fireEffects, setFireEffects] = useState([]);
   const [lightningEffects, setLightningEffects] = useState([]);
   const [iceEffects, setIceEffects] = useState([]);
   const [frozenTargets, setFrozenTargets] = useState([]);
+  const [persistentFrozenTargets, setPersistentFrozenTargets] = useState([]); // Separate state for ice cubes
   const [threeJsPyroblast, setThreeJsPyroblast] = useState(null); // For Three.js pyroblast
   const [threeJsChainLightning, setThreeJsChainLightning] = useState(null); // For Three.js chain lightning
   const [threeJsIceNova, setThreeJsIceNova] = useState(null); // For Three.js ice nova
   const [threeJsIceNovaRendering, setThreeJsIceNovaRendering] = useState(false); // Prevent multiple renders
   const [useRealisticIceNova] = useState(true); // Use the new realistic version
+  const lastSpellIdRef = useRef(null); // Track last spell to prevent duplicates
   
   // Debug logging
   useEffect(() => {
@@ -48,18 +55,12 @@ const WizardEffects = ({
         pyroblastSound.play().catch(err => console.log('Could not play pyroblast sound:', err));
       }
       
-      // Use Three.js for Pyroblast effect
-      const pyroblastData = {
-        sourcePos: { x: casterPos.x, y: casterPos.y },
+      // Use IMAGE-BASED Pyroblast effect (not Three.js)
+      setFireEffects([{
+        id: Date.now(),
+        casterPos: { x: casterPos.x, y: casterPos.y },
         targetPos: { x: targets[0]?.x || casterPos.x, y: targets[0]?.y || casterPos.y }
-      };
-      setThreeJsPyroblast(pyroblastData);
-
-      // Clean up after animation completes
-      setTimeout(() => {
-        setThreeJsPyroblast(null);
-        onComplete();
-      }, 1500);
+      }]);
 
     } else if (animationType === 'lightning_zap') {
       // Play chain lightning sound effect if not muted
@@ -69,18 +70,12 @@ const WizardEffects = ({
         lightningSound.play().catch(err => console.log('Could not play chain lightning sound:', err));
       }
       
-      // Use Three.js for Chain Lightning effect
-      setThreeJsChainLightning({
-        sourcePos: { x: casterPos.x, y: casterPos.y },
+      // Use IMAGE-BASED Chain Lightning effect (not Three.js)
+      setLightningEffects([{
+        id: Date.now(),
+        casterPos: { x: casterPos.x, y: casterPos.y },
         targets: targets.slice(0, 3) // Limit to 3 targets for performance
-      });
-
-      // Clean up after animation completes
-      const duration = Math.min(targets.length, 3) * 150 + 1000;
-      setTimeout(() => {
-        setThreeJsChainLightning(null);
-        onComplete();
-      }, duration);
+      }]);
 
     } else if (animationType === 'ice_nova') {
       // Play freeze sound effect if not muted
@@ -90,58 +85,100 @@ const WizardEffects = ({
         freezeSound.play().catch(err => console.log('Could not play freeze sound:', err));
       }
       
-      // Use Three.js for Ice Nova effect - NO CSS effects
-      console.log('Setting up Ice Nova with positions:', { casterPos, targets });
+      // Trigger frosty screen effect
+      if (onIceNovaCast) {
+        onIceNovaCast();
+      }
       
-      // Get target elements for ice blocks
-      const targetsWithElements = targets.map(t => {
-        // Try to find the character element
-        const element = document.querySelector(`[id*="${t.instanceId}"]`) || 
-                       document.querySelector(`[id*="${t.id}"]`);
-        console.log(`Looking for target element: ${t.instanceId || t.id}, found:`, element);
-        return { ...t, element };
-      });
+      // Use IMAGE-BASED Ice Nova effect (not Three.js)
+      // Only set if not already active
+      if (iceEffects.length === 0) {
+        console.log('🧊 Setting Ice Nova effect with:', { casterPos, targets });
+        setIceEffects([{
+          id: Date.now(),
+          casterPos: { x: casterPos.x, y: casterPos.y },
+          targets: targets.slice(0, 5) // Limit to 5 targets for performance
+        }]);
+      } else {
+        console.log('⚠️ Ice Nova already active, skipping');
+      }
       
-      // Remove the rendering flag - it's preventing the effect from showing!
-      console.log('🔥 SETTING threeJsIceNova state NOW');
-      setThreeJsIceNova({
-        sourcePos: { x: casterPos.x, y: casterPos.y },
-        targets: targetsWithElements
-      });
+      // Set frozen targets with their positions for persistent ice cubes
+      const frozenData = targets.map(t => ({ 
+        ...t, 
+        id: t.id || Date.now(),
+        x: t.x,
+        y: t.y
+      }));
+      setFrozenTargets(frozenData);
+      setPersistentFrozenTargets(frozenData); // Set persistent targets separately
       
-      // Don't use CSS frozen targets when using Three.js
-      // The Three.js effect handles the ice blocks
-      
-      // Let the effect handle its own completion via onComplete callback
-      // Don't clean up here - it's causing issues
-      
-      // Return early to avoid CSS effects
-      return;
+      // Don't call onComplete immediately - let the effect play first
+      // The ImageIceNovaEffect will handle calling onComplete
     }
-  }, [activeSpell, spellPositions, onComplete]);
+  }, [activeSpell, spellPositions]); // Removed onComplete to prevent re-renders
 
   return (
     <>
-      {/* Three.js Pyroblast Effect */}
-      {threeJsPyroblast && (
-        <Suspense fallback={null}>
-          <PyroblastEffect 
-            sourcePos={threeJsPyroblast.sourcePos}
-            targetPos={threeJsPyroblast.targetPos}
-            onComplete={() => setThreeJsPyroblast(null)}
-          />
-        </Suspense>
-      )}
+      {/* NEW Image-based Pyroblast Effect - Uses your custom images! */}
+      {fireEffects.map(effect => (
+        <ImagePyroblastEffect
+          key={effect.id}
+          casterPos={effect.casterPos}
+          targetPos={effect.targetPos}
+          onComplete={() => {
+            setFireEffects([]);
+            onComplete();
+          }}
+        />
+      ))}
       
-      {/* Three.js Chain Lightning Effect */}
-      {threeJsChainLightning && (
-        <Suspense fallback={null}>
-          <ChainLightningEffect 
-            sourcePos={threeJsChainLightning.sourcePos}
-            targets={threeJsChainLightning.targets}
-            onComplete={() => setThreeJsChainLightning(null)}
-          />
-        </Suspense>
+      {/* NEW EPIC Image-based Chain Lightning Effect! */}
+      {lightningEffects.map(effect => (
+        <ImageChainLightningEffect
+          key={effect.id}
+          casterPos={effect.casterPos}
+          targets={effect.targets}
+          onComplete={() => {
+            setLightningEffects([]);
+            onComplete();
+          }}
+        />
+      ))}
+      
+      {/* NEW EPIC Image-based Ice Nova Effect! */}
+      {iceEffects.map(effect => (
+        <ImageIceNovaEffect
+          key={effect.id}
+          casterPos={effect.casterPos}
+          targets={effect.targets}
+          onComplete={() => {
+            // Let the animation finish naturally - don't clear immediately
+            // The animation will run for its full duration (2 seconds)
+            
+            // Call onComplete to continue game flow
+            if (onComplete) onComplete();
+            
+            // Clear the effect after animation completes
+            setTimeout(() => {
+              setIceEffects([]);
+              setFrozenTargets([]);
+            }, 3000); // 3 seconds for full animation
+            
+            // Keep ice cubes visible for the freeze duration
+            setTimeout(() => {
+              setPersistentFrozenTargets([]); // Clear ice cubes after freeze ends
+            }, 10000); // 10 seconds for freeze duration
+          }}
+        />
+      ))}
+      
+      {/* Persistent Ice Cubes on Frozen Targets */}
+      {persistentFrozenTargets.length > 0 && (
+        <PersistentIceCubes
+          frozenTargets={persistentFrozenTargets}
+          duration={10000} // 10 seconds to match freeze duration
+        />
       )}
       
       {/* Three.js Ice Nova Effect - EPIC VERSION */}
@@ -158,8 +195,8 @@ const WizardEffects = ({
         </Suspense>
       )}
       
-      {/* CSS Pyroblast Fireball - Disabled when using Three.js */}
-      {!threeJsPyroblast && fireEffects.filter(e => e.type === 'fireball').map(effect => (
+      {/* CSS Pyroblast Fireball - Disabled when using image-based effects */}
+      {fireEffects.length === 0 && fireEffects.filter(e => e.type === 'fireball').map(effect => (
         <div
           key={effect.id}
           className="absolute pointer-events-none"

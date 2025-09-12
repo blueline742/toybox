@@ -40,6 +40,11 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
   
   const style = getShieldStyle()
   
+  // Responsive sizing based on screen width
+  // Must be smaller than the character card container (110px on mobile, 160px on desktop)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+  const shieldSize = isMobile ? '100px' : '180px';
+  
   return (
     <>
     <div className="absolute pointer-events-none" 
@@ -47,9 +52,10 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
         left: '50%',
         top: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '180px',
-        height: '180px',
-        zIndex: 30
+        width: shieldSize,
+        height: shieldSize,
+        zIndex: 30,
+        '--orbit-radius': isMobile ? '45px' : '85px'
       }}
     >
         {/* Outer Shield Bubble with strong glow */}
@@ -98,28 +104,31 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
         </svg>
         
         {/* Energy Particles - Positioned relative to circle center */}
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{
-              width: '10px',
-              height: '10px',
-              background: style.glowColor,
-              borderRadius: '50%',
-              left: '50%',
-              top: '50%',
-              marginLeft: '-5px',
-              marginTop: '-5px',
-              transform: `rotate(${i * 60}deg) translateX(85px)`,
-              transformOrigin: '5px 5px',
-              animation: `orbitParticle${i} 3s linear infinite`,
-              animationDelay: `${i * 0.5}s`,
-              boxShadow: `0 0 20px ${style.glowColor}, 0 0 40px ${style.glowColor}`,
-              filter: `brightness(1.5)`
-            }}
-          />
-        ))}
+        {[...Array(6)].map((_, i) => {
+          const orbitRadius = isMobile ? '55px' : '85px';
+          return (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                width: '10px',
+                height: '10px',
+                background: style.glowColor,
+                borderRadius: '50%',
+                left: '50%',
+                top: '50%',
+                marginLeft: '-5px',
+                marginTop: '-5px',
+                transform: `rotate(${i * 60}deg) translateX(${orbitRadius})`,
+                transformOrigin: '5px 5px',
+                animation: `orbitParticle${i} 3s linear infinite`,
+                animationDelay: `${i * 0.5}s`,
+                boxShadow: `0 0 20px ${style.glowColor}, 0 0 40px ${style.glowColor}`,
+                filter: `brightness(1.5)`
+              }}
+            />
+          )
+        })}
         
         {/* Center Glow */}
         <div 
@@ -168,50 +177,50 @@ const ShieldEffect = ({ isActive, shieldType = 'arcane' }) => {
         
         @keyframes orbitParticle0 {
           from {
-            transform: rotate(0deg) translateX(85px);
+            transform: rotate(0deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(360deg) translateX(85px);
+            transform: rotate(360deg) translateX(var(--orbit-radius, 85px));
           }
         }
         @keyframes orbitParticle1 {
           from {
-            transform: rotate(60deg) translateX(85px);
+            transform: rotate(60deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(420deg) translateX(85px);
+            transform: rotate(420deg) translateX(var(--orbit-radius, 85px));
           }
         }
         @keyframes orbitParticle2 {
           from {
-            transform: rotate(120deg) translateX(85px);
+            transform: rotate(120deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(480deg) translateX(85px);
+            transform: rotate(480deg) translateX(var(--orbit-radius, 85px));
           }
         }
         @keyframes orbitParticle3 {
           from {
-            transform: rotate(180deg) translateX(85px);
+            transform: rotate(180deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(540deg) translateX(85px);
+            transform: rotate(540deg) translateX(var(--orbit-radius, 85px));
           }
         }
         @keyframes orbitParticle4 {
           from {
-            transform: rotate(240deg) translateX(85px);
+            transform: rotate(240deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(600deg) translateX(85px);
+            transform: rotate(600deg) translateX(var(--orbit-radius, 85px));
           }
         }
         @keyframes orbitParticle5 {
           from {
-            transform: rotate(300deg) translateX(85px);
+            transform: rotate(300deg) translateX(var(--orbit-radius, 85px));
           }
           to {
-            transform: rotate(660deg) translateX(85px);
+            transform: rotate(660deg) translateX(var(--orbit-radius, 85px));
           }
         }
         

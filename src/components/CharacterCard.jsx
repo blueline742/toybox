@@ -50,13 +50,18 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
   }
 
   return (
-    <div className={`
+    <div id={`char-${character.id}`} className={`
+      character-card-container
       relative transition-all duration-300
       ${isActive ? 'scale-100 z-30' : 'scale-100'}
       ${isDead ? 'opacity-50 grayscale' : ''}
     `} style={{ zIndex: damageNumbers.length > 0 ? 100 : undefined }}>
-      {/* Active Character Glow Effect */}
-      <ActiveCharacterGlow isActive={isActive && !isDead} teamColor={teamColor} />
+      {/* Active Character Glow Effect - Positioned correctly for mobile */}
+      {isActive && !isDead && (
+        <div className="absolute inset-0 w-32 h-44 md:w-40 md:h-56 pointer-events-none">
+          <ActiveCharacterGlow isActive={true} teamColor={teamColor} />
+        </div>
+      )}
       
       {/* Buff Indicators */}
       <BuffIndicator 

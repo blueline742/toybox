@@ -278,9 +278,30 @@ class AssetPreloader {
   async createAtlasFromLoadedImages() {
     if (this.assets.images.size === 0) return null;
     
-    const atlas = await this.createTextureAtlas(this.assets.images);
-    this.atlas = atlas;
-    return atlas;
+    // Filter out large images to prevent atlas overflow
+    const smallImages = new Map();
+    const largeImages = new Set();
+    
+    for (const [name, img] of this.assets.images.entries()) {
+      // Skip images larger than 512px in either dimension
+      if (img.width > 512 || img.height > 512) {
+        largeImages.add(name);
+        console.log(`Excluding large image from atlas: ${name} (${img.width}x${img.height})`);
+      } else {
+        smallImages.set(name, img);
+      }
+    }
+    
+    console.log(`Creating atlas with ${smallImages.size} images, excluded ${largeImages.size} large images`);
+    
+    // Only create atlas if we have images to pack
+    if (smallImages.size > 0) {
+      const atlas = await this.createTextureAtlas(smallImages);
+      this.atlas = atlas;
+      return atlas;
+    }
+    
+    return null;
   }
 }
 
@@ -308,6 +329,15 @@ export const gameAssets = [
   { type: 'image', name: 'pvp_arena', src: '/pvp-arena-bg.jpg' },
   { type: 'image', name: 'toyboxarena', src: '/assets/backgrounds/toyboxarena.png' },
   { type: 'image', name: 'cardback', src: '/assets/cardback.png' },
+  
+  // Spell Effects - NEW!
+  { type: 'image', name: 'fireball', src: '/assets/effects/fireball.png' },
+  { type: 'image', name: 'explosion', src: '/assets/effects/explosion.png' },
+  { type: 'image', name: 'lightning', src: '/assets/effects/lightning.png' },
+  { type: 'image', name: 'frost1', src: '/assets/effects/frost1.png' },
+  { type: 'image', name: 'frost2', src: '/assets/effects/frost2.png' },
+  { type: 'image', name: 'icecube', src: '/assets/effects/icecube.png' },
+  { type: 'image', name: 'shield-neon', src: '/assets/effects/neon.png' },
   
   // UI Buttons
   { type: 'image', name: 'freeplay_btn', src: '/freeplaybutton.svg' },

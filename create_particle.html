@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Particle Image Creator</title>
+</head>
+<body style="background: #333; padding: 20px;">
+    <h2 style="color: white;">Spell Effect Particle Generator</h2>
+    
+    <!-- Glow Particle -->
+    <canvas id="glow" width="32" height="32"></canvas>
+    <button onclick="download('glow')">Download Glow</button><br><br>
+    
+    <!-- Spark Particle -->
+    <canvas id="spark" width="16" height="16"></canvas>
+    <button onclick="download('spark')">Download Spark</button><br><br>
+    
+    <!-- Star Particle -->
+    <canvas id="star" width="24" height="24"></canvas>
+    <button onclick="download('star')">Download Star</button><br><br>
+    
+    <!-- Fire Particle -->
+    <canvas id="fire" width="32" height="32"></canvas>
+    <button onclick="download('fire')">Download Fire</button><br><br>
+    
+    <!-- Ice Shard -->
+    <canvas id="ice" width="32" height="32"></canvas>
+    <button onclick="download('ice')">Download Ice</button><br><br>
+
+    <script>
+        // Create glow particle
+        function createGlow() {
+            const canvas = document.getElementById('glow');
+            const ctx = canvas.getContext('2d');
+            
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+        }
+        
+        // Create spark particle
+        function createSpark() {
+            const canvas = document.getElementById('spark');
+            const ctx = canvas.getContext('2d');
+            
+            const gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 16, 16);
+        }
+        
+        // Create star particle
+        function createStar() {
+            const canvas = document.getElementById('star');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.save();
+            ctx.translate(12, 12);
+            
+            // Draw star shape
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 72 - 90) * Math.PI / 180;
+                const x = Math.cos(angle) * 10;
+                const y = Math.sin(angle) * 10;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                
+                const innerAngle = ((i * 72 + 36) - 90) * Math.PI / 180;
+                const innerX = Math.cos(innerAngle) * 4;
+                const innerY = Math.sin(innerAngle) * 4;
+                ctx.lineTo(innerX, innerY);
+            }
+            ctx.closePath();
+            
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 12);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 150, 0.8)');
+            gradient.addColorStop(1, 'rgba(255, 200, 0, 0.3)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        // Create fire particle
+        function createFire() {
+            const canvas = document.getElementById('fire');
+            const ctx = canvas.getContext('2d');
+            
+            // Draw flame shape
+            ctx.beginPath();
+            ctx.moveTo(16, 28);
+            ctx.quadraticCurveTo(8, 20, 10, 10);
+            ctx.quadraticCurveTo(12, 4, 16, 2);
+            ctx.quadraticCurveTo(20, 4, 22, 10);
+            ctx.quadraticCurveTo(24, 20, 16, 28);
+            ctx.closePath();
+            
+            const gradient = ctx.createLinearGradient(16, 28, 16, 2);
+            gradient.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+            gradient.addColorStop(0.3, 'rgba(255, 100, 0, 0.9)');
+            gradient.addColorStop(0.6, 'rgba(255, 200, 0, 1)');
+            gradient.addColorStop(1, 'rgba(255, 255, 200, 0.9)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Add inner glow
+            ctx.globalCompositeOperation = 'screen';
+            const innerGlow = ctx.createRadialGradient(16, 18, 0, 16, 18, 8);
+            innerGlow.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+            innerGlow.addColorStop(1, 'rgba(255, 200, 0, 0)');
+            ctx.fillStyle = innerGlow;
+            ctx.fillRect(8, 10, 16, 16);
+        }
+        
+        // Create ice shard
+        function createIce() {
+            const canvas = document.getElementById('ice');
+            const ctx = canvas.getContext('2d');
+            
+            // Draw diamond/crystal shape
+            ctx.save();
+            ctx.translate(16, 16);
+            ctx.rotate(Math.PI / 4);
+            
+            const gradient = ctx.createLinearGradient(-10, -10, 10, 10);
+            gradient.addColorStop(0, 'rgba(200, 240, 255, 1)');
+            gradient.addColorStop(0.5, 'rgba(150, 200, 255, 0.9)');
+            gradient.addColorStop(1, 'rgba(100, 150, 255, 0.8)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(-10, -10, 20, 20);
+            
+            // Add shine
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fillRect(-8, -8, 6, 6);
+            
+            ctx.restore();
+        }
+        
+        // Download function
+        function download(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = canvasId + '_particle.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Create all particles on load
+        createGlow();
+        createSpark();
+        createStar();
+        createFire();
+        createIce();
+    </script>
+</body>
+</html>

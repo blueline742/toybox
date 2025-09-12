@@ -31,7 +31,8 @@ const InitialLoadingScreen = ({ onLoadComplete }) => {
       });
 
       assetPreloader.onLoadComplete(async (assets) => {
-        // Create texture atlas for better performance
+        // Create texture atlas (now excludes large images automatically)
+        setLoadingStatus("Creating texture atlas...");
         await assetPreloader.createAtlasFromLoadedImages();
         
         setProgress(100);

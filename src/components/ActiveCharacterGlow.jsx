@@ -3,37 +3,41 @@ import React from 'react'
 const ActiveCharacterGlow = ({ isActive, teamColor = 'blue' }) => {
   if (!isActive) return null
   
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+  
   const colorScheme = teamColor === 'blue' 
     ? {
         primary: '#00ffff',
         secondary: '#00ddff',
         glow: '0 0 40px #00ffff, 0 0 80px #0099ff, 0 0 120px #0066ff',
+        mobileGlow: '0 0 20px #00ffff, 0 0 40px #0099ff',
         bgGlow: 'rgba(0, 255, 255, 0.4)'
       }
     : {
         primary: '#ff6600',
         secondary: '#ff9900',
         glow: '0 0 40px #ff6600, 0 0 80px #ff3300, 0 0 120px #ff0000',
+        mobileGlow: '0 0 20px #ff6600, 0 0 40px #ff3300',
         bgGlow: 'rgba(255, 102, 0, 0.4)'
       }
   
   return (
     <>
-      {/* Bright Background Glow */}
+      {/* Bright Background Glow - Adjusted for mobile */}
       <div 
-        className="absolute -inset-8 rounded-3xl pointer-events-none animate-pulse"
+        className={`absolute ${isMobile ? '-inset-2' : '-inset-8'} rounded-3xl pointer-events-none animate-pulse`}
         style={{
           background: `radial-gradient(circle, ${colorScheme.bgGlow} 0%, transparent 70%)`,
-          filter: 'blur(20px)',
+          filter: isMobile ? 'blur(10px)' : 'blur(20px)',
           animation: 'glow-pulse 1.5s ease-in-out infinite'
         }}
       />
       
-      {/* Intense Border Glow */}
+      {/* Intense Border Glow - Adjusted for mobile */}
       <div 
-        className="absolute -inset-2 rounded-xl pointer-events-none"
+        className={`absolute ${isMobile ? '-inset-0.5' : '-inset-2'} rounded-xl pointer-events-none`}
         style={{
-          boxShadow: colorScheme.glow,
+          boxShadow: isMobile ? colorScheme.mobileGlow : colorScheme.glow,
           animation: 'glow-pulse 1.5s ease-in-out infinite'
         }}
       />
