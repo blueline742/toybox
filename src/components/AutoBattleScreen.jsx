@@ -35,6 +35,7 @@ import ShieldEffect from './ShieldEffect'
 // import AttackLine from './AttackLine' // DISABLED
 import GameOverScreen from './GameOverScreen'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { useSocket } from '../contexts/SocketContext'
 import musicManager from '../utils/musicManager'
 import { getElementCenter } from '../utils/mobilePositioning'
 import {
@@ -50,6 +51,7 @@ import {
 
 const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP = false, pvpData = null }) => {
   const { publicKey } = useWallet()
+  const { socket } = useSocket()
   
   // Initialize animation queue
   const animationQueue = useRef(getAnimationQueue())
@@ -106,6 +108,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const [turnCounter, setTurnCounter] = useState(0)
   const [serverTurnOrder, setServerTurnOrder] = useState('player1') // Track server's actual turn for PvP
   const [battleSpeed] = useState(0.7) // Increased speed by 40% (was 0.5)
+  const [turnDelay] = useState(1500) // Delay between turns in PvP for better visibility (in ms)
   const [activeAttacker, setActiveAttacker] = useState(null) // Track the attacking character
   const [activeTargets, setActiveTargets] = useState([]) // Track who's being targeted
   const [healingTargets, setHealingTargets] = useState([]) // Track who's being healed
@@ -223,8 +226,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     // musicManager.crossFade('/battlemusic.mp3', 'battle', 1000)
     
     // Setup PvP socket listeners if in PvP mode
-    if (isPvP && pvpData?.socket) {
-      const { socket, battleId } = pvpData
+    if (isPvP && socket && pvpData) {
+      const { battleId } = pvpData
       
       console.log('AutoBattleScreen PvP mode: Setting up socket listeners')
       
@@ -391,10 +394,10 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         setShieldedCharacters(newShieldedChars)
         
         // Update frozen status
-        const newFrozenChars = new Set()
+        const newFrozenChars = new Map()
         allChars.forEach(char => {
           if (char.status?.frozen) {
-            newFrozenChars.add(char.instanceId)
+            newFrozenChars.set(char.instanceId, { frozen: true, turnsRemaining: 1 })
           }
         })
         setFrozenCharacters(newFrozenChars)
@@ -489,7 +492,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
         }
       }
     }
-  }, [isPvP, pvpData])
+  }, [isPvP, pvpData, socket, publicKey])
 
 
   // Auto-battle loop (disabled in PvP mode)
@@ -519,15 +522,23 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
   const displayServerAction = (action) => {
     // Display action from server in PvP mode
     if (action.type === 'skip_turn') {
-      // Queue skip turn notification
+      // Queue skip turn notification with enhanced visibility
       animationQueue.current.add({
         type: 'notification',
-        duration: 2000,
+        duration: 3500, // Increased from 2000ms to 3500ms for better visibility
         onStart: () => {
+          // Set prominent frozen skip notification
           setSpellNotification({
-            ability: { name: 'FROZEN', description: 'Skips turn due to being frozen!' },
+            ability: { 
+              name: '❄️ FROZEN - TURN SKIPPED ❄️', 
+              description: `${action.caster?.name || 'Character'} is frozen solid and cannot act!`,
+              isUltimate: true // Makes it use the ultimate styling for prominence
+            },
             caster: action.caster
           })
+          
+          // Trigger the frosty screen overlay for extra visual impact
+          setFrostyScreenTrigger(prev => prev + 1)
         },
         onComplete: () => {
           setSpellNotification(null)
@@ -662,13 +673,13 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       
       // Queue the spell sequence from server
       animationQueue.current.queueSpellSequence({
-        caster: action.caster,
-        ability: action.ability,
-        targets: action.targets,
-        positions: positions,
-        effects: action.effects || [],
-        
-        onCastStart: () => {
+          caster: action.caster,
+          ability: action.ability,
+          targets: action.targets,
+          positions: positions,
+          effects: action.effects || [],
+          
+          onCastStart: () => {
           // Clear previous animation state
           setActiveAttacker(null)
           setAttackInProgress(false)
@@ -837,7 +848,14 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
             setSpellNotification(null)
             setActiveSpell(null)
             setSpellPositions(null)
-            setIsAnimating(false)
+            // Add turn delay for better visibility in PvP
+            if (isPvP) {
+              setTimeout(() => {
+                setIsAnimating(false)
+              }, turnDelay)
+            } else {
+              setIsAnimating(false)
+            }
           }, 500)
         }
       }
@@ -1098,7 +1116,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       }
       
       // Send target selection to server
-      pvpData.socket.emit('select_target', {
+      socket.emit('select_target', {
         battleId: pvpData.battleId,
         targetId: target.instanceId,
         wallet: publicKey?.toString()
@@ -1142,13 +1160,13 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
     const defendingTeam = isPlayerTurn ? aiTeamState : playerTeamState
     
     // In PvP mode, emit actions to opponent
-    if (isPvP && pvpData?.socket && isPlayerTurn) {
+    if (isPvP && socket && isPlayerTurn) {
       const action = {
         type: 'turn',
         characterIndex: playerCharacterIndex,
         timestamp: Date.now()
       }
-      pvpData.socket.emit('battle_action', {
+      socket.emit('battle_action', {
         battleId: pvpData.battleId,
         action,
         wallet: publicKey?.toString()

@@ -110,8 +110,8 @@ class PvPBattleManager {
       // Advance turn
       this.advanceTurn();
       
-      // Start next turn after delay
-      setTimeout(() => this.startTurn(), 2000);
+      // Start next turn after longer delay for frozen skip visibility
+      setTimeout(() => this.startTurn(), 4000); // Increased from 2000ms to 4000ms
       return;
     }
     
@@ -310,8 +310,8 @@ class PvPBattleManager {
       // Advance turn
       this.advanceTurn();
       
-      // Start next turn after delay
-      setTimeout(() => this.startTurn(), 3000);
+      // Start next turn after delay - slowed down for better visibility
+      setTimeout(() => this.startTurn(), 4500); // Increased from 3000ms to 4500ms for better pacing
     }
   }
   

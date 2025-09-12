@@ -95,7 +95,8 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           opponent: opponentWallet,
           opponentTeam: opponentTeam,
           wagerAmount: wager,
-          socket: socket,
+          // Don't pass socket directly - it causes React error #300
+          // socket: socket,
           playerNumber: playerNumber,
           playerAddress: publicKey?.toString(),
           opponentAddress: opponentWallet
@@ -384,7 +385,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
                 ].map((stake) => (
                   <button
                     key={stake.amount}
-                    {...useTouchClick(() => setWagerAmount(stake.amount))}
+                    onClick={() => setWagerAmount(stake.amount)}
                     className={`
                       relative p-3 md:p-6 rounded-2xl transition-all transform hover:scale-105 hover:-rotate-2
                       ${wagerAmount === stake.amount 
