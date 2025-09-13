@@ -1,5 +1,6 @@
-// WalletConnect Configuration
-// Replace WALLETCONNECT_PROJECT_ID with your actual project ID from https://cloud.walletconnect.com/
+// WalletConnect Configuration (Currently Disabled)
+// WalletConnect requires additional setup and verification
+// For now, using Solflare for better mobile experience
 
 export const WALLETCONNECT_PROJECT_ID = 'ea70be4dc72fd3ba78ec71af5a112eb0'
 
@@ -31,3 +32,11 @@ export const isMobileDevice = () => {
 
 // Network configuration
 export const NETWORK = 'devnet' // Change to 'mainnet-beta' for production
+
+// Mobile wallet recommendations
+export const MOBILE_WALLET_INFO = {
+  recommended: 'Solflare',
+  reason: 'Solflare provides the best mobile experience, staying within your browser.',
+  phantom: 'Phantom opens in its own browser for security, which is expected behavior.',
+  instructions: 'For the best mobile experience, we recommend using Solflare wallet.'
+}

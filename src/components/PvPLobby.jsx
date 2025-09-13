@@ -4,6 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useSocket } from '../contexts/SocketContext';
 import { useTouchClick } from '../hooks/useTouchClick';
+import { isMobileDevice } from '../config/walletConfig';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
 const RPC_ENDPOINT = 'https://api.devnet.solana.com';
@@ -503,6 +504,17 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
             {!connected && (
               <div className="mt-8 text-center">
                 <p className="text-gray-300 mb-4 font-bold">Connect your wallet to start battling!</p>
+                
+                {/* Mobile wallet notice */}
+                {isMobileDevice() && (
+                  <div className="mb-4 p-3 bg-blue-900/50 border border-blue-400/50 rounded-lg max-w-md mx-auto">
+                    <p className="text-sm text-blue-300 font-medium">
+                      📱 <strong>Mobile Tip:</strong> For the best experience, we recommend using <strong>Solflare</strong> wallet. 
+                      Phantom opens in its own browser for security.
+                    </p>
+                  </div>
+                )}
+                
                 <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-blue-600 hover:!from-purple-500 hover:!to-blue-500 !font-bold !text-lg" />
               </div>
             )}

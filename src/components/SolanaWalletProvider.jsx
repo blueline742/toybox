@@ -6,7 +6,8 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
-import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect'
+// Temporarily disable WalletConnect until configuration is fixed
+// import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect'
 import { clusterApiUrl } from '@solana/web3.js'
 import { isMobileDevice, walletConnectConfig } from '../config/walletConfig'
 
@@ -25,26 +26,49 @@ export function SolanaWalletProvider({ children }) {
       // Check if we're on mobile
       const isMobile = isMobileDevice()
       
+      // Temporarily disable WalletConnect due to configuration issues
+      // Will re-enable once proper project setup is complete
+      /*
       if (isMobile) {
-        // On mobile, prioritize WalletConnect to avoid tab switching
-        // This keeps users in your app instead of redirecting to Phantom browser
-        adapters.push(new WalletConnectWalletAdapter({
-          network: network,
-          options: {
-            projectId: walletConnectConfig.projectId,
-            relayUrl: walletConnectConfig.relayUrl,
-            metadata: walletConnectConfig.metadata,
-            qrcode: true, // Show QR code for desktop scanning
-            disableProviderPing: true // Prevent auto-redirect on mobile
-          }
-        }))
+        try {
+          const wcAdapter = new WalletConnectWalletAdapter({
+            network: network === WalletAdapterNetwork.Devnet ? 'devnet' : 'mainnet-beta',
+            options: {
+              projectId: walletConnectConfig.projectId,
+              relayUrl: walletConnectConfig.relayUrl,
+              metadata: {
+                name: walletConnectConfig.metadata.name,
+                description: walletConnectConfig.metadata.description,
+                url: walletConnectConfig.metadata.url,
+                icons: walletConnectConfig.metadata.icons
+              }
+            }
+          })
+          adapters.push(wcAdapter)
+        } catch (error) {
+          console.error('Failed to initialize WalletConnect adapter:', error)
+        }
       }
+      */
       
-      // Add Phantom adapter - on mobile it will be a secondary option
-      adapters.push(new PhantomWalletAdapter())
+      // Configure Phantom adapter for mobile
+      // Note: Phantom mobile app always opens in their browser by design
+      // This is intentional for security - users should manage wallets in Phantom app
+      const phantomAdapter = new PhantomWalletAdapter()
+      adapters.push(phantomAdapter)
       
-      // Add Solflare as an alternative
-      adapters.push(new SolflareWalletAdapter())
+      // Add Solflare as an alternative wallet option
+      // Solflare has better mobile integration and stays in-app
+      const solflareAdapter = new SolflareWalletAdapter()
+      
+      // On mobile, prioritize Solflare over Phantom for better UX
+      if (isMobile) {
+        adapters.push(solflareAdapter)
+        adapters.push(phantomAdapter)
+      } else {
+        adapters.push(phantomAdapter)
+        adapters.push(solflareAdapter)
+      }
       
       return adapters
     },
