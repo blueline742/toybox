@@ -20,20 +20,22 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const setupCanvas = () => {
       const ctx = canvas.getContext('2d');
       
-      // Set canvas size accounting for device pixel ratio
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
+      // Simpler canvas setup - let CSS handle the sizing
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       
-      // Set the actual canvas size
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      
-      // Scale the context to match device pixel ratio
-      ctx.scale(dpr, dpr);
-      
-      // Set CSS size
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
+      // Don't scale context on iOS - it might be causing offset issues
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (!isIOS) {
+        const dpr = window.devicePixelRatio || 1;
+        if (dpr !== 1) {
+          canvas.width = window.innerWidth * dpr;
+          canvas.height = window.innerHeight * dpr;
+          ctx.scale(dpr, dpr);
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+        }
+      }
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -43,50 +45,52 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const time = Date.now() / 1000;
     
     const animate = () => {
-      // Clear with proper dimensions
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      // Get fresh context reference
+      const ctx = canvas.getContext('2d');
+      
+      // Clear the entire canvas
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset any transforms
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
       
       // Draw shields for all shielded characters
       shieldedCharacters.forEach((shieldData, characterId) => {
         const element = document.getElementById(`char-${characterId}`);
         if (element) {
-          // iOS Safari fix: getBoundingClientRect is buggy with fixed positioning
-          // Need to account for scroll position and use pageY/pageX approach
-          const rect = element.getBoundingClientRect();
-          
           // Detect iOS Safari
           const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
           
-          let position;
+          // Simple, direct approach - just use getBoundingClientRect
+          // But for iOS, find the actual card image inside the container
+          let targetElement = element;
+          
           if (isIOS) {
-            // iOS Safari workaround: Account for any scroll offset
-            const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
-            const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-            
-            // Get element's offset from the document top
-            let offsetTop = 0;
-            let offsetLeft = 0;
-            let currentElement = element;
-            
-            // Walk up the DOM tree to get true offset
-            while (currentElement) {
-              offsetTop += currentElement.offsetTop || 0;
-              offsetLeft += currentElement.offsetLeft || 0;
-              currentElement = currentElement.offsetParent;
+            // On iOS, try to find the actual character image element
+            const cardImage = element.querySelector('img') || 
+                            element.querySelector('.character-image') ||
+                            element.querySelector('[class*="border"]');
+            if (cardImage) {
+              targetElement = cardImage;
             }
-            
-            // Calculate position relative to viewport
-            position = {
-              x: offsetLeft - scrollX + element.offsetWidth / 2,
-              y: offsetTop - scrollY + element.offsetHeight / 2
-            };
-          } else {
-            // Standard browsers
-            position = {
-              x: rect.left + rect.width / 2,
-              y: rect.top + rect.height / 2
-            };
+          }
+          
+          const rect = targetElement.getBoundingClientRect();
+          
+          // Simple center calculation
+          const position = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+          };
+          
+          // Debug logging for iOS
+          if (isIOS && Math.random() < 0.1) { // Log 10% of the time to avoid spam
+            console.log(`Shield position for ${characterId}:`, {
+              elementId: element.id,
+              rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+              calculatedPosition: position,
+              windowSize: { width: window.innerWidth, height: window.innerHeight }
+            });
           }
           
           const isMobile = window.innerWidth <= 640;
