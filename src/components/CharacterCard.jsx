@@ -3,7 +3,7 @@ import ActiveCharacterGlow from './ActiveCharacterGlow'
 import BuffIndicator from './BuffIndicator'
 import DamageNumber from './DamageNumber'
 
-const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNumbers = [], teamColor = 'blue', shields, damageBuff, criticalBuff, frozen, debuffed }) => {
+const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNumbers = [], teamColor = 'blue', shields, damageBuff, criticalBuff, frozen, debuffed, isTargeting = false }) => {
   const [showDetails, setShowDetails] = useState(false)
   const [touchTimer, setTouchTimer] = useState(null)
   const [isLongPressing, setIsLongPressing] = useState(false)
@@ -35,8 +35,13 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
   
   // Handle long press for mobile (2 seconds)
   const handleTouchStart = (e) => {
-    // Prevent default to avoid text selection
-    e.preventDefault()
+    // Don't interfere with targeting
+    if (isTargeting) return
+    
+    // Don't prevent default if targeting - let the click go through
+    if (!isTargeting) {
+      e.preventDefault()
+    }
     
     if (touchTimer) clearTimeout(touchTimer)
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
@@ -73,7 +78,10 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
   }
   
   const handleTouchEnd = (e) => {
-    e.preventDefault()
+    // Don't prevent default if targeting - let the click go through
+    if (!isTargeting) {
+      e.preventDefault()
+    }
     
     if (touchTimer) {
       clearTimeout(touchTimer)
@@ -96,14 +104,17 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
   
   // Handle mouse events for desktop
   const handleMouseDown = () => {
+    if (isTargeting) return
     handleTouchStart({ preventDefault: () => {} })
   }
   
   const handleMouseUp = () => {
+    if (isTargeting) return
     handleTouchEnd({ preventDefault: () => {} })
   }
   
   const handleMouseLeave = () => {
+    if (isTargeting) return
     if (isLongPressing) {
       handleTouchEnd({ preventDefault: () => {} })
     }
@@ -136,16 +147,13 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
       />
       
       {/* Long Press Progress Indicator */}
-      {isLongPressing && (
+      {isLongPressing && !isTargeting && (
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-50 pointer-events-none px-4">
-          <div className="bg-gray-900/90 rounded-full h-3 overflow-hidden border border-white/30">
+          <div className="bg-gray-900/90 rounded-full h-2 overflow-hidden border border-white/30">
             <div 
               className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-100"
               style={{ width: `${progressWidth}%` }}
             />
-          </div>
-          <div className="text-white text-xs text-center mt-1 font-bold drop-shadow-lg">
-            Hold for info...
           </div>
         </div>
       )}

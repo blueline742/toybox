@@ -2474,6 +2474,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                     currentHealth={char.currentHealth}
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
+                    isTargeting={isTargeting}
                     teamColor="blue"
                     shields={shieldedCharacters.get(char.instanceId)}
                     damageBuff={damageBuffedCharacters.get(char.instanceId)}
@@ -2615,6 +2616,7 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
                     currentHealth={char.currentHealth}
                     maxHealth={char.maxHealth}
                     damageNumbers={damageNumbers.filter(n => n.targetId === char.id)}
+                    isTargeting={isTargeting}
                     teamColor="red"
                     shields={shieldedCharacters.get(char.instanceId)}
                     damageBuff={damageBuffedCharacters.get(char.instanceId)}
