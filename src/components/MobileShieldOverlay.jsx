@@ -18,12 +18,12 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       
       // Standard canvas setup with DPR scaling for all devices
       const dpr = window.devicePixelRatio || 1;
-      const extraHeight = 200; // Large buffer to ensure shields at bottom are fully visible
+      const extraBuffer = 200; // Buffer to ensure shields at edges are fully visible
       canvas.width = window.innerWidth * dpr;
-      canvas.height = (window.innerHeight + extraHeight) * dpr;
+      canvas.height = (window.innerHeight + extraBuffer * 2) * dpr; // Extra buffer top AND bottom
       ctx.scale(dpr, dpr);
       canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = (window.innerHeight + extraHeight) + 'px';
+      canvas.style.height = (window.innerHeight + extraBuffer * 2) + 'px';
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -68,10 +68,10 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
           
           const rect = characterCard.getBoundingClientRect();
           
-          // Simple center calculation - no offsets needed with correct element
+          // Simple center calculation - adjust for canvas offset (200px above viewport)
           const position = {
             x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
+            y: rect.top + rect.height / 2 + 200 // Add 200px offset since canvas starts above viewport
           };
           
           // Determine shield size first
@@ -315,16 +315,16 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       const canvas = canvasRef.current;
       if (canvas) {
         const dpr = window.devicePixelRatio || 1;
-        const extraHeight = 200; // Large buffer to ensure shields at bottom are fully visible
+        const extraBuffer = 200; // Buffer to ensure shields at edges are fully visible
         
         canvas.width = window.innerWidth * dpr;
-        canvas.height = (window.innerHeight + extraHeight) * dpr;
+        canvas.height = (window.innerHeight + extraBuffer * 2) * dpr; // Extra buffer top AND bottom
         
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
         
         canvas.style.width = window.innerWidth + 'px';
-        canvas.style.height = (window.innerHeight + extraHeight) + 'px';
+        canvas.style.height = (window.innerHeight + extraBuffer * 2) + 'px';
       }
     };
     
@@ -339,10 +339,10 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       ref={canvasRef}
       style={{
         position: 'fixed',
-        top: 0,
+        top: '-200px', // Start canvas 200px above viewport
         left: 0,
         width: '100vw',
-        height: 'calc(100vh + 200px)', // Large extra height to prevent cutoff at bottom
+        height: 'calc(100vh + 400px)', // Total height: 200px above + viewport + 200px below
         pointerEvents: 'none',
         zIndex: 10001, // Below ice cubes but above most things
         overflow: 'visible', // Allow canvas to render beyond viewport
