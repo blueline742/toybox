@@ -1,5 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 const Card3DSimple = ({ 
@@ -37,8 +38,26 @@ const Card3DSimple = ({
     return nameMap[character.name] || nameMap['default'];
   };
   
-  // Load the NFT texture
-  const texture = useLoader(THREE.TextureLoader, getNFTImagePath(character));
+  // Load the NFT texture with error handling
+  const [texture, setTexture] = useState(null);
+  
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    const imagePath = getNFTImagePath(character);
+    console.log('Loading texture for', character.name, 'from', imagePath);
+    
+    loader.load(
+      imagePath,
+      (loadedTexture) => {
+        console.log('Texture loaded successfully for', character.name);
+        setTexture(loadedTexture);
+      },
+      undefined,
+      (error) => {
+        console.error('Failed to load texture for', character.name, error);
+      }
+    );
+  }, [character]);
   
   // Card dimensions (aspect ratio based on actual card images)
   const cardWidth = 2.5 * scale;
@@ -92,7 +111,7 @@ const Card3DSimple = ({
   
   return (
     <group ref={groupRef} position={position} rotation={rotation}>
-      {/* Main Card */}
+      {/* Main Card - Using a plane for simplicity */}
       <mesh
         ref={meshRef}
         onClick={handleClick}
@@ -101,30 +120,33 @@ const Card3DSimple = ({
         castShadow
         receiveShadow
       >
-        <boxGeometry args={[cardWidth, cardHeight, cardDepth]} />
-        
-        {/* Front face with NFT texture */}
+        <planeGeometry args={[cardWidth, cardHeight]} />
         <meshStandardMaterial 
-          attachArray="material"
           map={texture}
-          side={THREE.FrontSide}
+          color={texture ? '#ffffff' : '#666666'}
+          side={THREE.DoubleSide}
         />
-        
-        {/* Back face */}
-        <meshStandardMaterial 
-          attachArray="material"
-          color="#1a1a1a"
-          side={THREE.BackSide}
+      </mesh>
+      
+      {/* Show character name if no texture */}
+      {!texture && (
+        <Text
+          position={[0, 0, 0.1]}
+          fontSize={0.3 * scale}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {character.name}
+        </Text>
+      )}
+      
+      {/* Card border/frame */}
+      <mesh position={[0, 0, -0.01]}>
+        <planeGeometry args={[cardWidth * 1.05, cardHeight * 1.05]} />
+        <meshBasicMaterial 
+          color={isActive ? (teamColor === 'blue' ? '#0088ff' : '#ff0088') : '#333333'}
         />
-        
-        {/* Edges */}
-        {[...Array(4)].map((_, i) => (
-          <meshStandardMaterial 
-            key={i}
-            attachArray="material"
-            color="#2a2a2a"
-          />
-        ))}
       </mesh>
       
       {/* Glow effect for active card */}

@@ -1,10 +1,13 @@
 import React, { useState, useRef, Suspense, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei';
+import { Canvas, useLoader } from '@react-three/fiber';
+import { OrbitControls, PerspectiveCamera, Environment, Loader } from '@react-three/drei';
 import * as THREE from 'three';
-import Card3DSimple from './Card3DSimple';
+import Card3DNFTSimple from './Card3DNFT';
 import Shield3D from './Shield3D';
+import Pyroblast3D from './Pyroblast3D';
+import IceNova3D from './IceNova3D';
 import { ENHANCED_CHARACTERS } from '../game/enhancedCharacters';
+import { Html } from '@react-three/drei';
 
 // React overlay for health and stats
 const CardOverlay = ({ character, position2D, isDead }) => {
@@ -60,10 +63,16 @@ const BattleScene = ({
   validTargets,
   shieldedCharacters,
   currentTurn,
-  activeCharacterIndex 
+  activeCharacterIndex,
+  pyroblastActive,
+  pyroblastStart,
+  pyroblastTarget
 }) => {
   const isMobile = window.innerWidth <= 640;
   const scale = isMobile ? 0.7 : 1;
+  
+  // Load arena background texture
+  const arenaTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/toyboxare1na.png');
   
   // Card positions
   const getCardPosition = (index, team) => {
@@ -80,10 +89,11 @@ const BattleScene = ({
   
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
-      <pointLight position={[-5, 5, 0]} intensity={0.3} color="#ffddaa" />
+      {/* Improved Lighting */}
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[5, 10, 5]} intensity={1.0} castShadow />
+      <pointLight position={[-5, 5, 0]} intensity={0.5} color="#ffffff" />
+      <pointLight position={[0, 5, 5]} intensity={0.5} color="#ffffff" />
       
       {/* Arena Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -3, 0]} receiveShadow>
@@ -91,10 +101,21 @@ const BattleScene = ({
         <meshStandardMaterial color="#8B4513" roughness={0.8} />
       </mesh>
       
-      {/* Background */}
+      {/* Background Wall - ToyBox Arena */}
       <mesh position={[0, 5, -15]}>
-        <planeGeometry args={[40, 20]} />
-        <meshStandardMaterial color="#87CEEB" emissive="#87CEEB" emissiveIntensity={0.1} />
+        <planeGeometry args={[40, 25]} />
+        <meshBasicMaterial map={arenaTexture} />
+      </mesh>
+      
+      {/* Side Walls with Arena Texture */}
+      <mesh position={[-20, 5, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[30, 25]} />
+        <meshBasicMaterial map={arenaTexture} opacity={0.7} transparent />
+      </mesh>
+      
+      <mesh position={[20, 5, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[30, 25]} />
+        <meshBasicMaterial map={arenaTexture} opacity={0.7} transparent />
       </mesh>
       
       {/* Player Team Cards */}
@@ -105,7 +126,7 @@ const BattleScene = ({
         
         return (
           <group key={char.instanceId}>
-            <Card3DSimple
+            <Card3DNFTSimple
               character={char}
               position={position}
               isActive={isActive}
@@ -137,7 +158,7 @@ const BattleScene = ({
         
         return (
           <group key={char.instanceId}>
-            <Card3DSimple
+            <Card3DNFTSimple
               character={char}
               position={position}
               rotation={[0, Math.PI, 0]} // Face towards player
@@ -161,6 +182,7 @@ const BattleScene = ({
           </group>
         );
       })}
+      
     </>
   );
 };
@@ -169,9 +191,10 @@ const BattleScene = ({
 const Battle3DTest = () => {
   // Sample teams for testing
   const [playerTeam] = useState(() => {
+    const allCharacters = Object.values(ENHANCED_CHARACTERS);
     const characters = ['Wizard Toy', 'Robot Guardian', 'Rubber Duckie'];
     return characters.map((name, index) => {
-      const baseChar = ENHANCED_CHARACTERS.find(c => c.name === name) || ENHANCED_CHARACTERS[0];
+      const baseChar = allCharacters.find(c => c.name === name) || allCharacters[0];
       return {
         ...baseChar,
         instanceId: `player-${index}`,
@@ -182,9 +205,10 @@ const Battle3DTest = () => {
   });
   
   const [aiTeam] = useState(() => {
+    const allCharacters = Object.values(ENHANCED_CHARACTERS);
     const characters = ['Brick Dude', 'Wind-Up Soldier', 'Doctor Toy'];
     return characters.map((name, index) => {
-      const baseChar = ENHANCED_CHARACTERS.find(c => c.name === name) || ENHANCED_CHARACTERS[1];
+      const baseChar = allCharacters.find(c => c.name === name) || allCharacters[1];
       return {
         ...baseChar,
         instanceId: `ai-${index}`,
@@ -201,6 +225,16 @@ const Battle3DTest = () => {
     ['player-0', { type: 'arcane' }],
     ['ai-1', { type: 'holy' }]
   ]));
+  
+  // Pyroblast spell state
+  const [pyroblastActive, setPyroblastActive] = useState(false);
+  const [pyroblastStart, setPyroblastStart] = useState([0, 0, 0]);
+  const [pyroblastTarget, setPyroblastTarget] = useState([0, 0, 0]);
+  
+  // Ice Nova spell state
+  const [iceNovaActive, setIceNovaActive] = useState(false);
+  const [iceNovaCaster, setIceNovaCaster] = useState([0, 0, 0]);
+  const [iceNovaTargets, setIceNovaTargets] = useState([]);
   
   const canvasRef = useRef();
   const [cardPositions2D, setCardPositions2D] = useState({});
@@ -253,8 +287,56 @@ const Battle3DTest = () => {
     setValidTargets(currentTurn === 'player' ? aiTeam : playerTeam);
   };
   
+  const handleCastPyroblast = () => {
+    // Find wizard position (first player card for demo)
+    const wizardIndex = 0;
+    const wizardPos = [
+      (wizardIndex % 3 - 1) * 3.5,
+      Math.floor(wizardIndex / 3) * -2 + 1, // Slightly higher
+      4
+    ];
+    
+    // Target first enemy
+    const targetIndex = 0;
+    const targetPos = [
+      (targetIndex % 3 - 1) * 3.5,
+      Math.floor(targetIndex / 3) * -2,
+      -4
+    ];
+    
+    console.log('Casting Pyroblast from', wizardPos, 'to', targetPos);
+    setPyroblastStart(wizardPos);
+    setPyroblastTarget(targetPos);
+    setPyroblastActive(true);
+  };
+  
+  const handleCastIceNova = () => {
+    // Cast from wizard position
+    const wizardIndex = 0;
+    const wizardPos = [
+      (wizardIndex % 3 - 1) * 3.5,
+      Math.floor(wizardIndex / 3) * -2,
+      4
+    ];
+    
+    // Target all enemies
+    const enemyPositions = aiTeam.map((_, index) => [
+      (index % 3 - 1) * 3.5,
+      Math.floor(index / 3) * -2,
+      -4
+    ]);
+    
+    console.log('Casting Ice Nova from', wizardPos, 'on', enemyPositions);
+    setIceNovaCaster(wizardPos);
+    setIceNovaTargets(enemyPositions);
+    setIceNovaActive(true);
+  };
+  
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-blue-900 to-purple-900">
+      {/* Loading indicator */}
+      <Loader />
+      
       {/* Three.js Canvas */}
       <div ref={canvasRef} className="absolute inset-0">
         <Canvas
@@ -265,7 +347,11 @@ const Battle3DTest = () => {
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
         >
-          <Suspense fallback={null}>
+          <Suspense fallback={
+            <Html center>
+              <div className="text-white text-xl">Loading 3D Battle...</div>
+            </Html>
+          }>
             <PerspectiveCamera makeDefault position={[0, 8, 12]} fov={50} />
             
             <BattleScene
@@ -277,7 +363,36 @@ const Battle3DTest = () => {
               shieldedCharacters={shieldedCharacters}
               currentTurn={currentTurn}
               activeCharacterIndex={0}
+              pyroblastActive={pyroblastActive}
+              pyroblastStart={pyroblastStart}
+              pyroblastTarget={pyroblastTarget}
             />
+            
+            {/* Pyroblast Spell Effect - Outside BattleScene */}
+            {pyroblastActive && (
+              <Pyroblast3D
+                startPosition={pyroblastStart}
+                targetPosition={pyroblastTarget}
+                isActive={pyroblastActive}
+                onComplete={() => {
+                  console.log('Pyroblast complete!');
+                  setPyroblastActive(false);
+                }}
+              />
+            )}
+            
+            {/* Ice Nova Spell Effect */}
+            {iceNovaActive && (
+              <IceNova3D
+                casterPosition={iceNovaCaster}
+                targets={iceNovaTargets}
+                isActive={iceNovaActive}
+                onComplete={() => {
+                  console.log('Ice Nova complete!');
+                  setIceNovaActive(false);
+                }}
+              />
+            )}
             
             <OrbitControls
               enablePan={false}
@@ -328,6 +443,18 @@ const Battle3DTest = () => {
             className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 ml-2"
           >
             Switch Turn
+          </button>
+          <button
+            onClick={handleCastPyroblast}
+            className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 ml-2"
+          >
+            Cast Pyroblast 🔥
+          </button>
+          <button
+            onClick={handleCastIceNova}
+            className="bg-cyan-600 text-white px-3 py-1 rounded text-sm hover:bg-cyan-700 ml-2"
+          >
+            Cast Ice Nova ❄️
           </button>
         </div>
       </div>
