@@ -13,8 +13,21 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    
+    // Set canvas size accounting for device pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Set the actual canvas size
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Scale the context to match device pixel ratio
+    ctx.scale(dpr, dpr);
+    
+    // Set CSS size
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     
     // Get ice cube image
     const iceCubeImage = assetPreloader.getImage('icecube');
@@ -30,12 +43,12 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
       // Update ice cubes based on frozen characters
       const newIceCubes = new Map();
       frozenCharacters.forEach((value, key) => {
-        // Get character position using mobile-safe positioning
+        // Get character position directly from bounding rect for accuracy
         const element = document.getElementById(`char-${key}`);
         if (element) {
-          const position = getElementCenter(element);
-          const x = position.x;
-          const y = position.y;
+          const rect = element.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
           
           // Mobile debugging
           console.log(`🧊 Mobile Debug - Found frozen character ${key} at (${x}, ${y})`);
@@ -67,7 +80,9 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
       
       // Animation loop
       const animate = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Clear with proper dimensions
+        const dpr = window.devicePixelRatio || 1;
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
         
         // Draw all ice cubes
         newIceCubes.forEach((cube) => {

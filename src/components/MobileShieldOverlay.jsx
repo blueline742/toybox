@@ -14,8 +14,21 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    
+    // Set canvas size accounting for device pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Set the actual canvas size
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Scale the context to match device pixel ratio
+    ctx.scale(dpr, dpr);
+    
+    // Set CSS size
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -25,15 +38,23 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const time = Date.now() / 1000;
     
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Clear with proper dimensions
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
       
       // Draw shields for all shielded characters
       shieldedCharacters.forEach((shieldData, characterId) => {
         const element = document.getElementById(`char-${characterId}`);
         if (element) {
-          const position = getElementCenter(element);
+          // Get more accurate position
+          const rect = element.getBoundingClientRect();
+          const position = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+          };
+          
           const isMobile = window.innerWidth <= 640;
-          const shieldSize = isMobile ? 140 : 200;
+          const shieldSize = isMobile ? 120 : 200;
           
           // Get shield color tint based on type
           let tintColor = '#00FFFF'; // default cyan
@@ -252,8 +273,14 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (canvas) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
       }
     };
     
@@ -270,14 +297,12 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
         position: 'fixed',
         top: 0,
         left: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         pointerEvents: 'none',
         zIndex: 10001, // Below ice cubes but above most things
-        WebkitTransform: 'translateZ(0)',
-        transform: 'translateZ(0)',
-        backfaceVisibility: 'hidden',
-        perspective: 1000
+        // Disable 3D transforms that can cause positioning issues on mobile
+        willChange: 'transform'
       }}
     />
   );
