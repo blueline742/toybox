@@ -6,6 +6,10 @@ import DamageNumber from './DamageNumber'
 const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNumbers = [], teamColor = 'blue', shields, damageBuff, criticalBuff, frozen, debuffed }) => {
   const [showDetails, setShowDetails] = useState(false)
   const [touchTimer, setTouchTimer] = useState(null)
+  const [isLongPressing, setIsLongPressing] = useState(false)
+  const [progressWidth, setProgressWidth] = useState(0)
+  const progressIntervalRef = React.useRef(null)
+  
   const getRarityGradient = (rarity) => {
     switch (rarity) {
       case 'mythic': return 'from-red-600 via-orange-500 to-yellow-500'
@@ -29,24 +33,81 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
   const healthPercentage = (currentHealth / maxHealth) * 100
   const isDead = currentHealth <= 0
   
-  // Handle touch events for mobile
-  const handleTouchStart = () => {
+  // Handle long press for mobile (2 seconds)
+  const handleTouchStart = (e) => {
+    // Prevent default to avoid text selection
+    e.preventDefault()
+    
     if (touchTimer) clearTimeout(touchTimer)
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    
+    setIsLongPressing(true)
+    setProgressWidth(0)
+    
+    // Start progress animation
+    let progress = 0
+    progressIntervalRef.current = setInterval(() => {
+      progress += 5 // 5% every 100ms = 2 seconds total
+      setProgressWidth(progress)
+      
+      if (progress >= 100) {
+        clearInterval(progressIntervalRef.current)
+        setShowDetails(true)
+        setIsLongPressing(false)
+        setProgressWidth(0)
+        
+        // Vibrate if supported
+        if (navigator.vibrate) {
+          navigator.vibrate(50)
+        }
+      }
+    }, 100)
+    
+    // Set timeout for 2 seconds
     const timer = setTimeout(() => {
       setShowDetails(true)
-    }, 200) // Show after 200ms press
+      setIsLongPressing(false)
+      setProgressWidth(0)
+    }, 2000)
     setTouchTimer(timer)
   }
   
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e) => {
+    e.preventDefault()
+    
     if (touchTimer) {
       clearTimeout(touchTimer)
       setTouchTimer(null)
     }
-    // Hide details after 3 seconds
-    if (showDetails) {
-      setTimeout(() => setShowDetails(false), 3000)
+    
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
     }
+    
+    setIsLongPressing(false)
+    setProgressWidth(0)
+    
+    // Auto-hide details after 5 seconds if shown
+    if (showDetails) {
+      setTimeout(() => setShowDetails(false), 5000)
+    }
+  }
+  
+  // Handle mouse events for desktop
+  const handleMouseDown = () => {
+    handleTouchStart({ preventDefault: () => {} })
+  }
+  
+  const handleMouseUp = () => {
+    handleTouchEnd({ preventDefault: () => {} })
+  }
+  
+  const handleMouseLeave = () => {
+    if (isLongPressing) {
+      handleTouchEnd({ preventDefault: () => {} })
+    }
+    setShowDetails(false)
   }
 
   return (
@@ -74,62 +135,127 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
         teamColor={teamColor}
       />
       
-      {/* Character Details Popup on Hover */}
+      {/* Long Press Progress Indicator */}
+      {isLongPressing && (
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-50 pointer-events-none px-4">
+          <div className="bg-gray-900/90 rounded-full h-3 overflow-hidden border border-white/30">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-100"
+              style={{ width: `${progressWidth}%` }}
+            />
+          </div>
+          <div className="text-white text-xs text-center mt-1 font-bold drop-shadow-lg">
+            Hold for info...
+          </div>
+        </div>
+      )}
+      
+      {/* Character Details Popup */}
       {showDetails && !isDead && (
-        <div className={`absolute -top-4 z-50 pointer-events-none
-          ${teamColor === 'red' ? 'right-full mr-2 animate-fadeInLeft' : 'left-full ml-2 animate-fadeInRight'}
-          md:min-w-[250px] min-w-[200px]
+        <div className={`absolute z-50 pointer-events-none
+          ${teamColor === 'red' 
+            ? 'right-0 top-full mt-2' 
+            : 'left-0 top-full mt-2'}
+          md:${teamColor === 'red' ? 'right-full mr-2 top-0' : 'left-full ml-2 top-0'}
+          w-[280px] md:w-[320px] max-w-[90vw]
+          animate-fadeInUp md:animate-fadeInRight
         `}>
-          <div className="bg-gray-900/95 backdrop-blur-md border-2 border-gray-700 rounded-lg md:rounded-xl p-2 md:p-4 shadow-2xl">
-            {/* Character Name & Rarity */}
-            <div className="mb-2 md:mb-3 pb-1 md:pb-2 border-b border-gray-700">
-              <h3 className="text-white font-bold text-sm md:text-lg">{character.name}</h3>
-              <span className={`text-[10px] md:text-xs font-bold uppercase bg-gradient-to-r ${getRarityGradient(character.rarity)} bg-clip-text text-transparent`}>
-                {character.rarity}
-              </span>
+          <div className="bg-gray-900/98 backdrop-blur-md border-2 border-cyan-500/50 rounded-xl p-3 md:p-4 shadow-2xl
+            bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+            {/* Header with Character Info */}
+            <div className="flex items-start justify-between mb-3 pb-2 border-b border-cyan-500/30">
+              <div className="flex-1">
+                <h3 className="text-white font-bold text-base md:text-xl flex items-center gap-2">
+                  {character.emoji && <span className="text-2xl">{character.emoji}</span>}
+                  {character.name}
+                </h3>
+                <span className={`text-xs md:text-sm font-bold uppercase bg-gradient-to-r ${getRarityGradient(character.rarity)} bg-clip-text text-transparent`}>
+                  {character.rarity} Toy
+                </span>
+              </div>
+              <button 
+                className="text-gray-400 hover:text-white text-xl"
+                onTouchEnd={(e) => {
+                  e.stopPropagation()
+                  setShowDetails(false)
+                }}
+                onClick={() => setShowDetails(false)}
+              >
+                ×
+              </button>
             </div>
             
-            {/* Stats */}
-            <div className="space-y-1 md:space-y-2 mb-2 md:mb-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-xs md:text-sm">HP</span>
-                <span className="text-white font-bold text-xs md:text-sm">{currentHealth}/{maxHealth}</span>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">❤️ Health</span>
+                  <span className="text-white font-bold text-sm">{currentHealth}/{maxHealth}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-red-400 text-xs md:text-sm">⚔️ ATK</span>
-                <span className="text-white font-bold text-xs md:text-sm">{character.attack || 50}</span>
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-red-400 text-xs">⚔️ Attack</span>
+                  <span className="text-white font-bold text-sm">{character.attack || 50}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-blue-400 text-xs md:text-sm">🛡️ DEF</span>
-                <span className="text-white font-bold text-xs md:text-sm">{character.defense || 30}</span>
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-blue-400 text-xs">🛡️ Defense</span>
+                  <span className="text-white font-bold text-sm">{character.defense || 30}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-400 text-xs md:text-sm">⚡ SPD</span>
-                <span className="text-white font-bold text-xs md:text-sm">{character.speed || 40}</span>
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-yellow-400 text-xs">⚡ Speed</span>
+                  <span className="text-white font-bold text-sm">{character.speed || 40}</span>
+                </div>
               </div>
             </div>
             
-            {/* Abilities */}
-            <div className="border-t border-gray-700 pt-1 md:pt-2">
-              <p className="text-gray-400 text-[10px] md:text-xs font-bold mb-1 md:mb-2">Abilities:</p>
-              <div className="space-y-0.5 md:space-y-1 max-h-24 md:max-h-32 overflow-y-auto">
+            {/* Abilities Section */}
+            <div className="bg-gray-800/30 rounded-lg p-2 mb-2">
+              <p className="text-cyan-400 text-xs font-bold mb-2 flex items-center gap-1">
+                <span>✨</span> Special Abilities
+              </p>
+              <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                 {character.abilities && character.abilities.map((ability, idx) => (
-                  <div key={idx} className="text-[10px] md:text-xs">
-                    <div className="text-white font-semibold">{ability.name}</div>
-                    <div className="text-gray-400 text-[9px] md:text-[10px]">
-                      {ability.damage && <span className="text-red-400">Dmg: {ability.damage} </span>}
-                      {ability.heal && <span className="text-green-400">Heal: {ability.heal} </span>}
-                      {ability.chance && <span className="text-yellow-400">({Math.round(ability.chance * 100)}%)</span>}
+                  <div key={idx} className="bg-gray-900/50 rounded p-2 border border-gray-700/50">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-white font-semibold text-xs">{ability.name}</div>
+                        <div className="text-gray-400 text-[10px] mt-1">
+                          {ability.description || (
+                            <>
+                              {ability.damage && <span className="text-red-400">💥 {ability.damage} damage </span>}
+                              {ability.heal && <span className="text-green-400">💚 {ability.heal} heal </span>}
+                              {ability.effect && <span className="text-purple-400">✨ {ability.effect} </span>}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {ability.chance && (
+                        <span className="text-yellow-400 text-[10px] font-bold ml-2">
+                          {Math.round(ability.chance * 100)}%
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
             
-            {/* Description if available - hide on mobile for space */}
-            {character.description && (
-              <div className="mt-1 md:mt-2 pt-1 md:pt-2 border-t border-gray-700 hidden md:block">
-                <p className="text-gray-300 text-[10px] md:text-xs italic">{character.description}</p>
+            {/* Active Buffs/Debuffs */}
+            {(shields || damageBuff || criticalBuff || frozen || debuffed) && (
+              <div className="bg-blue-900/20 rounded-lg p-2 border border-blue-500/30">
+                <p className="text-blue-400 text-[10px] font-bold mb-1">Active Effects:</p>
+                <div className="flex flex-wrap gap-1">
+                  {shields && <span className="text-cyan-300 text-[10px] bg-cyan-900/50 px-2 py-0.5 rounded">🛡️ Shielded</span>}
+                  {damageBuff && <span className="text-red-300 text-[10px] bg-red-900/50 px-2 py-0.5 rounded">⚔️ +Damage</span>}
+                  {criticalBuff && <span className="text-yellow-300 text-[10px] bg-yellow-900/50 px-2 py-0.5 rounded">⚡ +Critical</span>}
+                  {frozen && <span className="text-blue-300 text-[10px] bg-blue-900/50 px-2 py-0.5 rounded">❄️ Frozen</span>}
+                  {debuffed && <span className="text-purple-300 text-[10px] bg-purple-900/50 px-2 py-0.5 rounded">💀 Debuffed</span>}
+                </div>
               </div>
             )}
           </div>
@@ -146,10 +272,12 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
           p-0.5
           ${isActive ? 'shadow-2xl' : 'shadow-lg'}
         `}
-        onMouseEnter={() => setShowDetails(true)}
-        onMouseLeave={() => setShowDetails(false)}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div className="w-full h-full bg-gray-900 rounded-xl overflow-hidden relative">
           {/* Card Background Pattern */}
@@ -350,6 +478,17 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
           }
         }
         
+        @keyframes fadeInUp {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
         @keyframes float {
           0%, 100% {
             transform: translateY(0px);
@@ -416,6 +555,10 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
           animation: fadeInLeft 0.2s ease-out forwards;
         }
         
+        .animate-fadeInUp {
+          animation: fadeInUp 0.3s ease-out forwards;
+        }
+        
         .animate-float {
           animation: float 3s ease-in-out infinite;
         }
@@ -438,6 +581,24 @@ const CharacterCard = ({ character, isActive, currentHealth, maxHealth, damageNu
         
         .text-shadow-lg {
           text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 2px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0, 255, 255, 0.4);
+          border-radius: 2px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 255, 255, 0.6);
         }
       `}</style>
     </div>
