@@ -77,19 +77,34 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
           
           const rect = targetElement.getBoundingClientRect();
           
-          // Simple center calculation
-          const position = {
+          // Calculate center with iOS offset adjustment
+          let position = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
           };
           
-          // Debug logging for iOS
-          if (isIOS && Math.random() < 0.1) { // Log 10% of the time to avoid spam
-            console.log(`Shield position for ${characterId}:`, {
+          // iOS Safari offset adjustment - based on observed pattern
+          // The shields appear to be offset left and down, so we compensate
+          if (isIOS) {
+            // Adjust position based on observed offset pattern
+            // These values may need fine-tuning based on testing
+            const xOffset = rect.width * 0.15; // Move right by 15% of card width
+            const yOffset = -rect.height * 0.1; // Move up by 10% of card height
+            
+            position = {
+              x: position.x + xOffset,
+              y: position.y + yOffset
+            };
+            
+            // Always log on iOS for debugging
+            console.log(`🛡️ Shield position for ${characterId}:`, {
               elementId: element.id,
-              rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-              calculatedPosition: position,
-              windowSize: { width: window.innerWidth, height: window.innerHeight }
+              originalRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+              beforeAdjustment: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+              offsetApplied: { xOffset, yOffset },
+              finalPosition: position,
+              windowSize: { width: window.innerWidth, height: window.innerHeight },
+              targetElement: targetElement.tagName
             });
           }
           
