@@ -1627,6 +1627,8 @@ const AutoBattleScreen = ({ playerTeam, opponentTeam, onBattleEnd, onBack, isPvP
       const shieldAmount = ability.shield || 30
       const targetAlly = targets[0] // Shield is applied to the selected ally
       
+      console.log(`🛡️ Applying shield to ${targetAlly?.instanceId}, amount: ${shieldAmount}`);
+      
       if (targetAlly) {
         setShieldedCharacters(prev => {
           const newMap = new Map(prev)

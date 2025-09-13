@@ -54,9 +54,22 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
       
+      // Debug: Log shields being animated
+      if (Math.random() < 0.05) { // Log 5% of frames
+        console.log(`🛡️ Animating ${shieldedCharacters.size} shields:`);
+        shieldedCharacters.forEach((data, id) => {
+          console.log(`  Shield on: ${id}`, data);
+        });
+      }
+      
       // Draw shields for all shielded characters
       shieldedCharacters.forEach((shieldData, characterId) => {
         const element = document.getElementById(`char-${characterId}`);
+        if (!element) {
+          console.warn(`🛡️ Cannot find element for: char-${characterId}`);
+          return;
+        }
+        
         if (element) {
           // Detect iOS Safari
           const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
