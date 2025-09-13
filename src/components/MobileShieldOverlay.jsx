@@ -13,29 +13,16 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    // iOS Safari fix: Add a small delay to ensure DOM is fully rendered
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const setupDelay = isIOS ? 100 : 0; // 100ms delay for iOS
-    
     const setupCanvas = () => {
       const ctx = canvas.getContext('2d');
       
-      // Simpler canvas setup - let CSS handle the sizing
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      
-      // Don't scale context on iOS - it might be causing offset issues
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (!isIOS) {
-        const dpr = window.devicePixelRatio || 1;
-        if (dpr !== 1) {
-          canvas.width = window.innerWidth * dpr;
-          canvas.height = window.innerHeight * dpr;
-          ctx.scale(dpr, dpr);
-          canvas.style.width = window.innerWidth + 'px';
-          canvas.style.height = window.innerHeight + 'px';
-        }
-      }
+      // Standard canvas setup with DPR scaling for all devices
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -71,53 +58,29 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
         }
         
         if (element) {
-          // Detect iOS Safari
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+          // Use the documented solution from MOBILE_POSITIONING_FIX.md
+          // Find the actual character card within the container
+          // Look for the card element with specific width classes (w-32 on mobile, w-40 on desktop)
+          const characterCard = element.querySelector('.w-32, .w-40') || 
+                               element.querySelector('[class*="border-2"]') || 
+                               element;
           
-          // Simple, direct approach - just use getBoundingClientRect
-          // But for iOS, find the actual card image inside the container
-          let targetElement = element;
+          const rect = characterCard.getBoundingClientRect();
           
-          if (isIOS) {
-            // On iOS, try to find the actual character image element
-            const cardImage = element.querySelector('img') || 
-                            element.querySelector('.character-image') ||
-                            element.querySelector('[class*="border"]');
-            if (cardImage) {
-              targetElement = cardImage;
-            }
-          }
-          
-          const rect = targetElement.getBoundingClientRect();
-          
-          // Calculate center with iOS offset adjustment
-          let position = {
+          // Simple center calculation - no offsets needed with correct element
+          const position = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
           };
           
-          // iOS Safari offset adjustment - based on observed pattern
-          // The shields appear to be offset left and down, so we compensate
-          if (isIOS) {
-            // Adjust position based on observed offset pattern
-            // These values may need fine-tuning based on testing
-            const xOffset = rect.width * 0.15; // Move right by 15% of card width
-            const yOffset = -rect.height * 0.1; // Move up by 10% of card height
-            
-            position = {
-              x: position.x + xOffset,
-              y: position.y + yOffset
-            };
-            
-            // Always log on iOS for debugging
+          // Debug logging on mobile
+          if (window.innerWidth <= 640 && Math.random() < 0.1) { // Log 10% of frames on mobile
             console.log(`🛡️ Shield position for ${characterId}:`, {
               elementId: element.id,
-              originalRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-              beforeAdjustment: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
-              offsetApplied: { xOffset, yOffset },
-              finalPosition: position,
-              windowSize: { width: window.innerWidth, height: window.innerHeight },
-              targetElement: targetElement.tagName
+              characterCard: characterCard.className,
+              rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+              position: position,
+              windowSize: { width: window.innerWidth, height: window.innerHeight }
             });
           }
           
@@ -332,12 +295,11 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       }
     };
     
-    // Setup with delay for iOS
-    const timeoutId = setTimeout(setupCanvas, setupDelay);
+    // Setup canvas immediately
+    setupCanvas();
     
     // Cleanup
     return () => {
-      clearTimeout(timeoutId);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }

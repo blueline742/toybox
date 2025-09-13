@@ -48,10 +48,16 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
       // Update ice cubes based on frozen characters
       const newIceCubes = new Map();
       frozenCharacters.forEach((value, key) => {
-        // Get character position directly from bounding rect for accuracy
+        // Get character position using the documented approach from MOBILE_POSITIONING_FIX.md
         const element = document.getElementById(`char-${key}`);
         if (element) {
-          const rect = element.getBoundingClientRect();
+          // Find the actual character card within the container
+          // Look for the card element with specific width classes (w-32 on mobile, w-40 on desktop)
+          const characterCard = element.querySelector('.w-32, .w-40') || 
+                               element.querySelector('[class*="border-2"]') || 
+                               element;
+          
+          const rect = characterCard.getBoundingClientRect();
           const x = rect.left + rect.width / 2;
           const y = rect.top + rect.height / 2;
           

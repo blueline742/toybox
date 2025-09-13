@@ -2,36 +2,22 @@
 
 /**
  * Get accurate element position that works on both desktop and mobile
- * Accounts for viewport scaling, device pixel ratio, and zoom
+ * Based on MOBILE_POSITIONING_FIX.md documentation
  */
 export function getElementCenter(element) {
   if (!element) return { x: 0, y: 0 };
   
   // Find the actual character card within the container
-  // Updated to match actual Tailwind classes used: w-[110px], sm:w-[140px], md:w-[160px]
-  const characterCard = element.querySelector('.character-card') || 
-                       element.querySelector('[class*="w-\\["]') || 
+  // Look for the card element with specific width classes (w-32 on mobile, w-40 on desktop)
+  const characterCard = element.querySelector('.w-32, .w-40') || 
                        element.querySelector('[class*="border-2"]') || 
                        element;
   
   const rect = characterCard.getBoundingClientRect();
   
-  // Account for any scroll offset and visual viewport on mobile
-  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-  
-  // Use visualViewport API if available (better mobile support)
-  if (window.visualViewport) {
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    };
-  }
-  
-  // Fallback for older browsers
   return {
-    x: rect.left + rect.width / 2 + scrollX,
-    y: rect.top + rect.height / 2 + scrollY
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
   };
 }
 
