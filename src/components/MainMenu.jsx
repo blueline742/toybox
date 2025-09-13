@@ -6,7 +6,7 @@ import MyToyboxCollection from './MyToyboxCollection'
 import WalletButtonPortal from './WalletButtonPortal'
 import { useTouchClick } from '../hooks/useTouchClick'
 
-const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
+const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
@@ -110,6 +110,10 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
   })
   const mintToysHandlers = useTouchClick(scrollToNFTSection)
   const myToyboxHandlers = useTouchClick(handleViewToys)
+  const test3DHandlers = useTouchClick(() => {
+    playButtonSound()
+    if (onTest3D) onTest3D()
+  })
 
   // Function to handle scrolling back to top (used by NFT section)
   window.scrollToTop = () => {
@@ -256,6 +260,14 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP }) => {
                 <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-lg blur-xl" />
                 </div>
+              </button>
+              
+              {/* 3D Test Button - Development only */}
+              <button
+                {...test3DHandlers}
+                className="menu-button bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all mt-4"
+              >
+                🎮 Test 3D Battle
               </button>
             </div>
             

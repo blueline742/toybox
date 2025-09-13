@@ -8,6 +8,7 @@ import ResultsScreen from './components/ResultsScreen'
 import PvPLobby from './components/PvPLobby'
 import InitialLoadingScreen from './components/InitialLoadingScreen'
 import GlobalTouchHandler from './components/GlobalTouchHandler'
+import Battle3DTest from './components/Battle3DTest'
 import musicManager from './utils/musicManager'
 
 const GAME_STATES = {
@@ -16,7 +17,8 @@ const GAME_STATES = {
   TEAM_BATTLE: 'team_battle',
   RESULTS: 'results',
   PVP_LOBBY: 'pvp_lobby',
-  PVP_TEAM_SELECT: 'pvp_team_select'
+  PVP_TEAM_SELECT: 'pvp_team_select',
+  BATTLE_3D_TEST: 'battle_3d_test'
 }
 
 function App() {
@@ -35,6 +37,10 @@ function App() {
 
   const handleStartPvP = () => {
     setGameState(GAME_STATES.PVP_TEAM_SELECT)
+  }
+  
+  const handleTest3D = () => {
+    setGameState(GAME_STATES.BATTLE_3D_TEST)
   }
 
   const handlePvPTeamSelected = (team) => {
@@ -171,6 +177,7 @@ function App() {
           <MainMenu 
             onStartGame={handleStartGame}
             onStartPvP={handleStartPvP}
+            onTest3D={handleTest3D}
           />
         )}
         
@@ -214,6 +221,10 @@ function App() {
             onPlayAgain={handlePlayAgain}
             onBackToMenu={handleBackToMenu}
           />
+        )}
+        
+        {gameState === GAME_STATES.BATTLE_3D_TEST && (
+          <Battle3DTest />
         )}
       </div>
       </SocketProvider>
