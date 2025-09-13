@@ -43,10 +43,11 @@ class AssetPreloader {
       };
       
       img.onerror = () => {
-        console.error(`Failed to load image: ${src}`);
+        console.warn(`Failed to load image: ${src} - continuing anyway`);
         this.loadedAssets++;
         this.updateProgress();
-        reject(new Error(`Failed to load image: ${src}`));
+        // Don't reject - just resolve with null to continue loading other assets
+        resolve(null);
       };
       
       img.src = src;
@@ -75,10 +76,11 @@ class AssetPreloader {
       }, { once: true });
       
       audio.addEventListener('error', () => {
-        console.error(`Failed to load audio: ${src}`);
+        console.warn(`Failed to load audio: ${src} - continuing anyway`);
         this.loadedAssets++;
         this.updateProgress();
-        reject(new Error(`Failed to load audio: ${src}`));
+        // Don't reject - just resolve with null to continue loading other assets
+        resolve(null);
       }, { once: true });
       
       audio.src = src;
@@ -132,15 +134,17 @@ class AssetPreloader {
       }
     });
 
-    try {
-      await Promise.all(promises);
-      this.onComplete();
-      return true;
-    } catch (error) {
-      console.error('Some assets failed to load:', error);
-      this.onComplete();
-      return false;
-    }
+    // Use allSettled to continue even if some assets fail
+    const results = await Promise.allSettled(promises);
+    
+    // Count successful loads
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+    const failCount = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value === null)).length;
+    
+    console.log(`Asset loading complete: ${successCount} succeeded, ${failCount} failed`);
+    
+    this.onComplete();
+    return successCount > 0; // Return true if at least some assets loaded
   }
 
   // Update loading progress
@@ -305,10 +309,10 @@ class AssetPreloader {
   }
 }
 
-// Define game assets to preload - ACTUAL ASSETS THAT EXIST
+// Define game assets to preload - Only include assets that actually exist
 export const gameAssets = [
-  // Character/Toy images
-  { type: 'image', name: 'robot', src: '/robot.png' },
+  // Character/Toy images that exist
+  { type: 'image', name: 'robot', src: '/assets/robot.png' },
   { type: 'image', name: 'mechadino', src: '/mechadinopp.jpg' },
   { type: 'image', name: 'duckie', src: '/duckiepp.jpg' },
   { type: 'image', name: 'cosmicjack', src: '/cosmicjackpp.jpg' },
@@ -324,54 +328,18 @@ export const gameAssets = [
   { type: 'image', name: 'rubiks', src: '/rubikspp.png' },
   { type: 'image', name: 'rocket', src: '/rocketpp.png' },
   
-  // Backgrounds
+  // Backgrounds - only load existing ones
   { type: 'image', name: 'main_bg', src: '/finalwebpbackground.webp' },
-  { type: 'image', name: 'pvp_arena', src: '/pvp-arena-bg.jpg' },
-  { type: 'image', name: 'toyboxarena', src: '/assets/backgrounds/toyboxarena.png' },
   { type: 'image', name: 'cardback', src: '/assets/cardback.png' },
   
-  // Spell Effects - NEW!
-  { type: 'image', name: 'fireball', src: '/assets/effects/fireball.png' },
-  { type: 'image', name: 'explosion', src: '/assets/effects/explosion.png' },
-  { type: 'image', name: 'lightning', src: '/assets/effects/lightning.png' },
-  { type: 'image', name: 'frost1', src: '/assets/effects/frost1.png' },
-  { type: 'image', name: 'frost2', src: '/assets/effects/frost2.png' },
-  { type: 'image', name: 'icecube', src: '/assets/effects/icecube.png' },
-  { type: 'image', name: 'shield-neon', src: '/assets/effects/neon.png' },
-  
-  // UI Buttons
+  // UI Buttons - Essential for main menu
   { type: 'image', name: 'freeplay_btn', src: '/freeplaybutton.svg' },
   { type: 'image', name: 'pvpbattle_btn', src: '/pvpbattlebutton.svg' },
   { type: 'image', name: 'minttoys_btn', src: '/minttoysbutton.svg' },
   { type: 'image', name: 'mytoybox_btn', src: '/mytoyboxbutton.svg' },
   
-  // Sound effects
-  { type: 'audio', name: 'button_click', src: '/button.wav' },
-  { type: 'audio', name: 'battle_start', src: '/battlestart.wav' },
-  { type: 'audio', name: 'victory', src: '/gamewin.wav' },
-  { type: 'audio', name: 'defeat', src: '/gamelose.wav' },
-  { type: 'audio', name: 'your_turn', src: '/yourturn.wav' },
-  { type: 'audio', name: 'select_card', src: '/selectcard.wav' },
-  { type: 'audio', name: 'heal', src: '/heal.wav' },
-  { type: 'audio', name: 'freeze', src: '/freeze.wav' },
-  { type: 'audio', name: 'pyroblast', src: '/pyroblast.wav' },
-  { type: 'audio', name: 'chainlightning', src: '/chainlightning.wav' },
-  
-  // Character sounds
-  { type: 'audio', name: 'duckie_sound', src: '/duckie.wav' },
-  { type: 'audio', name: 'robot_sound', src: '/robot.wav' },
-  { type: 'audio', name: 'train_sound', src: '/train.wav' },
-  { type: 'audio', name: 'mechadino_sound', src: '/mechadino.wav' },
-  { type: 'audio', name: 'greensoldier_sound', src: '/greensoldier.wav' },
-  { type: 'audio', name: 'rockinghorse_sound', src: '/rockinghorse.wav' },
-  { type: 'audio', name: 'cosmicjack_sound', src: '/cosmicjack.wav' },
-  { type: 'audio', name: 'phoenix_sound', src: '/phoenix.wav' },
-  
-  // Music
-  { type: 'audio', name: 'menu_music', src: '/menumusic.mp3' },
-  { type: 'audio', name: 'battle_music', src: '/battlemusic.mp3' },
-  { type: 'audio', name: 'blue_wins', src: '/blueteamwins.mp3' },
-  { type: 'audio', name: 'red_wins', src: '/redteamwins.mp3' }
+  // Essential sounds only - load others on demand
+  { type: 'audio', name: 'button_click', src: '/button.wav' }
 ];
 
 // Create singleton instance

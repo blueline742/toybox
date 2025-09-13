@@ -57,7 +57,16 @@ const InitialLoadingScreen = ({ onLoadComplete }) => {
         await assetPreloader.loadAssets(assetsToLoad);
       } catch (error) {
         console.error('Asset loading failed, falling back to simulation:', error);
-        simulateLoading();
+        // Don't get stuck - proceed anyway
+        setProgress(100);
+        setLoadingStatus("Ready to battle!");
+        setIsReallyLoading(false);
+        setTimeout(() => {
+          setFadeOut(true);
+          setTimeout(() => {
+            onLoadComplete();
+          }, 800);
+        }, 500);
       }
     };
 
@@ -102,18 +111,39 @@ const InitialLoadingScreen = ({ onLoadComplete }) => {
       return () => clearInterval(interval);
     };
 
-    // Start loading real assets
+    // Start loading real assets with timeout fallback
     loadRealAssets();
+    
+    // Fallback timeout - if loading takes too long on mobile, just proceed
+    const fallbackTimeout = setTimeout(() => {
+      if (progress < 100) {
+        console.warn('Loading timeout - proceeding anyway');
+        setProgress(100);
+        setLoadingStatus("Ready to battle!");
+        setIsReallyLoading(false);
+        setTimeout(() => {
+          setFadeOut(true);
+          setTimeout(() => {
+            onLoadComplete();
+          }, 800);
+        }, 500);
+      }
+    }, 15000); // 15 second timeout
+    
+    return () => clearTimeout(fallbackTimeout);
   }, [onLoadComplete]);
 
   return (
     <div className={`fixed inset-0 flex flex-col items-center justify-center z-[9999] transition-opacity duration-700 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
-      {/* Background Image */}
+      {/* Background Image - Optimized for mobile */}
       <div 
         className="absolute inset-0 w-full h-full bg-black"
         style={{ 
-          backgroundImage: 'url(/finalwebpbackground.webp)',
-          backgroundSize: window.innerWidth < 768 ? '150% auto' : 'cover',
+          // Use a solid gradient on mobile to avoid loading large image
+          background: window.innerWidth < 768 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'url(/finalwebpbackground.webp)',
+          backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
         }}
