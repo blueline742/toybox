@@ -6,8 +6,9 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
+import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect'
 import { clusterApiUrl } from '@solana/web3.js'
-import { isMobileDevice } from '../config/walletConfig'
+import { isMobileDevice, walletConnectConfig } from '../config/walletConfig'
 
 // Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -21,8 +22,25 @@ export function SolanaWalletProvider({ children }) {
     () => {
       const adapters = []
       
-      // Add Phantom adapter for both mobile and desktop
-      // The key is to use the WalletModalProvider which handles connections properly
+      // Check if we're on mobile
+      const isMobile = isMobileDevice()
+      
+      if (isMobile) {
+        // On mobile, prioritize WalletConnect to avoid tab switching
+        // This keeps users in your app instead of redirecting to Phantom browser
+        adapters.push(new WalletConnectWalletAdapter({
+          network: network,
+          options: {
+            projectId: walletConnectConfig.projectId,
+            relayUrl: walletConnectConfig.relayUrl,
+            metadata: walletConnectConfig.metadata,
+            qrcode: true, // Show QR code for desktop scanning
+            disableProviderPing: true // Prevent auto-redirect on mobile
+          }
+        }))
+      }
+      
+      // Add Phantom adapter - on mobile it will be a secondary option
       adapters.push(new PhantomWalletAdapter())
       
       // Add Solflare as an alternative
@@ -35,7 +53,14 @@ export function SolanaWalletProvider({ children }) {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider 
+        wallets={wallets} 
+        autoConnect={false} // Don't auto-connect on mobile to prevent unwanted redirects
+        onError={(error) => {
+          console.error('Wallet connection error:', error)
+          // Handle connection errors gracefully
+        }}
+      >
         <WalletModalProvider>
           {children}
         </WalletModalProvider>

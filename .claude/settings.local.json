@@ -56,7 +56,8 @@
       "Read(//c/Users/samta/OneDrive/Pictures/Screenshots/**)",
       "Bash(git pull:*)",
       "Bash(ls:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []
