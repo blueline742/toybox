@@ -18,7 +18,7 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       
       // Standard canvas setup with DPR scaling for all devices
       const dpr = window.devicePixelRatio || 1;
-      const extraHeight = 150; // Increased buffer to prevent bottom cutoff
+      const extraHeight = 200; // Large buffer to ensure shields at bottom are fully visible
       canvas.width = window.innerWidth * dpr;
       canvas.height = (window.innerHeight + extraHeight) * dpr;
       ctx.scale(dpr, dpr);
@@ -69,7 +69,7 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
           const rect = characterCard.getBoundingClientRect();
           
           // Simple center calculation - no offsets needed with correct element
-          let position = {
+          const position = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
           };
@@ -77,12 +77,6 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
           // Determine shield size first
           const isMobile = window.innerWidth <= 640;
           const shieldSize = isMobile ? 120 : 200;
-          const shieldRadius = shieldSize / 2;
-          
-          // Adjust position if shield would be cut off at bottom
-          if (position.y + shieldRadius > window.innerHeight) {
-            position.y = window.innerHeight - shieldRadius - 10; // 10px padding from edge
-          }
           
           // Debug logging on mobile
           if (window.innerWidth <= 640 && Math.random() < 0.1) { // Log 10% of frames on mobile
@@ -321,7 +315,7 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       const canvas = canvasRef.current;
       if (canvas) {
         const dpr = window.devicePixelRatio || 1;
-        const extraHeight = 150; // Increased buffer to prevent bottom cutoff
+        const extraHeight = 200; // Large buffer to ensure shields at bottom are fully visible
         
         canvas.width = window.innerWidth * dpr;
         canvas.height = (window.innerHeight + extraHeight) * dpr;
@@ -348,9 +342,10 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
         top: 0,
         left: 0,
         width: '100vw',
-        height: 'calc(100vh + 150px)', // Increased extra height to prevent cutoff at bottom
+        height: 'calc(100vh + 200px)', // Large extra height to prevent cutoff at bottom
         pointerEvents: 'none',
         zIndex: 10001, // Below ice cubes but above most things
+        overflow: 'visible', // Allow canvas to render beyond viewport
         // iOS Safari fixes
         WebkitBackfaceVisibility: 'hidden',
         WebkitTransform: 'translate3d(0,0,0)',

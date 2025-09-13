@@ -57,7 +57,8 @@
       "Bash(git pull:*)",
       "Bash(ls:*)",
       "Bash(findstr:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
