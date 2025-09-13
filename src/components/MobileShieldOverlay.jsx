@@ -18,11 +18,12 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       
       // Standard canvas setup with DPR scaling for all devices
       const dpr = window.devicePixelRatio || 1;
+      const extraHeight = 150; // Increased buffer to prevent bottom cutoff
       canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
+      canvas.height = (window.innerHeight + extraHeight) * dpr;
       ctx.scale(dpr, dpr);
       canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
+      canvas.style.height = (window.innerHeight + extraHeight) + 'px';
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -68,10 +69,20 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
           const rect = characterCard.getBoundingClientRect();
           
           // Simple center calculation - no offsets needed with correct element
-          const position = {
+          let position = {
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
           };
+          
+          // Determine shield size first
+          const isMobile = window.innerWidth <= 640;
+          const shieldSize = isMobile ? 120 : 200;
+          const shieldRadius = shieldSize / 2;
+          
+          // Adjust position if shield would be cut off at bottom
+          if (position.y + shieldRadius > window.innerHeight) {
+            position.y = window.innerHeight - shieldRadius - 10; // 10px padding from edge
+          }
           
           // Debug logging on mobile
           if (window.innerWidth <= 640 && Math.random() < 0.1) { // Log 10% of frames on mobile
@@ -80,12 +91,10 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
               characterCard: characterCard.className,
               rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
               position: position,
-              windowSize: { width: window.innerWidth, height: window.innerHeight }
+              windowSize: { width: window.innerWidth, height: window.innerHeight },
+              adjusted: position.y !== (rect.top + rect.height / 2)
             });
           }
-          
-          const isMobile = window.innerWidth <= 640;
-          const shieldSize = isMobile ? 120 : 200;
           
           // Get shield color tint based on type
           let tintColor = '#00FFFF'; // default cyan
@@ -312,13 +321,16 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       const canvas = canvasRef.current;
       if (canvas) {
         const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
+        const extraHeight = 150; // Increased buffer to prevent bottom cutoff
         
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = (window.innerHeight + extraHeight) * dpr;
         
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = (window.innerHeight + extraHeight) + 'px';
       }
     };
     
@@ -336,7 +348,7 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
+        height: 'calc(100vh + 150px)', // Increased extra height to prevent cutoff at bottom
         pointerEvents: 'none',
         zIndex: 10001, // Below ice cubes but above most things
         // iOS Safari fixes
