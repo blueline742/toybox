@@ -166,11 +166,15 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
       if (newIceCubes.size > 0) {
         animate();
       }
-    }, 100); // 100ms delay for mobile DOM rendering
+      }, 100); // 100ms delay for mobile DOM rendering
+    };
+    
+    // Setup with iOS-specific delay
+    const timeoutId = setTimeout(setupCanvas, setupDelay);
     
     // Cleanup
     return () => {
-      clearTimeout(setupTimeout);
+      clearTimeout(timeoutId);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }

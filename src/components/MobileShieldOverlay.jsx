@@ -13,22 +13,27 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const ctx = canvas.getContext('2d');
+    // iOS Safari fix: Add a small delay to ensure DOM is fully rendered
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const setupDelay = isIOS ? 100 : 0; // 100ms delay for iOS
     
-    // Set canvas size accounting for device pixel ratio
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    // Set the actual canvas size
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    // Scale the context to match device pixel ratio
-    ctx.scale(dpr, dpr);
-    
-    // Set CSS size
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    const setupCanvas = () => {
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size accounting for device pixel ratio
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      
+      // Set the actual canvas size
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      // Scale the context to match device pixel ratio
+      ctx.scale(dpr, dpr);
+      
+      // Set CSS size
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
     
     // Get the neon shield image
     const shieldImage = assetPreloader.getImage('shield-neon');
@@ -46,12 +51,43 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       shieldedCharacters.forEach((shieldData, characterId) => {
         const element = document.getElementById(`char-${characterId}`);
         if (element) {
-          // Get more accurate position
+          // iOS Safari fix: getBoundingClientRect is buggy with fixed positioning
+          // Need to account for scroll position and use pageY/pageX approach
           const rect = element.getBoundingClientRect();
-          const position = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2
-          };
+          
+          // Detect iOS Safari
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+          
+          let position;
+          if (isIOS) {
+            // iOS Safari workaround: Account for any scroll offset
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+            
+            // Get element's offset from the document top
+            let offsetTop = 0;
+            let offsetLeft = 0;
+            let currentElement = element;
+            
+            // Walk up the DOM tree to get true offset
+            while (currentElement) {
+              offsetTop += currentElement.offsetTop || 0;
+              offsetLeft += currentElement.offsetLeft || 0;
+              currentElement = currentElement.offsetParent;
+            }
+            
+            // Calculate position relative to viewport
+            position = {
+              x: offsetLeft - scrollX + element.offsetWidth / 2,
+              y: offsetTop - scrollY + element.offsetHeight / 2
+            };
+          } else {
+            // Standard browsers
+            position = {
+              x: rect.left + rect.width / 2,
+              y: rect.top + rect.height / 2
+            };
+          }
           
           const isMobile = window.innerWidth <= 640;
           const shieldSize = isMobile ? 120 : 200;
@@ -255,13 +291,21 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
       animationRef.current = requestAnimationFrame(animate);
     };
     
-    // Start animation if there are shielded characters
-    if (shieldedCharacters.size > 0) {
-      animate();
-    }
+      // Start animation if there are shielded characters
+      if (shieldedCharacters.size > 0) {
+        // Use requestAnimationFrame to ensure positions are calculated after render
+        requestAnimationFrame(() => {
+          animate();
+        });
+      }
+    };
+    
+    // Setup with delay for iOS
+    const timeoutId = setTimeout(setupCanvas, setupDelay);
     
     // Cleanup
     return () => {
+      clearTimeout(timeoutId);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -301,8 +345,11 @@ const MobileShieldOverlay = ({ shieldedCharacters }) => {
         height: '100vh',
         pointerEvents: 'none',
         zIndex: 10001, // Below ice cubes but above most things
-        // Disable 3D transforms that can cause positioning issues on mobile
-        willChange: 'transform'
+        // iOS Safari fixes
+        WebkitBackfaceVisibility: 'hidden',
+        WebkitTransform: 'translate3d(0,0,0)',
+        // Prevent iOS bounce scrolling from affecting canvas
+        touchAction: 'none'
       }}
     />
   );
