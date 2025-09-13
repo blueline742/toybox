@@ -12,22 +12,27 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const ctx = canvas.getContext('2d');
+    // iOS Safari fix: Add delay to ensure DOM is ready
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const setupDelay = isIOS ? 100 : 0;
     
-    // Set canvas size accounting for device pixel ratio
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    // Set the actual canvas size
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    // Scale the context to match device pixel ratio
-    ctx.scale(dpr, dpr);
-    
-    // Set CSS size
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    const setupCanvas = () => {
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size accounting for device pixel ratio
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      
+      // Set the actual canvas size
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      // Scale the context to match device pixel ratio
+      ctx.scale(dpr, dpr);
+      
+      // Set CSS size
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
     
     // Get ice cube image
     const iceCubeImage = assetPreloader.getImage('icecube');
@@ -38,8 +43,8 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
       return;
     }
     
-    // Small delay to ensure DOM elements are rendered on mobile
-    const setupTimeout = setTimeout(() => {
+      // Small delay to ensure DOM elements are rendered on mobile
+      const setupTimeout = setTimeout(() => {
       // Update ice cubes based on frozen characters
       const newIceCubes = new Map();
       frozenCharacters.forEach((value, key) => {
@@ -162,11 +167,19 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
         }
       };
       
-      // Start animation if there are frozen characters
-      if (newIceCubes.size > 0) {
-        animate();
-      }
+        // Start animation if there are frozen characters
+        if (newIceCubes.size > 0) {
+          animate();
+        }
       }, 100); // 100ms delay for mobile DOM rendering
+      
+      // Cleanup inner timeout
+      return () => {
+        clearTimeout(setupTimeout);
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
     };
     
     // Setup with iOS-specific delay
@@ -175,9 +188,6 @@ const IceCubeOverlay = ({ frozenCharacters }) => {
     // Cleanup
     return () => {
       clearTimeout(timeoutId);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
     };
   }, [frozenCharacters]); // Re-run when frozen characters change
   
