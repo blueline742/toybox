@@ -1,6 +1,7 @@
 import React, { Suspense, useRef } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { Text, RoundedBox, Loader, OrbitControls } from '@react-three/drei';
+import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import DamageNumber3D from './DamageNumber3D';
 
@@ -112,19 +113,52 @@ const HearthstoneCard = ({
   };
 
   const isMobile = window.innerWidth <= 768;
-  const baseScale = isMobile ? 0.5 : 1; // Half size on mobile
-  const scale = (hovered && !isDead ? 1.05 : 1) * baseScale * (isActive ? 1.1 : 1);
-  const zOffset = 0; // No z offset
+  const baseScale = isMobile ? 0.45 : 0.9; // Slightly smaller for 4 cards
+
+  // Calculate center position when it's the card's turn
+  const getCenterPosition = () => {
+    if (isActive && !isDead) {
+      // Move card toward center when it's their turn
+      const centerX = position[0] * 0.6; // Move 40% toward center (less dramatic)
+      const centerY = teamColor === 'blue' ? position[1] + 0.5 : position[1] - 0.5; // Slight vertical adjustment
+      const centerZ = position[2] + 1.5; // Come forward moderately
+      return [centerX, centerY, centerZ];
+    }
+    return [
+      position[0],
+      position[1] + (hovered && !isDead ? 0.1 : 0),
+      position[2] + (hovered && !isDead ? 0.2 : 0)
+    ];
+  };
+
+  // Spring animations for smooth transitions when card is active
+  const { scale, pos, rot, glow } = useSpring({
+    scale: isActive && !isDead ? baseScale * 1.3 : hovered && !isDead ? baseScale * 1.1 : baseScale,
+    pos: getCenterPosition(),
+    rot: [
+      rotation[0],
+      rotation[1] + (isActive && !isDead ? Math.PI * 0.03 : 0),
+      rotation[2] + (isActive && !isDead ? Math.PI * -0.01 : 0)
+    ],
+    glow: isActive && !isDead ? 1 : 0,
+    config: {
+      mass: 1,
+      tension: isActive ? 120 : 170,
+      friction: isActive ? 20 : 26
+    }
+  });
 
   return (
-    <group position={[position[0], position[1], position[2] + zOffset]} rotation={rotation}>
+    <animated.group position={pos} rotation={rot}>
+      {/* Removed magical glow */}
+
       {/* Card mesh - flat plane */}
-      <mesh
+      <animated.mesh
         ref={cardRef}
         onClick={handleClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
-        scale={[scale, scale, 1]}
+        scale={scale.to(s => [s, s, 1])}
       >
         <planeGeometry args={[2, 3]} />
         <meshBasicMaterial
@@ -133,7 +167,7 @@ const HearthstoneCard = ({
           transparent={isDead}
           opacity={isDead ? 0.3 : 1}
         />
-      </mesh>
+      </animated.mesh>
 
       {/* Character name removed */}
 
@@ -149,29 +183,7 @@ const HearthstoneCard = ({
 
       {/* Rarity badge removed */}
 
-      {/* Active glow */}
-      {isActive && !isDead && (
-        <mesh position={[0, 0, -0.01]}>
-          <planeGeometry args={[2.3, 3.3]} />
-          <meshBasicMaterial
-            color={teamColor === 'blue' ? '#0088ff' : '#ff0088'}
-            transparent
-            opacity={0.3}
-          />
-        </mesh>
-      )}
-
-      {/* Valid target highlight */}
-      {isValidTarget && isTargeting && (
-        <mesh position={[0, 0, -0.01]}>
-          <planeGeometry args={[2.2, 3.2]} />
-          <meshBasicMaterial
-            color="#ffff00"
-            transparent
-            opacity={0.4}
-          />
-        </mesh>
-      )}
+      {/* Removed active glow and target highlight boxes */}
 
       {/* Death X mark */}
       {isDead && (
@@ -187,7 +199,7 @@ const HearthstoneCard = ({
           ✖
         </Text>
       )}
-    </group>
+    </animated.group>
   );
 };
 
@@ -210,12 +222,12 @@ const HearthstoneBattleArena = ({
   // Hearthstone-style card positioning - responsive for mobile
   const getCardPosition = (index, team, isActive = false) => {
     const isMobile = window.innerWidth <= 768;
-    const spacing = isMobile ? 1.0 : 2.5; // Very tight spacing on mobile
-    const totalCards = 3;
+    const spacing = isMobile ? 0.9 : 2.2; // Tighter spacing for 4 cards
+    const totalCards = 4;
 
-    // Simple fixed positioning
-    const positions = [-spacing, 0, spacing]; // Left, center, right
-    const x = positions[index];
+    // Center the 4 cards
+    const startX = -(totalCards - 1) * spacing / 2;
+    const x = startX + index * spacing;
 
     const y = team === 'player' ? -2 : 2; // Player bottom, AI top
     const z = 0; // All cards on same plane
@@ -302,7 +314,7 @@ const HearthstoneBattleArena = ({
             <HearthstoneCard
               character={char}
               position={[x, y, z]}
-              rotation={[Math.PI * 0.05, Math.PI, 0]} // Face down, very slight tilt
+              rotation={[-Math.PI * 0.05, 0, 0]} // Face forward with slight tilt
               isDead={char.currentHealth <= 0}
               teamColor="red"
               onClick={() => onCardClick(char)}

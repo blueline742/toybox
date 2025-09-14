@@ -3,10 +3,10 @@ import Battle3DEnhanced from './Battle3D/Battle3DEnhanced';
 import { ENHANCED_CHARACTERS } from '../game/enhancedCharacters';
 
 const Battle3DTest = () => {
-  // Sample teams for testing
+  // Sample teams for testing - 4 cards each
   const [playerTeam] = useState(() => {
     const allCharacters = Object.values(ENHANCED_CHARACTERS);
-    const characters = ['Wizard Toy', 'Robot Guardian', 'Rubber Duckie'];
+    const characters = ['Wizard Toy', 'Robot Guardian', 'Rubber Duckie', 'Wind-Up Soldier'];
     return characters.map((name, index) => {
       const baseChar = allCharacters.find(c => c.name === name) || allCharacters[0];
       return {
@@ -20,7 +20,7 @@ const Battle3DTest = () => {
 
   const [aiTeam] = useState(() => {
     const allCharacters = Object.values(ENHANCED_CHARACTERS);
-    const characters = ['Brick Dude', 'Mecha Dino', 'Cursed Marionette'];
+    const characters = ['Brick Dude', 'Mecha Dino', 'Cursed Marionette', 'Doctor Toy'];
     return characters.map((name, index) => {
       const baseChar = allCharacters.find(c => c.name === name) || allCharacters[1];
       return {

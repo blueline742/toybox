@@ -44,12 +44,13 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
 
   // Helper function to get card position - Hearthstone style
   const getCardPosition = (index, team) => {
-    const spacing = 2.5;
-    const totalCards = 3;
+    const isMobile = window.innerWidth <= 768;
+    const spacing = isMobile ? 0.9 : 2.2; // Tighter spacing for 4 cards
+    const totalCards = 4;
     const startX = -(totalCards - 1) * spacing / 2;
 
     const x = startX + index * spacing;
-    const y = team === 'player' ? -3 : 3;
+    const y = team === 'player' ? -2 : 2; // Match HearthstoneScene positioning
     const z = 0;
 
     return [x, y, z];
