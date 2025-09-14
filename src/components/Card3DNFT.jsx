@@ -3,7 +3,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-const Card3DNFT = ({ 
+const Card3DNFT = ({
   character,
   position = [0, 0, 0],
   rotation = [0, 0, 0],
@@ -11,6 +11,8 @@ const Card3DNFT = ({
   isDead = false,
   teamColor = 'blue',
   onClick,
+  onPointerEnter,
+  onPointerLeave,
   isTargeting = false,
   isValidTarget = false,
   scale = 1
@@ -76,17 +78,28 @@ const Card3DNFT = ({
     if (!isDead) {
       setHovered(true);
       document.body.style.cursor = isTargeting ? 'crosshair' : 'pointer';
+      if (onPointerEnter) {
+        onPointerEnter(e);
+      }
     }
   };
-  
+
   const handlePointerOut = (e) => {
     e.stopPropagation();
     setHovered(false);
     document.body.style.cursor = 'default';
+    if (onPointerLeave) {
+      onPointerLeave(e);
+    }
   };
   
   return (
-    <group ref={groupRef} position={position} rotation={rotation}>
+    <group
+      ref={groupRef}
+      position={position}
+      rotation={rotation}
+      data-character-id={character.instanceId}
+    >
       {/* Card as a box with front and back textures */}
       <mesh
         onClick={handleClick}

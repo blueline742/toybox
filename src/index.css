@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fade out animation for damage numbers */
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @layer base {
   html, body {
     height: 100%;
