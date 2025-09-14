@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@react-three/drei": "^9.88.0",
-    "@react-three/fiber": "^8.15.0",
+    "@react-three/fiber": "^9.3.0",
     "@react-three/postprocessing": "^3.0.4",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.35",
