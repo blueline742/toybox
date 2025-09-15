@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import HearthstoneScene from './HearthstoneScene';
 import SpellNotification from '../SpellNotification';
+import TargetingOverlay from './TargetingOverlay';
 import { ENHANCED_CHARACTERS } from '../../game/enhancedCharacters';
 
 const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, onBattleEnd }) => {
@@ -34,6 +35,7 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   const [isTargeting, setIsTargeting] = useState(false);
   const [validTargets, setValidTargets] = useState([]);
   const [currentAbility, setCurrentAbility] = useState(null);
+  const [showTargetingOverlay, setShowTargetingOverlay] = useState(false);
 
   // Effects state
   const [shieldedCharacters, setShieldedCharacters] = useState(new Map());
@@ -45,13 +47,13 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   // Helper function to get card position - Hearthstone style
   const getCardPosition = (index, team) => {
     const isMobile = window.innerWidth <= 768;
-    const spacing = isMobile ? 0.9 : 2.2; // Tighter spacing for 4 cards
+    const spacing = isMobile ? 1.5 : 2.2; // Match HearthstoneScene spacing
     const totalCards = 4;
     const startX = -(totalCards - 1) * spacing / 2;
 
     const x = startX + index * spacing;
-    const y = team === 'player' ? -2 : 2; // Match HearthstoneScene positioning
-    const z = 0;
+    const y = 1.8; // Cards are at table height (matching HearthstoneScene)
+    const z = team === 'player' ? 5.5 : -5.5; // Match HearthstoneScene positioning
 
     return [x, y, z];
   };
@@ -100,7 +102,7 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
       targets
     });
 
-    // Get caster position
+    // Get the caster's actual position on the battlefield
     const casterTeam = caster.team === 'player' ? playerTeam : aiTeam;
     const casterIndex = casterTeam.findIndex(c => c.instanceId === caster.instanceId);
     const startPosition = getCardPosition(casterIndex, caster.team);
@@ -118,18 +120,21 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
       const effectType = getEffectType(ability);
       if (effectType) {
         const effectId = Date.now() + Math.random();
+        // Pyroblast needs longer duration for charging + flight + explosion
+        const effectDuration = effectType === 'pyroblast' ? 2500 : 1500;
+
         setActiveEffects(prev => [...prev, {
           id: effectId,
           type: effectType,
           startPosition,
           targetPosition,
-          duration: 1000
+          duration: effectDuration
         }]);
 
         // Remove effect after duration
         setTimeout(() => {
           setActiveEffects(prev => prev.filter(e => e.id !== effectId));
-        }, 1000);
+        }, effectDuration); // Effect component handles its own timing
       }
 
       // Apply damage/healing
@@ -178,9 +183,10 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   // Get effect type based on ability
   const getEffectType = (ability) => {
     const name = ability.name.toLowerCase();
-    if (name.includes('fireball') || name.includes('pyroblast')) return 'fireball';
+    if (name.includes('pyroblast')) return 'pyroblast';
+    if (name.includes('fireball')) return 'fireball';
     if (name.includes('heal')) return 'healing';
-    if (name.includes('explosion') || name.includes('blast')) return 'explosion';
+    if (name.includes('explosion') || (name.includes('blast') && !name.includes('pyroblast'))) return 'explosion';
     if (name.includes('shield')) return 'shield';
     return null;
   };
@@ -194,12 +200,20 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     const activeChar = playerTeam[currentCharacterIndex];
     setIsTargeting(false);
     setValidTargets([]);
+    setShowTargetingOverlay(false);
 
     await executeAbility(activeChar, currentAbility, [target]);
 
-    // Move to AI turn
-    setCurrentTurn('ai');
-    setTimeout(() => processAITurn(), 1500);
+    // Wait for spell animation to complete
+    const isSpecialSpell = currentAbility.name.toLowerCase().includes('pyroblast') ||
+                          currentAbility.name.toLowerCase().includes('ice nova');
+    const turnDelay = isSpecialSpell ? 3000 : 2000;
+
+    // Move to AI turn after animation
+    setTimeout(() => {
+      setCurrentTurn('ai');
+      setTimeout(() => processAITurn(), 500);
+    }, turnDelay);
   };
 
   // Process AI turn
@@ -215,8 +229,20 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     // Skip if frozen
     if (frozenCharacters.has(activeChar.instanceId)) {
       console.log(`${activeChar.name} is frozen!`);
-      setCurrentTurn('player');
-      setCurrentCharacterIndex((prev) => (prev + 1) % aiTeam.length);
+
+      // Show frozen notification
+      setSpellNotification({
+        ability: { name: 'Frozen!', description: 'Skipping turn' },
+        caster: activeChar,
+        targets: []
+      });
+
+      // Wait before switching turns
+      setTimeout(() => {
+        setSpellNotification(null);
+        setCurrentTurn('player');
+        setCurrentCharacterIndex((prev) => (prev + 1) % aiTeam.length);
+      }, 1500);
       return;
     }
 
@@ -234,9 +260,16 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
 
     await executeAbility(activeChar, ability, [target]);
 
-    // Move back to player turn
-    setCurrentTurn('player');
-    setCurrentCharacterIndex((prev) => (prev + 1) % playerTeam.length);
+    // Wait for spell animation to complete
+    const isSpecialSpell = ability.name.toLowerCase().includes('pyroblast') ||
+                          ability.name.toLowerCase().includes('ice nova');
+    const turnDelay = isSpecialSpell ? 3000 : 2000;
+
+    // Move back to player turn after animation
+    setTimeout(() => {
+      setCurrentTurn('player');
+      setCurrentCharacterIndex((prev) => (prev + 1) % playerTeam.length);
+    }, turnDelay);
   };
 
   // Start player turn when it's their turn
@@ -252,8 +285,20 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
       // Skip if frozen
       if (frozenCharacters.has(activeChar.instanceId)) {
         console.log(`${activeChar.name} is frozen!`);
-        setCurrentTurn('ai');
-        setTimeout(() => processAITurn(), 1000);
+
+        // Show frozen notification
+        setSpellNotification({
+          ability: { name: 'Frozen!', description: 'Skipping turn' },
+          caster: activeChar,
+          targets: []
+        });
+
+        // Wait before switching turns
+        setTimeout(() => {
+          setSpellNotification(null);
+          setCurrentTurn('ai');
+          setTimeout(() => processAITurn(), 500);
+        }, 1500);
         return;
       }
 
@@ -273,6 +318,11 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
         console.log(`${activeChar.name}'s turn - Select a target for ${ability.name}`);
         setValidTargets(targets);
         setIsTargeting(true);
+
+        // Show 2D overlay for player targeting
+        if (currentTurn === 'player') {
+          setShowTargetingOverlay(true);
+        }
       }
     }
   }, [currentTurn, currentCharacterIndex, battleEnded]);
@@ -299,22 +349,43 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     return () => clearInterval(timer);
   }, []);
 
+  // Handle cancel targeting
+  const handleCancelTargeting = () => {
+    setShowTargetingOverlay(false);
+    setIsTargeting(false);
+    setValidTargets([]);
+    setCurrentAbility(null);
+  };
+
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-blue-900 to-purple-900">
-      {/* Hearthstone-style 3D Scene */}
-      <HearthstoneScene
-        playerTeam={playerTeam}
-        aiTeam={aiTeam}
-        onCardClick={handleCardClick}
-        shieldedCharacters={shieldedCharacters}
-        frozenCharacters={frozenCharacters}
-        isTargeting={isTargeting}
-        validTargets={validTargets}
-        activeCharacterIndex={currentCharacterIndex}
-        currentTurn={currentTurn}
-        activeEffects={activeEffects}
-        damageNumbers={damageNumbers}
-      />
+      {/* 2D Targeting Overlay - Shows instead of 3D view during player targeting */}
+      {showTargetingOverlay && (
+        <TargetingOverlay
+          activeCard={playerTeam[currentCharacterIndex]}
+          targets={validTargets}
+          onTargetSelect={handleCardClick}
+          onCancel={handleCancelTargeting}
+          selectedAbility={currentAbility}
+        />
+      )}
+
+      {/* Hearthstone-style 3D Scene - Blurred during overlay */}
+      <div className={showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}>
+        <HearthstoneScene
+          playerTeam={playerTeam}
+          aiTeam={aiTeam}
+          onCardClick={handleCardClick}
+          shieldedCharacters={shieldedCharacters}
+          frozenCharacters={frozenCharacters}
+          isTargeting={isTargeting}
+          validTargets={validTargets}
+          activeCharacterIndex={currentCharacterIndex}
+          currentTurn={currentTurn}
+          activeEffects={activeEffects}
+          damageNumbers={damageNumbers}
+        />
+      </div>
 
       {/* Spell Notification */}
       {spellNotification && (

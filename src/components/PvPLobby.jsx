@@ -96,8 +96,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           opponent: opponentWallet,
           opponentTeam: opponentTeam,
           wagerAmount: wager,
-          // Don't pass socket directly - it causes React error #300
-          // socket: socket,
+          socket: socket,
           playerNumber: playerNumber,
           playerAddress: publicKey?.toString(),
           opponentAddress: opponentWallet
@@ -440,7 +439,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
                     <span className="text-2xl md:text-4xl animate-bounce" style={{animationDelay: '0.5s'}}>⚔️</span>
                   </div>
                   <div className="text-xs md:text-sm font-normal mt-2 opacity-90">
-                    {selectedTeam?.length === 3 ? '✅ Team Ready! Click to Battle!' : '❌ Select Your Team First'}
+                    {selectedTeam?.length === 4 ? '✅ Team Ready! Click to Battle!' : '❌ Select Your Team First'}
                   </div>
                 </div>
               </button>

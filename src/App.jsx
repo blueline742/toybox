@@ -3,9 +3,11 @@ import { SolanaWalletProvider } from './components/SolanaWalletProvider'
 import { SocketProvider } from './contexts/SocketContext'
 import MainMenu from './components/MainMenu'
 import TeamSelect from './components/TeamSelect'
+import PvPTeamSelect from './components/PvPTeamSelect'
 import AutoBattleScreen from './components/AutoBattleScreen'
 import ResultsScreen from './components/ResultsScreen'
 import PvPLobby from './components/PvPLobby'
+import PvPBattle3D from './components/Battle3D/PvPBattle3D'
 import InitialLoadingScreen from './components/InitialLoadingScreen'
 import GlobalTouchHandler from './components/GlobalTouchHandler'
 import Battle3DTest from './components/Battle3DTest'
@@ -189,10 +191,10 @@ function App() {
         )}
         
         {gameState === GAME_STATES.PVP_TEAM_SELECT && (
-          <TeamSelect
+          <PvPTeamSelect
             onTeamSelected={handlePvPTeamSelected}
             onBack={handleBackToMenu}
-            isPvP={true}
+            maxTeamSize={4}
           />
         )}
         
@@ -205,14 +207,26 @@ function App() {
         )}
         
         {gameState === GAME_STATES.TEAM_BATTLE && (
-          <AutoBattleScreen
-            playerTeam={selectedTeam}
-            opponentTeam={pvpBattleData?.opponentTeam}
-            onBattleEnd={handleBattleEnd}
-            onBack={() => setGameState(pvpBattleData ? GAME_STATES.PVP_LOBBY : GAME_STATES.TEAM_SELECT)}
-            isPvP={!!pvpBattleData}
-            pvpData={pvpBattleData}
-          />
+          pvpBattleData ? (
+            // Use 3D battle for PvP
+            <PvPBattle3D
+              playerTeam={selectedTeam}
+              opponentTeam={pvpBattleData?.opponentTeam}
+              pvpData={pvpBattleData}
+              onBattleEnd={handleBattleEnd}
+              onBack={() => setGameState(GAME_STATES.PVP_LOBBY)}
+            />
+          ) : (
+            // Use 2D battle for single player
+            <AutoBattleScreen
+              playerTeam={selectedTeam}
+              opponentTeam={null}
+              onBattleEnd={handleBattleEnd}
+              onBack={() => setGameState(GAME_STATES.TEAM_SELECT)}
+              isPvP={false}
+              pvpData={null}
+            />
+          )
         )}
         
         {gameState === GAME_STATES.RESULTS && (

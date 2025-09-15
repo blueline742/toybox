@@ -1,195 +1,237 @@
-import React, { Suspense, useRef } from 'react';
+import React, { Suspense, useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { Text, RoundedBox, Loader, OrbitControls } from '@react-three/drei';
+import { Text, RoundedBox, Loader, OrbitControls, useGLTF, useTexture, Line, Billboard } from '@react-three/drei';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import DamageNumber3D from './DamageNumber3D';
+import HybridCard3D from './HybridCard3D';
 
 // Import effects
 import FireballEffect from '../effects/FireballEffect';
+import PyroblastEffect from '../effects/PyroblastEffect';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
 
-// 3D Health Bar Component
-const HealthBar3D = ({ currentHealth, maxHealth, position = [0, 0, 0.01], width = 1.8 }) => {
-  const healthPercentage = Math.max(0, Math.min(100, (currentHealth / maxHealth) * 100));
+// Health and Shield Display Component
+const HealthShieldDisplay = ({ currentHealth, maxHealth, shieldAmount = 0, position = [0, 0, 0.01], isActive = false }) => {
+  const heartTexture = useLoader(THREE.TextureLoader, '/assets/effects/heart.png');
+  const defenceTexture = useLoader(THREE.TextureLoader, '/assets/effects/defence.png');
+
+  // Responsive sizing - even smaller
+  const isMobile = window.innerWidth <= 768;
+  const iconSize = isMobile ? 0.12 : 0.15;
+  const fontSize = isMobile ? 0.1 : 0.12;
 
   const getHealthColor = () => {
-    if (healthPercentage > 60) return '#10b981';
-    if (healthPercentage > 30) return '#eab308';
-    return '#ef4444';
+    const healthPercentage = (currentHealth / maxHealth) * 100;
+    if (healthPercentage > 60) return '#ffffff';
+    if (healthPercentage > 30) return '#ffcc00';
+    return '#ff4444';
   };
+
+  // Hide when card is active
+  if (isActive) return null;
+
+  // Calculate positions for side-by-side layout
+  const hasShield = shieldAmount > 0;
+  const healthOffset = hasShield ? -iconSize * 1.5 : -iconSize * 0.4;
+  const shieldOffset = iconSize * 1.5;
 
   return (
     <group position={position}>
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[width, 0.15, 0.01]} />
-        <meshBasicMaterial color="#1a1a1a" />
-      </mesh>
+      {/* Heart icon and health - left side */}
+      <group position={[healthOffset, 0, 0]}>
+        <mesh position={[-iconSize * 0.4, 0, 0]}>
+          <planeGeometry args={[iconSize, iconSize]} />
+          <meshBasicMaterial
+            map={heartTexture}
+            transparent
+            opacity={0.8}
+            depthWrite={false}
+          />
+        </mesh>
 
-      <mesh position={[-(width / 2) + (width * healthPercentage / 100) / 2, 0, 0.005]}>
-        <boxGeometry args={[width * healthPercentage / 100, 0.12, 0.01]} />
-        <meshBasicMaterial color={getHealthColor()} />
-      </mesh>
+        <Text
+          position={[iconSize * 0.3, 0, 0.01]}
+          fontSize={fontSize}
+          color={getHealthColor()}
+          anchorX="left"
+          anchorY="middle"
+          outlineWidth={0.008}
+          outlineColor="#000000"
+        >
+          {currentHealth}
+        </Text>
+      </group>
 
-      <Text
-        position={[0, -0.25, 0.01]}
-        fontSize={0.15}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#000000"
-      >
-        {`${currentHealth}/${maxHealth}`}
-      </Text>
+      {/* Shield/Defence icon and value - right side */}
+      {hasShield && (
+        <group position={[shieldOffset, 0, 0]}>
+          <mesh position={[-iconSize * 0.4, 0, 0]}>
+            <planeGeometry args={[iconSize, iconSize]} />
+            <meshBasicMaterial
+              map={defenceTexture}
+              transparent
+              opacity={0.8}
+              depthWrite={false}
+            />
+          </mesh>
+
+          <Text
+            position={[iconSize * 0.3, 0, 0.01]}
+            fontSize={fontSize}
+            color="#00ccff"
+            anchorX="left"
+            anchorY="middle"
+            outlineWidth={0.008}
+            outlineColor="#000000"
+          >
+            {shieldAmount}
+          </Text>
+        </group>
+      )}
     </group>
   );
 };
 
-// Hearthstone-style Card Component
-const HearthstoneCard = ({
+// Legacy card component - now using CardWithNFT
+const HearthstoneCard_DEPRECATED = ({
   character,
-  position = [0, 0, 0],
+  position,
   rotation = [0, 0, 0],
-  isActive = false,
-  isDead = false,
-  teamColor = 'blue',
+  isDead,
+  teamColor,
   onClick,
-  isTargeting = false,
-  isValidTarget = false
+  isTargeting,
+  isValidTarget,
+  isActive,
+  shieldAmount = 0
 }) => {
-  const cardRef = useRef();
-  const [hovered, setHovered] = React.useState(false);
+  const isMobile = window.innerWidth <= 768;
+  const [hovered, setHovered] = useState(false);
 
-  // Map character names to NFT image files
-  const getNFTImagePath = (character) => {
-    const nameMap = {
-      'Wizard Toy': '/assets/nft/newnft/wizardnft.png',
-      'Robot Guardian': '/assets/nft/newnft/robotnft.png',
-      'Rubber Duckie': '/assets/nft/newnft/duckienft.png',
-      'Brick Dude': '/assets/nft/newnft/brickdudenft.png',
-      'Cursed Marionette': '/assets/nft/newnft/voodoonft.png',
-      'Mecha Dino': '/assets/nft/newnft/dinonft.png',
-    };
-    return nameMap[character.name] || '/assets/nft/newnft/wizardnft.png';
-  };
-
-  // Load textures
-  const frontTexture = useLoader(THREE.TextureLoader, getNFTImagePath(character));
-  const backTexture = useLoader(THREE.TextureLoader, '/assets/nft/cardback.png');
-
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (!isDead && onClick) {
-      onClick(character);
-    }
-  };
+  // Responsive sizing
+  const cardWidth = isMobile ? 1.2 : 1.8;
+  const cardHeight = isMobile ? 1.8 : 2.5;
+  const cardThickness = 0.05;
 
   const handlePointerOver = (e) => {
-    e.stopPropagation();
-    if (!isDead) {
+    if (!isTargeting) {
+      e.stopPropagation();
       setHovered(true);
-      document.body.style.cursor = isTargeting ? 'crosshair' : 'pointer';
     }
   };
 
   const handlePointerOut = (e) => {
+    if (!isTargeting) {
+      e.stopPropagation();
+      setHovered(false);
+    }
+  };
+
+  const handleClick = (e) => {
     e.stopPropagation();
-    setHovered(false);
-    document.body.style.cursor = 'default';
+    if (onClick) onClick();
   };
 
-  // Get rarity color
-  const getRarityColor = () => {
-    switch (character.rarity) {
-      case 'mythic': return '#ff0000';
-      case 'legendary': return '#ffa500';
-      case 'epic': return '#9333ea';
-      case 'rare': return '#3b82f6';
-      default: return '#6b7280';
-    }
+  // Get border color based on state
+  const getBorderColor = () => {
+    if (isActive) return '#ffcc00';
+    if (isValidTarget && isTargeting) return '#00ff00';
+    if (teamColor === 'blue') return '#4a90e2';
+    return '#e74c3c';
   };
 
-  const isMobile = window.innerWidth <= 768;
-  const baseScale = isMobile ? 0.45 : 0.9; // Slightly smaller for 4 cards
-
-  // Calculate center position when it's the card's turn
-  const getCenterPosition = () => {
-    if (isActive && !isDead) {
-      // Move card toward center when it's their turn
-      const centerX = position[0] * 0.6; // Move 40% toward center (less dramatic)
-      const centerY = teamColor === 'blue' ? position[1] + 0.5 : position[1] - 0.5; // Slight vertical adjustment
-      const centerZ = position[2] + 1.5; // Come forward moderately
-      return [centerX, centerY, centerZ];
-    }
-    return [
-      position[0],
-      position[1] + (hovered && !isDead ? 0.1 : 0),
-      position[2] + (hovered && !isDead ? 0.2 : 0)
-    ];
-  };
-
-  // Spring animations for smooth transitions when card is active
-  const { scale, pos, rot, glow } = useSpring({
-    scale: isActive && !isDead ? baseScale * 1.3 : hovered && !isDead ? baseScale * 1.1 : baseScale,
-    pos: getCenterPosition(),
-    rot: [
-      rotation[0],
-      rotation[1] + (isActive && !isDead ? Math.PI * 0.03 : 0),
-      rotation[2] + (isActive && !isDead ? Math.PI * -0.01 : 0)
-    ],
-    glow: isActive && !isDead ? 1 : 0,
-    config: {
-      mass: 1,
-      tension: isActive ? 120 : 170,
-      friction: isActive ? 20 : 26
-    }
-  });
+  // Simple scale for active state
+  const scale = isActive ? 1.15 : (hovered && !isTargeting ? 1.05 : 1);
+  const yOffset = isActive ? 0.5 : (hovered && !isTargeting ? 0.2 : 0);
 
   return (
-    <animated.group position={pos} rotation={rot}>
-      {/* Removed magical glow */}
-
-      {/* Card mesh - flat plane */}
-      <animated.mesh
-        ref={cardRef}
-        onClick={handleClick}
+    <group
+      position={[position[0], position[1] + yOffset, position[2]]}
+      rotation={rotation}
+      scale={[scale, scale, scale]}
+    >
+      {/* Card body - using simple box */}
+      <mesh
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
-        scale={scale.to(s => [s, s, 1])}
+        onClick={handleClick}
       >
-        <planeGeometry args={[2, 3]} />
-        <meshBasicMaterial
-          map={teamColor === 'blue' ? frontTexture : frontTexture}
-          side={THREE.DoubleSide}
-          transparent={isDead}
-          opacity={isDead ? 0.3 : 1}
+        <boxGeometry args={[cardWidth, cardHeight, cardThickness]} />
+        <meshStandardMaterial
+          color={getBorderColor()}
+          metalness={0.7}
+          roughness={0.3}
         />
-      </animated.mesh>
+      </mesh>
 
-      {/* Character name removed */}
+      {/* Portrait placeholder - legacy */}
+      <mesh position={[0, cardHeight * 0.15, cardThickness / 2 + 0.001]}>
+        <planeGeometry args={[cardWidth * 0.85, cardHeight * 0.5]} />
+        <meshBasicMaterial
+          color={teamColor === 'blue' ? '#336699' : '#993333'}
+          transparent
+          opacity={isDead ? 0.3 : 0.9}
+        />
+      </mesh>
 
-      {/* Health bar */}
-      <HealthBar3D
+      {/* Character name */}
+      <Text
+        position={[0, -cardHeight * 0.25, cardThickness / 2 + 0.002]}
+        fontSize={isMobile ? 0.12 : 0.15}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={cardWidth * 0.8}
+        outlineWidth={0.01}
+        outlineColor="#000000"
+      >
+        {character.name}
+      </Text>
+
+      {/* Stats box background */}
+      <mesh position={[0, -cardHeight * 0.4, cardThickness / 2 + 0.001]}>
+        <planeGeometry args={[cardWidth * 0.9, cardHeight * 0.15]} />
+        <meshBasicMaterial color="#2c3e50" opacity={0.8} transparent />
+      </mesh>
+
+      {/* Attack and Defense stats */}
+      <Text
+        position={[-cardWidth * 0.3, -cardHeight * 0.4, cardThickness / 2 + 0.003]}
+        fontSize={isMobile ? 0.1 : 0.12}
+        color="#ff6b6b"
+        anchorX="center"
+        anchorY="middle"
+      >
+        ⚔️ {character.attack}
+      </Text>
+
+      <Text
+        position={[cardWidth * 0.3, -cardHeight * 0.4, cardThickness / 2 + 0.003]}
+        fontSize={isMobile ? 0.1 : 0.12}
+        color="#4ecdc4"
+        anchorX="center"
+        anchorY="middle"
+      >
+        🛡️ {character.defense}
+      </Text>
+
+      {/* Health and Shield Display */}
+      <HealthShieldDisplay
         currentHealth={character.currentHealth}
         maxHealth={character.maxHealth}
-        position={[0, 1.6, 0.01]}
-        width={1.8}
+        shieldAmount={shieldAmount}
+        position={[0, cardHeight * 0.5 + 0.2, 0]}
+        isActive={isActive}
       />
 
-      {/* Stats removed */}
-
-      {/* Rarity badge removed */}
-
-      {/* Removed active glow and target highlight boxes */}
-
-      {/* Death X mark */}
+      {/* Death overlay */}
       {isDead && (
         <Text
-          position={[0, 0, 0.02]}
-          fontSize={1.5}
+          position={[0, 0, cardThickness / 2 + 0.01]}
+          fontSize={isMobile ? 0.5 : 0.8}
           color="#ff0000"
           anchorX="center"
           anchorY="middle"
@@ -199,7 +241,59 @@ const HearthstoneCard = ({
           ✖
         </Text>
       )}
-    </animated.group>
+    </group>
+  );
+};
+
+// Spectator Toy Component - Memoized to prevent re-renders
+const SpectatorToy = React.memo(({ modelPath, position, rotation = [0, 0, 0], scale = 1 }) => {
+  const { scene } = useGLTF(modelPath);
+
+  // Memoize the cloned scene to prevent recreation
+  const clonedScene = React.useMemo(() => scene.clone(), [scene]);
+
+  return (
+    <primitive
+      object={clonedScene}
+      position={position}
+      rotation={rotation}
+      scale={scale}
+      dispose={null}
+    />
+  );
+});
+
+// NFT textures are preloaded in CardWithNFT component
+
+// Simple Table Component
+const SimpleTable = () => {
+  const tableTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/table.png');
+
+  return (
+    <group>
+      {/* Table surface - much bigger */}
+      <mesh position={[0, 0, 0]} receiveShadow castShadow>
+        <boxGeometry args={[12, 0.3, 14]} /> {/* Wider and longer table */}
+        <meshStandardMaterial
+          map={tableTexture}
+          color="#888888"  // Darken the texture by multiplying with gray
+          roughness={0.8}
+          metalness={0.1}
+        />
+      </mesh>
+
+      {/* Table legs - adjusted for bigger table */}
+      {[[-5, -2, -6], [5, -2, -6], [-5, -2, 6], [5, -2, 6]].map((pos, i) => (
+        <mesh key={i} position={pos} castShadow>
+          <boxGeometry args={[0.6, 4, 0.6]} />
+          <meshStandardMaterial
+            color="#654321"
+            roughness={0.9}
+            metalness={0.1}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 };
 
@@ -216,77 +310,238 @@ const HearthstoneBattleArena = ({
   currentTurn,
   activeEffects
 }) => {
-  // Load background texture
-  const backgroundTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/toyboxare1na.png');
+  // State for targeting system
+  const [selectedCard, setSelectedCard] = useState(null); // { id, position: [x, y, z] }
+  const [targetCard, setTargetCard] = useState(null); // { id, position: [x, y, z] }
 
-  // Hearthstone-style card positioning - responsive for mobile
+  // Update selected card when it's player's turn and a card is active
+  useEffect(() => {
+    if (currentTurn === 'player' && activeCharacterIndex >= 0 && playerTeam[activeCharacterIndex]) {
+      const activeChar = playerTeam[activeCharacterIndex];
+      const [x, y, z] = getCardPosition(activeCharacterIndex, 'player', true);
+      setSelectedCard({
+        id: activeChar.instanceId,
+        position: [x, y + 0.5, z] // Adjust for active card height
+      });
+    } else {
+      setSelectedCard(null);
+    }
+  }, [currentTurn, activeCharacterIndex, playerTeam]);
+
+  // Clear target when not targeting
+  useEffect(() => {
+    if (!isTargeting) {
+      setTargetCard(null);
+    }
+  }, [isTargeting]);
+
+  // Load textures for floor and walls
+  const floorTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/floor.png');
+  const wallTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/toyboxare1na.png');
+  const wall2Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba2.png');
+  const wall3Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba3.png');
+  const wall4Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba4.png');
+
+  // Configure textures - no repeating, just stretch single image
+  useEffect(() => {
+    floorTexture.wrapS = floorTexture.wrapT = THREE.ClampToEdgeWrapping;
+    wallTexture.wrapS = wallTexture.wrapT = THREE.ClampToEdgeWrapping;
+    wall2Texture.wrapS = wall2Texture.wrapT = THREE.ClampToEdgeWrapping;
+    wall3Texture.wrapS = wall3Texture.wrapT = THREE.ClampToEdgeWrapping;
+    wall4Texture.wrapS = wall4Texture.wrapT = THREE.ClampToEdgeWrapping;
+  }, [floorTexture, wallTexture, wall2Texture, wall3Texture, wall4Texture]);
+
+  // Tabletop-style card positioning - cards lay flat with slight tilt
   const getCardPosition = (index, team, isActive = false) => {
     const isMobile = window.innerWidth <= 768;
-    const spacing = isMobile ? 0.9 : 2.2; // Tighter spacing for 4 cards
+    const spacing = isMobile ? 2.5 : 2.2; // Increased mobile spacing to prevent clipping
     const totalCards = 4;
 
-    // Center the 4 cards
+    // Center the 4 cards horizontally
     const startX = -(totalCards - 1) * spacing / 2;
     const x = startX + index * spacing;
 
-    const y = team === 'player' ? -2 : 2; // Player bottom, AI top
-    const z = 0; // All cards on same plane
+    // Cards on table surface - always at same height
+    const y = 0.4; // Just above table surface
 
-    // Scale active card slightly bigger
-    const scale = isActive && currentTurn === team ? 1.1 : 1;
+    const z = team === 'player' ? 5.5 : -5.5; // Distance from center
+    const scale = 1; // No scaling for active cards
 
     return [x, y, z, scale];
   };
 
   return (
     <>
-      {/* Spherical background for fisheye effect */}
-      <mesh scale={[-30, 30, 30]}>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshBasicMaterial
-          map={backgroundTexture}
-          side={THREE.BackSide}
+      {/* Simple Table */}
+      <SimpleTable />
+
+      {/* Spectator toys */}
+      <group dispose={null}>
+        <Suspense fallback={null}>
+          <SpectatorToy
+            modelPath="/assets/toy_robot.glb"
+            position={[-5.5, 0.2, 0]}
+            rotation={[0, Math.PI / 2, 0]}
+            scale={1}
+          />
+          <SpectatorToy
+            modelPath="/assets/toy_rocket_free_standard.glb"
+            position={[5.5, 1.0, 0]}
+            rotation={[0, -Math.PI / 2, 0]}
+            scale={1.5}
+          />
+          <SpectatorToy
+            modelPath="/assets/wooden_toy_train.glb"
+            position={[1.5, 0.4, 2.5]}
+            rotation={[0, Math.PI / 2 + Math.PI / 4, 0]}
+            scale={0.0042}
+          />
+        </Suspense>
+      </group>
+
+      {/* Toy arena floor with texture */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
+        <planeGeometry args={[40, 40]} />
+        <meshStandardMaterial
+          map={floorTexture}
+          roughness={0.7}
+          metalness={0.1}
         />
       </mesh>
 
-      {/* Lighting */}
-      <ambientLight intensity={1.0} />
-      <directionalLight position={[0, 10, 5]} intensity={1.2} />
-      <pointLight position={[0, 5, 2]} intensity={0.8} />
+      {/* Surrounding walls with different TBA textures */}
+      {/* Back wall - tba2.png */}
+      <mesh position={[0, 6, -20]} receiveShadow>
+        <planeGeometry args={[40, 20]} />
+        <meshStandardMaterial
+          map={wall2Texture}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
 
-      {/* Player Team Cards (bottom) */}
-      {playerTeam.map((char, index) => {
-        if (!char.isAlive) return null;
+      {/* Front wall (behind camera) - keep original */}
+      <mesh position={[0, 6, 20]} rotation={[0, Math.PI, 0]} receiveShadow>
+        <planeGeometry args={[40, 20]} />
+        <meshStandardMaterial
+          map={wallTexture}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
 
-        const isActive = currentTurn === 'player' && index === activeCharacterIndex;
-        const [x, y, z, scale] = getCardPosition(index, 'player', isActive);
-        const isValidTarget = validTargets.some(t => t.instanceId === char.instanceId);
+      {/* Left wall - tba3.png */}
+      <mesh position={[-20, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[40, 20]} />
+        <meshStandardMaterial
+          map={wall3Texture}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
 
-        return (
-          <group key={char.instanceId}>
-            <HearthstoneCard
-              character={char}
-              position={[x, y, z]}
-              rotation={[-Math.PI * 0.05, 0, 0]} // Very slight tilt
-              isDead={char.currentHealth <= 0}
-              teamColor="blue"
-              onClick={() => onCardClick(char)}
-              isTargeting={isTargeting}
-              isValidTarget={isValidTarget}
-              isActive={isActive}
-            />
+      {/* Right wall - tba4.png */}
+      <mesh position={[20, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[40, 20]} />
+        <meshStandardMaterial
+          map={wall4Texture}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Enhanced Lighting System */}
+      {/* Base ambient for overall brightness - increased for NFT visibility */}
+      <ambientLight intensity={1.5} color="#ffffff" />
+
+      {/* Main key light - stronger for better NFT visibility */}
+      <directionalLight
+        position={[8, 12, 6]}
+        intensity={2.2}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-far={50}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+      />
+
+      {/* Secondary fill light from opposite side */}
+      <directionalLight
+        position={[-6, 10, -4]}
+        intensity={1.0}
+        color="#e8f4ff"
+      />
+
+      {/* Spotlight on the table */}
+      <spotLight
+        position={[0, 10, 0]}
+        angle={Math.PI / 6}
+        penumbra={0.5}
+        intensity={1.2}
+        color="#ffffff"
+        castShadow
+        target-position={[0, 0, 0]}
+      />
+
+      {/* Card area lights */}
+      <pointLight position={[0, 4, 6]} intensity={0.8} color="#ffffff" distance={10} />
+      <pointLight position={[0, 4, -6]} intensity={0.8} color="#ffffff" distance={10} />
+
+      {/* Side accent lights */}
+      <pointLight position={[-6, 3, 0]} intensity={0.6} color="#ffeaa7" distance={12} />
+      <pointLight position={[6, 3, 0]} intensity={0.6} color="#74b9ff" distance={12} />
+
+      {/* Hemisphere light for natural lighting */}
+      <hemisphereLight
+        intensity={0.6}
+        color="#ffffff"
+        groundColor="#d4c4a0"
+      />
+
+      {/* Cards Group - Always renders all cards */}
+      <group name="cards">
+        {/* Player Team Cards (bottom) */}
+        {playerTeam && playerTeam.map((char, index) => {
+          if (!char || !char.isAlive) return null;
+
+          const isActive = currentTurn === 'player' && index === activeCharacterIndex;
+          const [x, y, z, scale] = getCardPosition(index, 'player', isActive);
+          const isValidTarget = validTargets.some(t => t.instanceId === char.instanceId);
+
+          return (
+            <group key={char.instanceId}>
+              <HybridCard3D
+                character={char}
+                position={[x, y, z]}
+                rotation={[-Math.PI / 2, 0, 0]} // Lay flat on table
+                isDead={char.currentHealth <= 0}
+                teamColor="blue"
+                onClick={() => {
+                  if (isValidTarget && isTargeting) {
+                    setTargetCard({
+                      id: char.instanceId,
+                      position: [x, y, z]
+                    });
+                  }
+                  onCardClick(char);
+                }}
+                isTargeting={isTargeting}
+                isValidTarget={isValidTarget}
+                isActive={isActive}
+                debugMode={false}
+              />
 
             {shieldedCharacters?.has(char.instanceId) && (
               <ShieldEffect
-                position={[x, y, z]}
-                size={window.innerWidth <= 768 ? 1.0 : 1.5}
+                position={[x, y + 0.8, z]}
+                size={window.innerWidth <= 768 ? 1.3 : 2.0}
                 type={shieldedCharacters.get(char.instanceId)?.type || 'energy'}
               />
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <mesh position={[x, y, z]}>
-                <boxGeometry args={[2.2, 3.2, 0.5]} />
+              <mesh position={[x, y + 0.8, z]}>
+                <boxGeometry args={[2.5, 3.5, 0.8]} />
                 <meshPhysicalMaterial
                   color="#87CEEB"
                   transparent
@@ -301,39 +556,48 @@ const HearthstoneBattleArena = ({
         );
       })}
 
-      {/* AI Team Cards (top) */}
-      {aiTeam.map((char, index) => {
-        if (!char.isAlive) return null;
+        {/* AI Team Cards (top) */}
+        {aiTeam && aiTeam.map((char, index) => {
+          if (!char || !char.isAlive) return null;
 
-        const isActive = currentTurn === 'ai' && index === activeCharacterIndex;
-        const [x, y, z, scale] = getCardPosition(index, 'ai', isActive);
-        const isValidTarget = validTargets.some(t => t.instanceId === char.instanceId);
+          const isActive = (currentTurn === 'ai' || currentTurn === 'opponent') && index === activeCharacterIndex;
+          const [x, y, z, scale] = getCardPosition(index, 'ai', isActive);
+          const isValidTarget = validTargets.some(t => t.instanceId === char.instanceId);
 
-        return (
-          <group key={char.instanceId}>
-            <HearthstoneCard
-              character={char}
-              position={[x, y, z]}
-              rotation={[-Math.PI * 0.05, 0, 0]} // Face forward with slight tilt
-              isDead={char.currentHealth <= 0}
-              teamColor="red"
-              onClick={() => onCardClick(char)}
-              isTargeting={isTargeting}
-              isValidTarget={isValidTarget}
-              isActive={isActive}
-            />
+          return (
+            <group key={char.instanceId}>
+              <HybridCard3D
+                character={char}
+                position={[x, y, z]}
+                rotation={[Math.PI / 2, Math.PI, 0]} // Lay flat on table, facing opposite direction
+                isDead={char.currentHealth <= 0}
+                teamColor="red"
+                onClick={() => {
+                  if (isValidTarget && isTargeting) {
+                    setTargetCard({
+                      id: char.instanceId,
+                      position: [x, y, z]
+                    });
+                  }
+                  onCardClick(char);
+                }}
+                isTargeting={isTargeting}
+                isValidTarget={isValidTarget}
+                isActive={isActive}
+                debugMode={false}
+              />
 
             {shieldedCharacters?.has(char.instanceId) && (
               <ShieldEffect
-                position={[x, y, z]}
-                size={window.innerWidth <= 768 ? 1.0 : 1.5}
+                position={[x, y + 0.8, z]}
+                size={window.innerWidth <= 768 ? 1.3 : 2.0}
                 type={shieldedCharacters.get(char.instanceId)?.type || 'energy'}
               />
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <mesh position={[x, y, z]}>
-                <boxGeometry args={[2.2, 3.2, 0.5]} />
+              <mesh position={[x, y + 0.8, z]}>
+                <boxGeometry args={[2.5, 3.5, 0.8]} />
                 <meshPhysicalMaterial
                   color="#87CEEB"
                   transparent
@@ -347,20 +611,73 @@ const HearthstoneBattleArena = ({
           </group>
         );
       })}
+      </group>
+
+      {/* Effects Group - Visual effects like targeting lines */}
+      <group name="effects">
+        {/* Targeting Line - Only renders when both selected and target exist */}
+        {selectedCard && targetCard && (
+          <Line
+            points={[
+              selectedCard.position,
+              targetCard.position
+            ]}
+            color="#ff0000"
+            lineWidth={3}
+            dashed={true}
+            dashScale={50}
+            dashSize={3}
+            gapSize={1}
+          />
+        )}
+
+        {/* Targeting indicator for valid targets */}
+        {isTargeting && validTargets && validTargets.map(target => {
+          // Find target position
+          let targetPos = null;
+
+          // Check in player team
+          const playerIndex = playerTeam?.findIndex(c => c.instanceId === target.instanceId);
+          if (playerIndex >= 0) {
+            targetPos = getCardPosition(playerIndex, 'player', false);
+          }
+
+          // Check in AI team
+          if (!targetPos) {
+            const aiIndex = aiTeam?.findIndex(c => c.instanceId === target.instanceId);
+            if (aiIndex >= 0) {
+              targetPos = getCardPosition(aiIndex, 'ai', false);
+            }
+          }
+
+          if (!targetPos) return null;
+
+          return (
+            <mesh key={target.instanceId} position={[targetPos[0], targetPos[1] + 1.5, targetPos[2]]}>
+              <ringGeometry args={[0.4, 0.5, 32]} />
+              <meshBasicMaterial color="#00ff00" transparent opacity={0.6} />
+            </mesh>
+          );
+        })}
+      </group>
 
       {/* Render active effects */}
-      {activeEffects?.map((effect, index) => {
-        switch (effect.type) {
-          case 'fireball':
-            return <FireballEffect key={index} {...effect} />;
-          case 'explosion':
-            return <ExplosionEffect key={index} {...effect} />;
-          case 'healing':
-            return <HealingEffect key={index} {...effect} />;
-          default:
-            return null;
-        }
-      })}
+      <Suspense fallback={null}>
+        {activeEffects?.map((effect, index) => {
+          switch (effect.type) {
+            case 'fireball':
+              return <FireballEffect key={index} {...effect} />;
+            case 'pyroblast':
+              return <PyroblastEffect key={index} {...effect} />;
+            case 'explosion':
+              return <ExplosionEffect key={index} {...effect} />;
+            case 'healing':
+              return <HealingEffect key={index} {...effect} />;
+            default:
+              return null;
+          }
+        })}
+      </Suspense>
     </>
   );
 };
@@ -386,18 +703,18 @@ const HearthstoneScene = ({
       <Canvas
         shadows
         camera={{
-          position: window.innerWidth <= 768 ? [0, -4, 7] : [0, -8, 10], // Pulled back for mobile
-          fov: window.innerWidth <= 768 ? 75 : 45, // Even wider FOV for mobile
+          position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10], // Good angle to see table and cards
+          fov: window.innerWidth <= 768 ? 50 : 50, // Good FOV for tabletop view
           near: 0.1,
-          far: 100
+          far: 1000
         }}
         onCreated={({ gl, camera }) => {
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.2;
+          gl.toneMappingExposure = 1.5;
 
-          // Lock camera to look at center
+          // Look at the center of the table
           camera.lookAt(0, 0, 0);
         }}
       >
@@ -426,19 +743,20 @@ const HearthstoneScene = ({
             />
           ))}
 
-          {/* Camera controls - limited movement to prevent cards going off screen */}
+          {/* Camera controls - full orbit around the table */}
           <OrbitControls
-            enablePan={false}
+            enablePan={true}
             enableZoom={true}
             enableRotate={true}
-            minDistance={5}
-            maxDistance={12}
-            minPolarAngle={Math.PI / 4}
-            maxPolarAngle={Math.PI / 2.2}
-            minAzimuthAngle={-Math.PI / 6}
-            maxAzimuthAngle={Math.PI / 6}
-            zoomSpeed={0.5}
-            rotateSpeed={0.5}
+            target={[0, 0, 0]} // Focus on center of table
+            minDistance={3}
+            maxDistance={30}
+            minPolarAngle={0} // Can look straight down
+            maxPolarAngle={Math.PI} // Can look from any angle
+            zoomSpeed={0.8}
+            rotateSpeed={0.7}
+            panSpeed={0.8}
+            // No azimuth limits - can rotate 360°
           />
         </Suspense>
       </Canvas>

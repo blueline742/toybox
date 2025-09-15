@@ -72,23 +72,39 @@ class PvPBattleManager {
   
   startTurn() {
     if (this.isComplete) return;
-    
+
     const attackingTeam = this.currentTurn === 'player1' ? this.player1Team : this.player2Team;
     const defendingTeam = this.currentTurn === 'player1' ? this.player2Team : this.player1Team;
     const currentIndex = this.currentTurn === 'player1' ? this.player1CharacterIndex : this.player2CharacterIndex;
-    
-    // Find next alive character
-    const aliveAttackers = attackingTeam.filter(char => char.isAlive);
-    if (aliveAttackers.length === 0) {
+
+    // Find next alive character starting from currentIndex
+    let activeCharacter = null;
+    let actualIndex = currentIndex % attackingTeam.length;
+    let attempts = 0;
+
+    // Find the next alive character in the team
+    while (attempts < attackingTeam.length) {
+      if (attackingTeam[actualIndex].isAlive) {
+        activeCharacter = attackingTeam[actualIndex];
+        break;
+      }
+      actualIndex = (actualIndex + 1) % attackingTeam.length;
+      attempts++;
+    }
+
+    if (!activeCharacter) {
       this.endBattle();
       return;
     }
-    
-    // Get the active character
-    const characterToUse = currentIndex % aliveAttackers.length;
-    const activeCharacter = aliveAttackers[characterToUse];
-    
-    console.log(`PvP Turn: ${this.currentTurn} - Character ${characterToUse + 1}/${aliveAttackers.length}: ${activeCharacter.name}`);
+
+    // Update the actual index being used
+    if (this.currentTurn === 'player1') {
+      this.player1CharacterIndex = actualIndex;
+    } else {
+      this.player2CharacterIndex = actualIndex;
+    }
+
+    console.log(`PvP Turn: ${this.currentTurn} - Character index ${actualIndex}: ${activeCharacter.name}`);
     
     // Check if frozen
     if (activeCharacter.status.frozen) {
@@ -356,11 +372,11 @@ class PvPBattleManager {
   advanceTurn() {
     // Increment character index for the current team
     if (this.currentTurn === 'player1') {
-      this.player1CharacterIndex++;
+      this.player1CharacterIndex = (this.player1CharacterIndex + 1) % this.player1Team.length;
     } else {
-      this.player2CharacterIndex++;
+      this.player2CharacterIndex = (this.player2CharacterIndex + 1) % this.player2Team.length;
     }
-    
+
     // Switch turns
     this.currentTurn = this.currentTurn === 'player1' ? 'player2' : 'player1';
     this.turnNumber++;
@@ -406,6 +422,8 @@ class PvPBattleManager {
       turnNumber: this.turnNumber,
       player1Team: this.player1Team,
       player2Team: this.player2Team,
+      player1CharacterIndex: this.player1CharacterIndex,
+      player2CharacterIndex: this.player2CharacterIndex,
       isComplete: this.isComplete,
       winner: this.winner
     };

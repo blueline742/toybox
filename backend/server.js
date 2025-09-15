@@ -81,6 +81,62 @@ const oracleKeypair = Keypair.generate(); // In production, load from env
 const matchmakingQueue = new Map();
 const activeBattles = new Map();
 
+// Generate AI team for testing
+function generateAITeam() {
+  const aiCharacters = [
+    {
+      id: 'wizard',
+      name: 'Wizard Toy',
+      maxHealth: 100,
+      attack: 25,
+      defense: 15,
+      speed: 10,
+      rarity: 'rare',
+      abilities: ['Fireball', 'Shield', 'Heal'],
+      emoji: '🧙‍♂️',
+      color: '#9333ea'
+    },
+    {
+      id: 'robot',
+      name: 'Robot Guardian',
+      maxHealth: 120,
+      attack: 20,
+      defense: 25,
+      speed: 8,
+      rarity: 'epic',
+      abilities: ['Laser Beam', 'Force Field', 'Repair'],
+      emoji: '🤖',
+      color: '#3b82f6'
+    },
+    {
+      id: 'duckie',
+      name: 'Rubber Duckie',
+      maxHealth: 80,
+      attack: 15,
+      defense: 10,
+      speed: 15,
+      rarity: 'common',
+      abilities: ['Squeak Attack', 'Bubble Shield', 'Float'],
+      emoji: '🦆',
+      color: '#eab308'
+    },
+    {
+      id: 'brick',
+      name: 'Brick Dude',
+      maxHealth: 150,
+      attack: 18,
+      defense: 30,
+      speed: 5,
+      rarity: 'rare',
+      abilities: ['Brick Throw', 'Wall Build', 'Fortify'],
+      emoji: '🧱',
+      color: '#dc2626'
+    }
+  ];
+
+  return aiCharacters;
+}
+
 // Player sessions
 const playerSessions = new Map();
 
@@ -97,14 +153,24 @@ io.on('connection', (socket) => {
   
   socket.on('find_match', async ({ wallet, wagerAmount, teamData }) => {
     console.log(`Player ${wallet} looking for match with ${wagerAmount} SOL wager`);
-    
+
     // Check if there's an opponent waiting
     const queueKey = `${wagerAmount}`;
     const waitingPlayers = matchmakingQueue.get(queueKey) || [];
-    
+
+    // TEST MODE: Create instant AI opponent for development (disabled for real PvP testing)
+    const isTestMode = false; // Disabled for real PvP testing
+
     if (waitingPlayers.length > 0) {
-      // Found opponent
-      const opponent = waitingPlayers.shift();
+      // Found opponent or create test opponent
+      const opponent = waitingPlayers.length > 0
+        ? waitingPlayers.shift()
+        : {
+            wallet: 'AI_' + Math.random().toString(36).substr(2, 9),
+            socket: 'ai_socket_' + Date.now(),
+            teamData: generateAITeam(),
+            isAI: true
+          };
       
       // Create battle
       const battleId = generateBattleId();
@@ -129,17 +195,19 @@ io.on('connection', (socket) => {
       // The opponent will join when they emit 'battle_ready'
       
       // Notify both players with each other's team data
-      // Send to player 1 (opponent who was waiting)
-      io.sockets.sockets.get(opponent.socket)?.emit('match_found', {
-        battleId,
-        opponent: {
-          player1: opponent.wallet,
-          player2: wallet
-        },
-        opponentTeam: teamData, // Player 2's team
-        playerNumber: 1,
-        wagerAmount
-      });
+      // Send to player 1 (opponent who was waiting) - only if not AI
+      if (!opponent.isAI) {
+        io.sockets.sockets.get(opponent.socket)?.emit('match_found', {
+          battleId,
+          opponent: {
+            player1: opponent.wallet,
+            player2: wallet
+          },
+          opponentTeam: teamData, // Player 2's team
+          playerNumber: 1,
+          wagerAmount
+        });
+      }
       
       // Send to player 2 (current player)
       socket.emit('match_found', {
@@ -152,6 +220,18 @@ io.on('connection', (socket) => {
         playerNumber: 2,
         wagerAmount
       });
+
+      // If opponent is AI, simulate them being ready immediately
+      if (opponent.isAI) {
+        setTimeout(() => {
+          const battle = activeBattles.get(battleId);
+          if (battle) {
+            if (!battle.ready) battle.ready = [];
+            battle.ready.push(opponent.wallet);
+            console.log(`AI opponent ${opponent.wallet} is ready for battle ${battleId}`);
+          }
+        }, 1000);
+      }
       
       // Update queue
       if (waitingPlayers.length === 0) {

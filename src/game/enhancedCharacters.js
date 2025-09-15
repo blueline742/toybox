@@ -15,7 +15,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 100,
     color: '#5352ED',
     emoji: '🤖',
-    image: '/robot.png',
+    image: '/assets/nft/newnft/robotnft.png',
     selectSound: '/robot.wav',
     abilitySound: '/robot.wav',
     rarity: 'epic',
@@ -66,7 +66,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 120,
     color: '#CD6133',
     emoji: '🧸',
-    image: '/assets/images/warriornft.png',
+    image: '/assets/nft/newnft/brickdudenft.png',
     rarity: 'rare',
     description: 'A cuddly bear with fierce combat skills',
     abilities: [
@@ -110,7 +110,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 90,
     color: '#00d2d3',
     emoji: '🐢',
-    image: '/bathturtle.jpeg',
+    image: '/assets/nft/newnft/duckienft.png',
     selectSound: '/bathturtle.wav',
     abilitySound: '/bathturtle1.wav',
     rarity: 'common',
@@ -158,7 +158,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 110,
     color: '#FF6B6B',
     emoji: '🐉',
-    image: '/dragonrider.jpeg',
+    image: '/assets/nft/newnft/dinonft.png',
     rarity: 'legendary',
     description: 'Ancient dragon with devastating fire attacks',
     abilities: [
@@ -203,7 +203,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 95,
     color: '#FF00FF',
     emoji: '🦄',
-    image: '/unicorn.png',
+    image: '/assets/nft/newnft/wizardnft.png',
     rarity: 'epic',
     description: 'Magical unicorn with rainbow powers',
     abilities: [
@@ -249,7 +249,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 100,
     color: '#00FF00',
     emoji: '👽',
-    image: '/alien.jpeg',
+    image: '/assets/nft/newnft/robotnft.png',
     rarity: 'common',
     description: 'A soft, gooey alien with stretchy powers',
     abilities: [
@@ -294,7 +294,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 105,
     color: '#8B4513',
     emoji: '🦜',
-    image: '/pirate.png',
+    image: '/assets/nft/newnft/brickdudenft.png',
     rarity: 'common',
     description: 'Swashbuckling pirate with explosive attacks',
     abilities: [
@@ -339,7 +339,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 85,
     color: '#9370DB',
     emoji: '🧙',
-    image: '/assets/images/wizardnft.png',
+    image: '/assets/nft/newnft/wizardnft.png',
     rarity: 'legendary',
     description: 'Elemental wizard master of fire, ice, and lightning',
     abilities: [
@@ -347,7 +347,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'pyroblast',
         name: 'Pyroblast',
         damage: 35,
-        chance: 0.01, // 1% chance - reduced for Ice Nova testing
+        chance: 0.40, // 40% chance - balanced for gameplay
         description: 'Hurls a massive fireball that explodes on impact',
         effect: 'damage',
         animation: 'pyroblast',
@@ -357,7 +357,7 @@ export const ENHANCED_CHARACTERS = {
         id: 'lightning_zap',
         name: 'Lightning Zap',
         damage: 25,
-        chance: 0.01, // 1% chance - reduced for Ice Nova testing
+        chance: 0.35, // 35% chance
         description: 'Strikes enemies with chain lightning',
         effect: 'damage_chain',
         animation: 'lightning_zap',
@@ -368,10 +368,54 @@ export const ENHANCED_CHARACTERS = {
         name: 'ICE NOVA',
         damage: 15,
         freeze: true,
-        chance: 0.98, // 98% chance - increased for testing ice effects
+        chance: 0.25, // 25% chance - ultimate ability
         description: 'Freezes all enemies in ice, making them skip their next turn!',
         effect: 'freeze_all',
         animation: 'ice_nova',
+        isUltimate: true,
+        priority: 3
+      }
+    ]
+  },
+
+  ARCH_WIZARD: {
+    id: 'arch_wizard',
+    name: 'Arch Wizard',
+    maxHealth: 110,
+    color: '#FF00FF',
+    emoji: '🧙‍♂️',
+    image: '/assets/nft/newnft/archwizardnft.png',
+    rarity: 'mythic',
+    description: 'Master of arcane arts with devastating magical powers',
+    abilities: [
+      {
+        id: 'arcane_barrage',
+        name: 'Arcane Barrage',
+        damage: 40,
+        chance: 0.40,
+        description: 'Unleashes pure arcane energy at target',
+        effect: 'damage',
+        animation: 'arcane_barrage',
+        priority: 1
+      },
+      {
+        id: 'time_warp',
+        name: 'Time Warp',
+        heal: 30,
+        chance: 0.35,
+        description: 'Reverses time to heal an ally',
+        effect: 'heal',
+        animation: 'time_warp',
+        priority: 2
+      },
+      {
+        id: 'meteor_storm',
+        name: 'METEOR STORM',
+        damage: 65,
+        chance: 0.25,
+        description: 'Rains meteors from the sky on all enemies',
+        effect: 'damage_all',
+        animation: 'meteor_storm',
         isUltimate: true,
         priority: 3
       }
@@ -384,7 +428,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 100,
     color: '#FFA500',
     emoji: '🐲',
-    image: '/phoenix.jpeg',
+    image: '/assets/nft/newnft/dinonft.png',
     selectSound: '/phoenix.wav',
     abilitySound: '/phoenix.wav',
     rarity: 'mythic',
@@ -434,7 +478,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 85,
     color: '#FFD700',
     emoji: '🦆',
-    image: '/duckiepp.jpg',
+    image: '/assets/nft/newnft/duckienft.png',
     selectSound: '/duckie.wav',
     abilitySound: '/duckie1.wav',
     ultimateSound: '/duckie2.wav',
@@ -481,7 +525,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 90,
     color: '#DC143C',
     emoji: '🧱',
-    image: '/legopp.jpg',
+    image: '/assets/nft/newnft/brickdudenft.png',
     selectSound: '/duckie.wav',
     abilitySound: '/duckie1.wav',
     ultimateSound: '/duckie2.wav',
@@ -532,7 +576,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 95,
     color: '#556B2F',
     emoji: '⚙️',
-    image: '/winduppp.jpg',
+    image: '/assets/nft/newnft/winduptoynft.png',
     rarity: 'common',
     description: 'Mechanical soldier that never stops marching',
     abilities: [
@@ -581,7 +625,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 130,
     color: '#8B4513',
     emoji: '🧱',
-    image: '/golumpp.jpg',
+    image: '/assets/nft/newnft/brickdudenft.png',
     rarity: 'common',
     description: 'Sturdy wooden blocks come to life',
     abilities: [
@@ -626,7 +670,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 110,
     color: '#FF6347',
     emoji: '🎲',
-    image: '/rubikspp.png',
+    image: '/assets/nft/newnft/robotnft.png',
     rarity: 'common',
     description: 'A magical puzzle cube with reality-warping powers',
     abilities: [
@@ -670,7 +714,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 100,
     color: '#8B4513',
     emoji: '🎭',
-    image: '/puppetpp.png',
+    image: '/assets/nft/newnft/voodoonft.png',
     rarity: 'common',
     description: 'A mysterious marionette with enchanted strings',
     abilities: [
@@ -716,7 +760,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 115,
     color: '#008080',
     emoji: '🦕',
-    image: '/mechadinopp.jpg',
+    image: '/assets/nft/newnft/dinonft.png',
     selectSound: '/mechadino.wav',
     abilitySound: '/mechadino1.wav',
     ultimateSound: '/mechadino2.wav',
@@ -764,7 +808,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 90,
     color: '#8B008B',
     emoji: '🎭',
-    image: '/cursedmarionettepp.jpg',
+    image: '/assets/nft/newnft/voodoonft.png',
     selectSound: '/masionette.wav',
     abilitySound: '/masionette1.wav',
     ultimateSound: '/masionette2.wav',
@@ -811,7 +855,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 125,
     color: '#2F4F4F',
     emoji: '🚂',
-    image: '/battletrain.jpeg',
+    image: '/assets/nft/newnft/winduptoynft.png',
     selectSound: '/train.wav',
     abilitySound: '/train1.wav',
     rarity: 'rare',
@@ -858,7 +902,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 95,
     color: '#9400D3',
     emoji: '🎁',
-    image: '/cosmicjackpp.jpg',
+    image: '/assets/nft/newnft/voodoonft.png',
     selectSound: '/cosmicjack.wav',
     abilitySound: '/cosmicjack1.wav',
     rarity: 'legendary',
@@ -905,7 +949,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 105,
     color: '#FFD700',
     emoji: '🤴',
-    image: '/pharoe.jpg',
+    image: '/assets/nft/newnft/archwizardnft.png',
     rarity: 'legendary',
     description: 'Ancient Egyptian robot awakened from pyramid',
     abilities: [
@@ -950,7 +994,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 110,
     color: '#191970',
     emoji: '🐴',
-    image: '/rockinghorsepp.jpg',
+    image: '/assets/nft/newnft/dinonft.png',
     selectSound: '/rockinghorse.wav',
     abilitySound: '/rockinghorse1.wav',
     ultimateSound: '/rockinghorse2.wav',
@@ -998,7 +1042,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 100,
     color: '#00CED1',
     emoji: '⚕️',
-    image: '/doctorpp.png',
+    image: '/assets/nft/newnft/robotnft.png',
     rarity: 'common',
     description: 'A medical toy that heals and protects',
     abilities: [
@@ -1042,7 +1086,7 @@ export const ENHANCED_CHARACTERS = {
     maxHealth: 85,
     color: '#FF1493',
     emoji: '🚀',
-    image: '/rocketpp.png',
+    image: '/assets/nft/newnft/robotnft.png',
     rarity: 'common',
     description: 'A toy rocket ready for blast off',
     abilities: [

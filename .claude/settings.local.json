@@ -58,7 +58,8 @@
       "Bash(ls:*)",
       "Bash(findstr:*)",
       "Bash(netstat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tasklist)"
     ],
     "deny": [],
     "ask": []
