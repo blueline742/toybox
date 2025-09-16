@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import HearthstoneScene from './HearthstoneScene';
 import SpellNotification from '../SpellNotification';
+import TargetingOverlay from './TargetingOverlay';
 import musicManager from '../../utils/musicManager';
 
 const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack }) => {
@@ -23,6 +24,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
 
   // Targeting state for 3D
   const [isTargeting, setIsTargeting] = useState(false);
+  const [showTargetingOverlay, setShowTargetingOverlay] = useState(false);
   const [validTargets, setValidTargets] = useState([]);
   const [currentAbility, setCurrentAbility] = useState(null);
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
@@ -125,6 +127,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
       setCurrentCaster(data.caster);
       setValidTargets(data.validTargets);
       setIsTargeting(true);
+      setShowTargetingOverlay(true); // Show the overlay
       setCurrentTurn('player'); // It's our turn to select
 
       // Set timeout warning
@@ -132,6 +135,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         const timeout = setTimeout(() => {
           console.log('⏰ Target selection timeout!');
           setIsTargeting(false);
+          setShowTargetingOverlay(false);
           setValidTargets([]);
           setCurrentAbility(null);
         }, data.timeout);
@@ -219,7 +223,9 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
       // Show spell notification
       if (data.action && data.action.ability) {
         const casterData = data.action.caster || {};
-        const targetsData = data.results ? data.results.map(r => r.target) : [];
+        // Check for results in multiple places
+        const results = data.results || data.action.results || (data.action.targets ? [{target: data.action.targets[0]}] : []);
+        const targetsData = results ? results.map(r => r.target || r) : [];
 
         setSpellNotification({
           ability: data.action.ability,
@@ -228,7 +234,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         });
 
         // Create 3D effect for the action
-        const effect = createEffectFromAction(data.action, data.results);
+        const effect = createEffectFromAction(data.action, results);
         if (effect) {
           setActiveEffects(prev => [...prev, effect]);
 
@@ -239,10 +245,10 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         }
 
         // Add damage numbers
-        if (data.results) {
-          data.results.forEach(result => {
-            if (result.damage || result.heal) {
-              addDamageNumber(result.target, result.damage || result.heal, result.heal);
+        if (results) {
+          results.forEach(result => {
+            if (result && (result.damage || result.heal)) {
+              addDamageNumber(result.target || result, result.damage || result.heal, result.heal);
             }
           });
         }
@@ -271,9 +277,12 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         handleGameUpdate(data.state);
       }
 
-      // Handle action result
+      // Handle action result AFTER state updates have processed
       if (data.action) {
-        handleActionResult(data);
+        // Small delay to ensure React state updates have processed
+        setTimeout(() => {
+          handleActionResult(data);
+        }, 100);
       }
     };
 
@@ -328,51 +337,130 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
     const caster = action.caster;
     if (!ability) return null;
 
+    console.log('🎯 PVP PYROBLAST DEBUG - Creating effect');
+    console.log('🎯 PVP PYROBLAST DEBUG - Caster:', caster);
+    console.log('🎯 PVP PYROBLAST DEBUG - Results:', results);
+    console.log('🎯 PVP PYROBLAST DEBUG - isPlayer1:', isPlayer1);
+    console.log('🎯 PVP PYROBLAST DEBUG - player1Team length:', player1Team.length);
+    console.log('🎯 PVP PYROBLAST DEBUG - player2Team length:', player2Team.length);
+
+    // If teams aren't populated yet, return null and try again later
+    if (player1Team.length === 0 || player2Team.length === 0) {
+      console.log('🎯 PVP PYROBLAST DEBUG - Teams not populated yet, skipping effect creation');
+      return null;
+    }
+
+    // IMPORTANT: We need to use the same team mapping as HearthstoneScene!
+    const scenePlayerTeam = isPlayer1 ? player1Team : player2Team;
+    const sceneAiTeam = isPlayer1 ? player2Team : player1Team;
+
+    console.log('🎯 PVP PYROBLAST DEBUG - scenePlayerTeam (bottom z=5.5):', scenePlayerTeam);
+    console.log('🎯 PVP PYROBLAST DEBUG - sceneAiTeam (top z=-5.5):', sceneAiTeam);
+
     const effectId = Date.now() + Math.random();
     const isMobile = window.innerWidth <= 768;
-    const spacing = isMobile ? 1.5 : 2.2;
+    const spacing = isMobile ? 2.5 : 2.2; // Match HearthstoneScene spacing
     const totalCards = 4;
     const startX = -(totalCards - 1) * spacing / 2;
+    const cardY = 0.4; // Cards are just above table surface
+    const spellY = 1.5; // Spells appear above the flat cards
 
     // Get caster position (the character casting the spell)
-    let startPosition = [0, 2.3, 0];
+    let startPosition = [0, spellY, 0];
     if (caster) {
-      const casterTeam = caster.instanceId?.startsWith('p1') ? player1Team : player2Team;
-      const casterIndex = casterTeam.findIndex(c => c.instanceId === caster.instanceId);
+      // Find caster in the actual scene teams
+      let casterIndex = -1;
+      let casterInPlayerTeam = false; // Is caster in the "playerTeam" (bottom, z=5.5) in the scene?
+
+      // First try by instanceId
+      if (caster.instanceId) {
+        casterIndex = scenePlayerTeam.findIndex(c => c.instanceId === caster.instanceId);
+        if (casterIndex !== -1) {
+          casterInPlayerTeam = true;
+        } else {
+          casterIndex = sceneAiTeam.findIndex(c => c.instanceId === caster.instanceId);
+          casterInPlayerTeam = false;
+        }
+      }
+
+      // If not found, try by name
+      if (casterIndex === -1 && caster.name) {
+        casterIndex = scenePlayerTeam.findIndex(c => c.name === caster.name && c.isAlive);
+        if (casterIndex !== -1) {
+          casterInPlayerTeam = true;
+        } else {
+          casterIndex = sceneAiTeam.findIndex(c => c.name === caster.name && c.isAlive);
+          casterInPlayerTeam = false;
+        }
+      }
+
       if (casterIndex !== -1) {
         const casterX = startX + casterIndex * spacing;
-        const casterY = 2.3; // Active card height
-        const casterZ = caster.instanceId?.startsWith('p1') ?
-          (pvpData.playerNumber === 1 ? 5.5 : -5.5) :
-          (pvpData.playerNumber === 1 ? -5.5 : 5.5);
-        startPosition = [casterX, casterY, casterZ];
+        // Simple: playerTeam (bottom) is at z=5.5, aiTeam (top) is at z=-5.5
+        const casterZ = casterInPlayerTeam ? 5.5 : -5.5;
+
+        startPosition = [casterX, spellY, casterZ];
+        console.log('🎯 PVP PYROBLAST DEBUG - Caster Index:', casterIndex);
+        console.log('🎯 PVP PYROBLAST DEBUG - Caster in playerTeam (bottom)?:', casterInPlayerTeam);
+        console.log('🎯 PVP PYROBLAST DEBUG - Start Position:', startPosition);
+      } else {
+        console.log('🎯 PVP PYROBLAST DEBUG - WARNING: Could not find caster position!');
       }
     }
 
     // Get target position from first result target
-    let targetPosition = [0, 1.8, 0];
+    let targetPosition = [0, spellY, 0];
     if (results && results.length > 0 && results[0].target) {
       const target = results[0].target;
-      // Calculate position based on target's team and index
-      const targetTeam = target.instanceId?.startsWith('p1') ? player1Team : player2Team;
-      const targetIndex = targetTeam.findIndex(c => c.instanceId === target.instanceId);
+      let targetIndex = -1;
+      let targetInPlayerTeam = false; // Is target in the "playerTeam" (bottom, z=5.5) in the scene?
+
+      // First try by instanceId
+      if (target.instanceId) {
+        targetIndex = scenePlayerTeam.findIndex(c => c.instanceId === target.instanceId);
+        if (targetIndex !== -1) {
+          targetInPlayerTeam = true;
+        } else {
+          targetIndex = sceneAiTeam.findIndex(c => c.instanceId === target.instanceId);
+          targetInPlayerTeam = false;
+        }
+      }
+
+      // If not found, try by name
+      if (targetIndex === -1 && target.name) {
+        targetIndex = scenePlayerTeam.findIndex(c => c.name === target.name);
+        if (targetIndex !== -1) {
+          targetInPlayerTeam = true;
+        } else {
+          targetIndex = sceneAiTeam.findIndex(c => c.name === target.name);
+          targetInPlayerTeam = false;
+        }
+      }
+
       if (targetIndex !== -1) {
         const targetX = startX + targetIndex * spacing;
-        const targetY = 1.8; // Normal card height
-        const targetZ = target.instanceId?.startsWith('p1') ?
-          (pvpData.playerNumber === 1 ? 5.5 : -5.5) :
-          (pvpData.playerNumber === 1 ? -5.5 : 5.5);
-        targetPosition = [targetX, targetY, targetZ];
+        // Simple: playerTeam (bottom) is at z=5.5, aiTeam (top) is at z=-5.5
+        const targetZ = targetInPlayerTeam ? 5.5 : -5.5;
+
+        targetPosition = [targetX, spellY, targetZ];
+        console.log('🎯 PVP PYROBLAST DEBUG - Target Index:', targetIndex);
+        console.log('🎯 PVP PYROBLAST DEBUG - Target in playerTeam (bottom)?:', targetInPlayerTeam);
+        console.log('🎯 PVP PYROBLAST DEBUG - Target Position:', targetPosition);
+      } else {
+        console.log('🎯 PVP PYROBLAST DEBUG - WARNING: Could not find target position!');
       }
     }
 
-    return {
+    const effect = {
       id: effectId,
       type: getEffectType(ability),
       startPosition,
       targetPosition,
       duration: getEffectType(ability) === 'pyroblast' ? 2500 : 2000
     };
+
+    console.log('🎯 PVP PYROBLAST DEBUG - Final Effect:', effect);
+    return effect;
   };
 
   // Get effect type from ability - always use pyroblast for now
@@ -402,6 +490,20 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
   };
 
   // Handle card click for targeting
+  // Handle cancel targeting
+  const handleCancelTargeting = () => {
+    setShowTargetingOverlay(false);
+    setIsTargeting(false);
+    setValidTargets([]);
+    setCurrentAbility(null);
+
+    // Clear timeout if exists
+    if (targetingTimeout) {
+      clearTimeout(targetingTimeout);
+      setTargetingTimeout(null);
+    }
+  };
+
   const handleCardClick = (target) => {
     if (!isTargeting) return;
 
@@ -432,6 +534,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
       });
 
       setIsTargeting(false);
+      setShowTargetingOverlay(false);
       setValidTargets([]);
       setCurrentAbility(null);
       setCurrentCaster(null);
@@ -459,8 +562,20 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-blue-900 to-purple-900">
-      {/* 3D Battle Scene */}
-      <HearthstoneScene
+      {/* 2D Targeting Overlay - Shows instead of 3D view during player targeting */}
+      {showTargetingOverlay && (
+        <TargetingOverlay
+          activeCard={currentCaster || ourTeam[activeCharacterIndex]}
+          targets={validTargets}
+          onTargetSelect={handleCardClick}
+          onCancel={handleCancelTargeting}
+          selectedAbility={currentAbility}
+        />
+      )}
+
+      {/* 3D Battle Scene - Blurred during overlay */}
+      <div className={showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}>
+        <HearthstoneScene
         playerTeam={isPlayer1 ? player1Team : player2Team}
         aiTeam={isPlayer1 ? player2Team : player1Team}
         onCardClick={handleCardClick}
@@ -473,6 +588,7 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         activeEffects={activeEffects}
         damageNumbers={damageNumbers}
       />
+      </div>
 
       {/* Spell Notification */}
       {spellNotification && (
@@ -503,21 +619,11 @@ const PvPBattle3D = ({ playerTeam, opponentTeam, pvpData, onBattleEnd, onBack })
         </div>
       </div>
 
-      {/* Targeting UI */}
-      {isTargeting && currentAbility && (
+      {/* Targeting Instructions (only show when overlay is not active) */}
+      {isTargeting && !showTargetingOverlay && currentAbility && (
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
-          <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4 border-2 border-yellow-500 animate-pulse">
-            <div className="text-center">
-              <h3 className="text-yellow-400 font-bold text-lg mb-2">
-                Select Target for {currentAbility.name}
-              </h3>
-              <p className="text-white text-sm">
-                Click on a {currentAbility.effect === 'heal' || currentAbility.effect === 'shield' ? 'friendly' : 'enemy'} card
-              </p>
-              <div className="mt-2 text-xs text-gray-400">
-                {validTargets.length} valid target{validTargets.length !== 1 ? 's' : ''} available
-              </div>
-            </div>
+          <div className="bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold animate-pulse shadow-xl">
+            Click a card to cast {currentAbility.name}!
           </div>
         </div>
       )}

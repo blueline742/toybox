@@ -6,7 +6,7 @@ import MyToyboxCollection from './MyToyboxCollection'
 import WalletButtonPortal from './WalletButtonPortal'
 import { useTouchClick } from '../hooks/useTouchClick'
 
-const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D }) => {
+const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D, onTestBoardgame }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
@@ -113,6 +113,10 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D }) => {
   const test3DHandlers = useTouchClick(() => {
     playButtonSound()
     if (onTest3D) onTest3D()
+  })
+  const boardgameHandlers = useTouchClick(() => {
+    playButtonSound()
+    if (onTestBoardgame) onTestBoardgame()
   })
 
   // Function to handle scrolling back to top (used by NFT section)
@@ -262,13 +266,21 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D }) => {
                 </div>
               </button>
               
-              {/* 3D Test Button - Development only */}
-              <button
-                {...test3DHandlers}
-                className="menu-button bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all mt-4"
-              >
-                🎮 Test 3D Battle
-              </button>
+              {/* Development Test Buttons */}
+              <div className="flex gap-2 mt-4">
+                <button
+                  {...test3DHandlers}
+                  className="menu-button bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all text-sm"
+                >
+                  🎮 3D Test
+                </button>
+                <button
+                  {...boardgameHandlers}
+                  className="menu-button bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-2 rounded-lg font-bold hover:from-green-700 hover:to-teal-700 transform hover:scale-105 transition-all text-sm"
+                >
+                  🎲 Boardgame.io
+                </button>
+              </div>
             </div>
             
             {/* Game Slogan - Moved to bottom */}

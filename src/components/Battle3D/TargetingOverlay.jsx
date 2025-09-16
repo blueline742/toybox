@@ -59,7 +59,10 @@ const TargetingOverlay = ({
           <div
             key={target.instanceId}
             className="relative cursor-pointer transform transition-all hover:scale-110 hover:z-10"
-            onClick={() => onTargetSelect(target)}
+            onClick={() => {
+              console.log('Target clicked in overlay:', target);
+              onTargetSelect(target);
+            }}
           >
             {/* Card Image */}
             <div className="relative">

@@ -197,11 +197,11 @@ class AssetPreloader {
   }
 
   // Create texture atlas for WebGL/Canvas optimization
-  async createTextureAtlas(images, atlasSize = 2048) {
+  async createTextureAtlas(images, atlasSize = 4096) {
     // Reduce atlas size on mobile for memory constraints
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
-      atlasSize = Math.min(atlasSize, 1024);
+      atlasSize = Math.min(atlasSize, 2048);
     }
     
     const canvas = document.createElement('canvas');
@@ -287,8 +287,8 @@ class AssetPreloader {
     const largeImages = new Set();
     
     for (const [name, img] of this.assets.images.entries()) {
-      // Skip images larger than 512px in either dimension
-      if (img.width > 512 || img.height > 512) {
+      // Skip images larger than 1024px in either dimension for better atlas support
+      if (img.width > 1024 || img.height > 1024) {
         largeImages.add(name);
         console.log(`Excluding large image from atlas: ${name} (${img.width}x${img.height})`);
       } else {

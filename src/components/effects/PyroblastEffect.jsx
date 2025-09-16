@@ -23,6 +23,13 @@ const PyroblastEffect = ({
   const [phase, setPhase] = useState('charging'); // charging, flying, exploding
   const startTime = useRef(Date.now());
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔥 PYROBLAST EFFECT - Start Position:', startPosition);
+    console.log('🔥 PYROBLAST EFFECT - Target Position:', targetPosition);
+    console.log('🔥 PYROBLAST EFFECT - Duration:', duration);
+  }, []);
+
   // Load textures
   const fireballTexture = useTexture('/assets/effects/fireball.png');
   const fireball2Texture = useTexture('/assets/effects/fireball2.png');

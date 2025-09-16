@@ -35,9 +35,13 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
     }))
   );
 
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
   // Battle state
   const [battleState, setBattleState] = useState({
-    turn: 'player',
+    turn: null, // Start with null until loaded
     turnCount: 0,
     isResolving: false,
     selectedCardIndex: null,
@@ -57,6 +61,33 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
   // Animation queue reference
   const animationQueue = useRef([]);
   const isProcessing = useRef(false);
+
+  // Initialize loading buffer
+  useEffect(() => {
+    if (isLoading) {
+      const isMobile = window.innerWidth <= 768;
+      const loadTime = isMobile ? 7000 : 5000; // 7 seconds for mobile, 5 for desktop
+      const interval = 100;
+      const increment = 100 / (loadTime / interval);
+
+      const timer = setInterval(() => {
+        setLoadingProgress(prev => {
+          const next = prev + increment;
+          if (next >= 100) {
+            clearInterval(timer);
+            setTimeout(() => {
+              setIsLoading(false);
+              setBattleState(prev => ({ ...prev, turn: 'player' })); // Start after loading
+            }, 500);
+            return 100;
+          }
+          return next;
+        });
+      }, interval);
+
+      return () => clearInterval(timer);
+    }
+  }, [isLoading]);
 
   // Get random alive card from team
   const getRandomAliveCard = (team) => {
@@ -168,12 +199,14 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
   };
 
   // Get card position
-  const getCardPosition = (index, team) => {
-    const spacing = 2.2;
+  const getCardPosition = (index, team, forSpell = false) => {
+    const isMobile = window.innerWidth <= 768;
+    const spacing = isMobile ? 2.5 : 2.2; // Match HearthstoneScene spacing
     const totalCards = 4;
     const startX = -(totalCards - 1) * spacing / 2;
     const x = startX + index * spacing;
-    const y = 1.8;
+    // Add vertical offset for spells to appear above the flat cards
+    const y = forSpell ? 1.5 : 0.4; // Higher for spells, normal for cards
     const z = team === 'player' ? 5.5 : -5.5;
     return [x, y, z];
   };
@@ -294,10 +327,11 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
     const attackerIndex = currentTeam.findIndex(c => c.instanceId === attacker.instanceId);
     const targetIndex = oppositeTeam.findIndex(c => c.instanceId === target.instanceId);
 
-    const startPos = getCardPosition(attackerIndex, battleState.turn);
+    const startPos = getCardPosition(attackerIndex, battleState.turn, true); // true for spell position
     const targetPos = getCardPosition(
       targetIndex >= 0 ? targetIndex : currentTeam.findIndex(c => c.instanceId === target.instanceId),
-      ability.targetType === 'ally' ? battleState.turn : (battleState.turn === 'player' ? 'ai' : 'player')
+      ability.targetType === 'ally' ? battleState.turn : (battleState.turn === 'player' ? 'ai' : 'player'),
+      true // true for spell position
     );
 
     // Queue animation
@@ -367,14 +401,14 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
 
   // Auto-process turns
   useEffect(() => {
-    if (!battleState.isResolving && !battleEnded) {
+    if (!isLoading && battleState.turn && !battleState.isResolving && !battleEnded) {
       const timer = setTimeout(() => {
         processTurn();
       }, 1000);
 
       return () => clearTimeout(timer);
     }
-  }, [battleState.turn, battleState.isResolving]);
+  }, [isLoading, battleState.turn, battleState.isResolving]);
 
   // Check for battle end
   useEffect(() => {
@@ -392,8 +426,32 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-blue-900 to-purple-900">
+      {/* Loading Screen */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-blue-900 to-purple-900">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-white mb-8 animate-pulse">
+              Loading Battle Arena...
+            </h2>
+            <div className="w-80 h-6 bg-gray-700 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-200"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+            <p className="text-white text-lg">
+              {Math.round(loadingProgress)}% - {window.innerWidth <= 768 ? 'Optimizing for mobile...' : 'Preparing arena...'}
+            </p>
+            <p className="text-gray-300 text-sm mt-4">
+              Please wait while all assets load properly
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 3D Scene */}
-      <HearthstoneScene
+      {!isLoading && (
+        <HearthstoneScene
         playerTeam={playerTeam}
         aiTeam={aiTeam}
         onCardClick={() => {}} // Disabled manual clicking in auto-battle
@@ -406,6 +464,7 @@ const Battle3DSmooth = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam, 
         activeEffects={activeEffects}
         damageNumbers={damageNumbers}
       />
+      )}
 
       {/* Spell Notification */}
       {spellNotification && (

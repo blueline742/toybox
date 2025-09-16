@@ -206,7 +206,7 @@ const InitialLoadingScreen = ({ onLoadComplete }) => {
         </p>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin-reverse {
           from {
             transform: rotate(360deg);

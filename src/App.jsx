@@ -11,6 +11,7 @@ import PvPBattle3D from './components/Battle3D/PvPBattle3D'
 import InitialLoadingScreen from './components/InitialLoadingScreen'
 import GlobalTouchHandler from './components/GlobalTouchHandler'
 import Battle3DTest from './components/Battle3DTest'
+import BoardgameBattle3DFixed from './components/Battle3D/BoardgameBattle3DFixed'
 import musicManager from './utils/musicManager'
 
 const GAME_STATES = {
@@ -20,7 +21,8 @@ const GAME_STATES = {
   RESULTS: 'results',
   PVP_LOBBY: 'pvp_lobby',
   PVP_TEAM_SELECT: 'pvp_team_select',
-  BATTLE_3D_TEST: 'battle_3d_test'
+  BATTLE_3D_TEST: 'battle_3d_test',
+  BOARDGAME_BATTLE: 'boardgame_battle'
 }
 
 function App() {
@@ -43,6 +45,10 @@ function App() {
   
   const handleTest3D = () => {
     setGameState(GAME_STATES.BATTLE_3D_TEST)
+  }
+
+  const handleTestBoardgame = () => {
+    setGameState(GAME_STATES.BOARDGAME_BATTLE)
   }
 
   const handlePvPTeamSelected = (team) => {
@@ -176,10 +182,11 @@ function App() {
           </button>
         </div>
         {gameState === GAME_STATES.MENU && (
-          <MainMenu 
+          <MainMenu
             onStartGame={handleStartGame}
             onStartPvP={handleStartPvP}
             onTest3D={handleTest3D}
+            onTestBoardgame={handleTestBoardgame}
           />
         )}
         
@@ -208,7 +215,7 @@ function App() {
         
         {gameState === GAME_STATES.TEAM_BATTLE && (
           pvpBattleData ? (
-            // Use 3D battle for PvP
+            // Use PvPBattle3D for actual PvP battles
             <PvPBattle3D
               playerTeam={selectedTeam}
               opponentTeam={pvpBattleData?.opponentTeam}
@@ -239,6 +246,10 @@ function App() {
         
         {gameState === GAME_STATES.BATTLE_3D_TEST && (
           <Battle3DTest />
+        )}
+
+        {gameState === GAME_STATES.BOARDGAME_BATTLE && (
+          <BoardgameBattle3DFixed />
         )}
       </div>
       </SocketProvider>

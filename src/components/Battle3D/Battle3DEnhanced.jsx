@@ -27,7 +27,9 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   );
 
   // Battle state
-  const [currentTurn, setCurrentTurn] = useState('player');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [currentTurn, setCurrentTurn] = useState(null); // Start with null until loaded
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [battleEnded, setBattleEnded] = useState(false);
 
@@ -45,14 +47,15 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   const [spellNotification, setSpellNotification] = useState(null);
 
   // Helper function to get card position - Hearthstone style
-  const getCardPosition = (index, team) => {
+  const getCardPosition = (index, team, forSpell = false) => {
     const isMobile = window.innerWidth <= 768;
-    const spacing = isMobile ? 1.5 : 2.2; // Match HearthstoneScene spacing
+    const spacing = isMobile ? 2.5 : 2.2; // Match HearthstoneScene spacing exactly
     const totalCards = 4;
     const startX = -(totalCards - 1) * spacing / 2;
 
     const x = startX + index * spacing;
-    const y = 1.8; // Cards are at table height (matching HearthstoneScene)
+    // Add vertical offset for spells to appear above the flat cards
+    const y = forSpell ? 1.5 : 0.4; // Higher for spells, normal for cards
     const z = team === 'player' ? 5.5 : -5.5; // Match HearthstoneScene positioning
 
     return [x, y, z];
@@ -94,6 +97,8 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
   // Execute ability with effects
   const executeAbility = async (caster, ability, targets) => {
     console.log(`${caster.name} uses ${ability.name}!`);
+    console.log('🎯 PYROBLAST DEBUG - Caster:', caster);
+    console.log('🎯 PYROBLAST DEBUG - Targets:', targets);
 
     // Show spell notification
     setSpellNotification({
@@ -105,7 +110,9 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     // Get the caster's actual position on the battlefield
     const casterTeam = caster.team === 'player' ? playerTeam : aiTeam;
     const casterIndex = casterTeam.findIndex(c => c.instanceId === caster.instanceId);
-    const startPosition = getCardPosition(casterIndex, caster.team);
+    const startPosition = getCardPosition(casterIndex, caster.team, true); // true for spell position
+    console.log('🎯 PYROBLAST DEBUG - Caster Index:', casterIndex);
+    console.log('🎯 PYROBLAST DEBUG - Start Position:', startPosition);
 
     // Wait for notification
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -114,7 +121,10 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     targets.forEach(target => {
       const targetTeam = target.team === 'player' ? playerTeam : aiTeam;
       const targetIndex = targetTeam.findIndex(c => c.instanceId === target.instanceId);
-      const targetPosition = getCardPosition(targetIndex, target.team);
+      const targetPosition = getCardPosition(targetIndex, target.team, true); // true for spell position
+      console.log('🎯 PYROBLAST DEBUG - Target:', target);
+      console.log('🎯 PYROBLAST DEBUG - Target Index:', targetIndex);
+      console.log('🎯 PYROBLAST DEBUG - Target Position:', targetPosition);
 
       // Add spell effect
       const effectType = getEffectType(ability);
@@ -272,9 +282,36 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
     }, turnDelay);
   };
 
+  // Initialize loading buffer
+  useEffect(() => {
+    if (isLoading) {
+      const isMobile = window.innerWidth <= 768;
+      const loadTime = isMobile ? 7000 : 5000; // 7 seconds for mobile, 5 for desktop
+      const interval = 100; // Update every 100ms
+      const increment = 100 / (loadTime / interval);
+
+      const timer = setInterval(() => {
+        setLoadingProgress(prev => {
+          const next = prev + increment;
+          if (next >= 100) {
+            clearInterval(timer);
+            setTimeout(() => {
+              setIsLoading(false);
+              setCurrentTurn('player'); // Start the game after loading
+            }, 500);
+            return 100;
+          }
+          return next;
+        });
+      }, interval);
+
+      return () => clearInterval(timer);
+    }
+  }, [isLoading]);
+
   // Start player turn when it's their turn
   useEffect(() => {
-    if (currentTurn === 'player' && !isTargeting && !battleEnded) {
+    if (!isLoading && currentTurn === 'player' && !isTargeting && !battleEnded) {
       const activeChar = playerTeam[currentCharacterIndex];
 
       if (!activeChar?.isAlive) {
@@ -359,8 +396,31 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
 
   return (
     <div className="relative w-full h-screen bg-gradient-to-b from-blue-900 to-purple-900">
+      {/* Loading Screen */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-blue-900 to-purple-900">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-white mb-8 animate-pulse">
+              Loading Battle Arena...
+            </h2>
+            <div className="w-80 h-6 bg-gray-700 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-200"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+            <p className="text-white text-lg">
+              {Math.round(loadingProgress)}% - {window.innerWidth <= 768 ? 'Optimizing for mobile...' : 'Preparing arena...'}
+            </p>
+            <p className="text-gray-300 text-sm mt-4">
+              Please wait while all assets load properly
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 2D Targeting Overlay - Shows instead of 3D view during player targeting */}
-      {showTargetingOverlay && (
+      {!isLoading && showTargetingOverlay && (
         <TargetingOverlay
           activeCard={playerTeam[currentCharacterIndex]}
           targets={validTargets}
@@ -371,8 +431,9 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
       )}
 
       {/* Hearthstone-style 3D Scene - Blurred during overlay */}
-      <div className={showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}>
-        <HearthstoneScene
+      {!isLoading && (
+        <div className={showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}>
+          <HearthstoneScene
           playerTeam={playerTeam}
           aiTeam={aiTeam}
           onCardClick={handleCardClick}
@@ -385,7 +446,8 @@ const Battle3DEnhanced = ({ playerTeam: initialPlayerTeam, aiTeam: initialAiTeam
           activeEffects={activeEffects}
           damageNumbers={damageNumbers}
         />
-      </div>
+        </div>
+      )}
 
       {/* Spell Notification */}
       {spellNotification && (

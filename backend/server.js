@@ -11,9 +11,9 @@ import PvPBattleManager from './pvpBattleManager.js';
 const app = express();
 const httpServer = createServer(app);
 // CORS configuration
-const allowedOrigins = process.env.NODE_ENV === 'production' 
+const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://toyboxsol.netlify.app', 'https://toybox.netlify.app']
-  : ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"];
+  : ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173", "http://localhost:5174"];
 
 const io = new Server(httpServer, {
   cors: {
@@ -162,15 +162,9 @@ io.on('connection', (socket) => {
     const isTestMode = false; // Disabled for real PvP testing
 
     if (waitingPlayers.length > 0) {
-      // Found opponent or create test opponent
-      const opponent = waitingPlayers.length > 0
-        ? waitingPlayers.shift()
-        : {
-            wallet: 'AI_' + Math.random().toString(36).substr(2, 9),
-            socket: 'ai_socket_' + Date.now(),
-            teamData: generateAITeam(),
-            isAI: true
-          };
+      // Found an opponent waiting in queue
+      const opponent = waitingPlayers.shift();
+      console.log(`Matched players: ${wallet} vs ${opponent.wallet}`);
       
       // Create battle
       const battleId = generateBattleId();
