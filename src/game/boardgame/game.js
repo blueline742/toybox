@@ -1,5 +1,5 @@
 // Boardgame.io Game Definition for Toybox NFT Card Battle
-import { ENHANCED_CHARACTERS } from '../enhancedCharacters';
+import { ENHANCED_CHARACTERS } from '../enhancedCharacters.js';
 
 // Default test decks for when no cards are provided
 const getDefaultPlayerDeck = () => [
@@ -49,6 +49,176 @@ const getDefaultPlayerDeck = () => [
   }
 ];
 
+// Define setPlayerTeam move function separately for phase reference
+const setPlayerTeam = ({ G, ctx, playerID }, team) => {
+  console.log(`🎯 setPlayerTeam called`);
+  console.log('Raw playerID parameter:', playerID, 'type:', typeof playerID);
+  console.log('Team parameter received:', team);
+  console.log('ctx.currentPlayer:', ctx.currentPlayer);
+  console.log('ctx.playOrder:', ctx.playOrder);
+
+  let actualPlayerID = null;
+  let teamCards = team;
+
+  // PRIORITY 1: Check if team has submittedBy metadata (from client)
+  if (team && typeof team === 'object' && !Array.isArray(team)) {
+    console.log('📦 Team object detected with potential metadata');
+
+    if (team.submittedBy !== undefined && team.submittedBy !== null) {
+      actualPlayerID = String(team.submittedBy);
+      console.log('✅ Using submittedBy from metadata:', actualPlayerID);
+    }
+
+    // Extract the actual cards array
+    teamCards = team.cards || team;
+    console.log('📋 Extracted cards:', teamCards?.length, 'cards');
+  }
+
+  // PRIORITY 2: Use ctx.currentPlayer if available and no metadata
+  if (!actualPlayerID && ctx.currentPlayer !== null && ctx.currentPlayer !== undefined) {
+    actualPlayerID = String(ctx.currentPlayer);
+    console.log('📌 Using ctx.currentPlayer as fallback:', actualPlayerID);
+  }
+
+  // PRIORITY 3: Infer from game state - which player hasn't set their team yet
+  if (!actualPlayerID) {
+    console.log('🔍 Attempting to infer playerID from game state...');
+
+    if (!G.players['0'].ready) {
+      actualPlayerID = '0';
+      console.log('📌 Inferred Player 0 (not ready yet)');
+    } else if (!G.players['1'].ready) {
+      actualPlayerID = '1';
+      console.log('📌 Inferred Player 1 (not ready yet)');
+    } else {
+      console.error('❌ Both players already ready, cannot accept new team');
+      console.error('Player states:', {
+        player0: G.players['0'].ready,
+        player1: G.players['1'].ready
+      });
+      return G; // Return unchanged game state
+    }
+  }
+
+  console.log('🎯 Final playerID determined:', actualPlayerID);
+
+  // Validate team cards
+  if (!teamCards || !Array.isArray(teamCards) || teamCards.length === 0) {
+    console.error('❌ Invalid team data:', teamCards);
+    return G; // Return unchanged game state
+  }
+
+  // Validate we have a valid player ID
+  if (!G.players[actualPlayerID]) {
+    console.error('❌ Invalid playerID:', actualPlayerID);
+    return G;
+  }
+
+  // Check if this player already set their team
+  if (G.players[actualPlayerID].ready) {
+    console.log('⚠️ Player', actualPlayerID, 'already set their team');
+    return G;
+  }
+
+  console.log(`🎲 Player ${actualPlayerID} setting team with ${teamCards.length} cards - MatchID:`, ctx?.matchID || G.matchID);
+
+  // Transform the selected team into the game format - ensure only serializable data
+  const playerCards = teamCards.map((card, index) => {
+    // Create a clean serializable card object
+    const cleanCard = {
+      id: `p${actualPlayerID}-${card.id}-${index}`,
+      instanceId: `p${actualPlayerID}-${index}`,
+      name: card.name,
+      emoji: card.emoji,
+      maxHealth: card.maxHealth || 100,
+      currentHealth: card.maxHealth || 100,
+      attack: card.attack || card.stats?.attack || 20,
+      defense: card.defense || card.stats?.defense || 10,
+      speed: card.speed || card.stats?.speed || 15,
+      frozen: false,
+      frozenTurns: 0,
+      shields: 0,
+      position: index,
+      owner: parseInt(actualPlayerID),
+      isAlive: true,
+      // Preserve the NFT image path if it exists
+      image: card.nftImage ? `/assets/nft/newnft/${card.nftImage}` : card.image || null,
+      color: actualPlayerID === '0' ? 'blue' : 'red',
+      rarity: card.rarity || 'common',
+      level: card.level || 1,
+      description: card.description || ''
+    };
+
+    // Clean abilities to ensure they're serializable
+    if (card.abilities && Array.isArray(card.abilities)) {
+      cleanCard.abilities = card.abilities.map(ability => {
+        // Only include serializable fields
+        const cleanAbility = {
+          name: String(ability.name || ''),
+          damage: Number(ability.damage || 0),
+          heal: Number(ability.heal || 0),
+          shield: Number(ability.shield || 0),
+          manaCost: Number(ability.manaCost || 0),
+          targetType: String(ability.targetType || 'enemy'),
+          description: String(ability.description || '')
+        };
+        // Remove any function fields
+        return JSON.parse(JSON.stringify(cleanAbility));
+      });
+    } else {
+      cleanCard.abilities = [];
+    }
+
+    // Clean ultimate ability if it exists
+    if (card.ultimateAbility) {
+      const cleanUltimate = {
+        name: String(card.ultimateAbility.name || ''),
+        damage: Number(card.ultimateAbility.damage || 0),
+        heal: Number(card.ultimateAbility.heal || 0),
+        shield: Number(card.ultimateAbility.shield || 0),
+        manaCost: Number(card.ultimateAbility.manaCost || 0),
+        targetType: String(card.ultimateAbility.targetType || 'enemy'),
+        description: String(card.ultimateAbility.description || '')
+      };
+      // Ensure it's fully serializable
+      cleanCard.ultimateAbility = JSON.parse(JSON.stringify(cleanUltimate));
+    }
+
+    // Final serialization check - ensure entire object is JSON-safe
+    return JSON.parse(JSON.stringify(cleanCard));
+  });
+
+  // Update the player's cards and mark as ready
+  G.players[actualPlayerID].cards = playerCards;
+  G.players[actualPlayerID].ready = true;
+  console.log(`✅ Player ${actualPlayerID} team set - Cards:`, playerCards.map(c => c.name), '- MatchID:', ctx?.matchID || G.matchID);
+
+  // Check if both players are ready
+  const allReady = G.players['0'].ready && G.players['1'].ready;
+
+  console.log('📊 Current ready status after team set:', {
+    player0Ready: G.players['0'].ready,
+    player1Ready: G.players['1'].ready,
+    player0Cards: G.players['0'].cards.length,
+    player1Cards: G.players['1'].cards.length,
+    bothReady: allReady
+  });
+
+  if (allReady) {
+    console.log('🎮 Both players ready - game can start!');
+    console.log('  Player 0 cards:', G.players['0'].cards.map(c => c.name));
+    console.log('  Player 1 cards:', G.players['1'].cards.map(c => c.name));
+    console.log('  Phase will transition to playing');
+    G.phase = 'playing';
+    G.turnNumber = 1;
+  } else {
+    console.log('⏳ Waiting for other player to set team');
+  }
+
+  // CRITICAL: Must return the modified game state for changes to persist
+  return G;
+};
+
 const getDefaultAIDeck = () => [
   {
     id: 'alien',
@@ -96,11 +266,16 @@ const getDefaultAIDeck = () => [
   }
 ];
 
-export const ToyboxGame = {
+const ToyboxGame = {
   name: 'toybox-battle',
 
-  setup: (ctx) => {
-    console.log('Game setup called with ctx:', ctx);
+  setup: (ctx, setupData) => {
+    console.log('🎮 GAME SETUP CALLED');
+    console.log('  Context:', ctx);
+    console.log('  SetupData:', setupData);
+    console.log('  PlayOrder:', ctx?.playOrder);
+    console.log('  NumPlayers:', ctx?.numPlayers);
+    console.log('  MatchID:', setupData?.matchID || 'unknown');
 
     // Initialize players manually since playerSetup might not be working
     const players = {};
@@ -112,7 +287,8 @@ export const ToyboxGame = {
         graveyard: [],
         mana: 3,
         maxMana: 3,
-        buffs: []
+        buffs: [],
+        ready: false  // Track if player has set their team
       };
     }
 
@@ -121,76 +297,181 @@ export const ToyboxGame = {
       turnNumber: 0,
       activeEffects: [],
       animationQueue: [],
-      winner: null
+      winner: null,
+      phase: 'setup', // Start in setup phase
+      setupCount: (setupData?.setupCount || 0) + 1, // Track how many times setup is called
+      matchID: setupData?.matchID || 'unknown' // Track matchID for logging
     };
 
-    console.log('Initial game state:', gameState);
+    console.log('📊 Initial game state created:', {
+      phase: gameState.phase,
+      setupCount: gameState.setupCount,
+      playersReady: Object.values(gameState.players).map(p => p.ready)
+    });
     return gameState;
   },
 
-  turn: {
-    order: {
-      first: () => 0,
-      next: ({ G, ctx }) => (ctx.playOrderPos + 1) % ctx.numPlayers,
-    },
-    onBegin: ({ G, ctx, events, random }) => {
-      // Check if game is initialized
-      if (!G || !G.players || !G.players[ctx.currentPlayer]) {
-        return;
+  // Phase configuration for proper state synchronization
+  phases: {
+    setup: {
+      start: true,
+      next: 'playing',
+      turn: {
+        activePlayers: { all: 'setup' } // All players active simultaneously
+      },
+      moves: {
+        setPlayerTeam
+      },
+      endIf: (G, ctx) => {
+        if (!G || !G.players) {
+          console.log('⚠️ endIf check - G or players not initialized');
+          return false;
+        }
+        const player0Ready = G.players['0']?.ready || false;
+        const player1Ready = G.players['1']?.ready || false;
+        const allReady = player0Ready && player1Ready;
+
+        console.log('🔍 Setup endIf check - MatchID:', G.matchID, {
+          player0: { ready: player0Ready, cards: G.players['0']?.cards?.length || 0 },
+          player1: { ready: player1Ready, cards: G.players['1']?.cards?.length || 0 },
+          transition: allReady
+        });
+
+        if (allReady) {
+          console.log('✅ BOTH PLAYERS READY - Transitioning to playing phase - MatchID:', G.matchID);
+        }
+        return allReady;
+      },
+      onEnd: (G, ctx) => {
+        console.log('✅ BOTH PLAYERS READY on server - Transitioning to playing phase - MatchID:', G.matchID);
+        console.log('📊 Setup phase ended, transitioning to playing phase');
+        if (G.players && G.players['0'] && G.players['1']) {
+          console.log('  Player 0 team:', G.players['0'].cards.map(c => c.name));
+          console.log('  Player 1 team:', G.players['1'].cards.map(c => c.name));
+        }
+
+        // Create a clean, serializable game state for the playing phase
+        const nextState = {
+          players: G.players,
+          turnNumber: G.turnNumber || 1,
+          activeEffects: G.activeEffects || [],
+          animationQueue: G.animationQueue || [],
+          winner: G.winner || null,
+          phase: 'playing',
+          setupCount: G.setupCount || 1,
+          matchID: G.matchID || 'unknown'
+        };
+
+        // Ensure the state is fully serializable
+        return JSON.parse(JSON.stringify(nextState));
       }
+    },
+    playing: {
+      turn: {
+        order: {
+          first: () => 0,
+          next: ({ G, ctx }) => (ctx.playOrderPos + 1) % ctx.numPlayers,
+        },
+        onBegin: ({ G, ctx, events, random }) => {
+          // Check if game is initialized
+          if (!G || !G.players || !G.players[ctx.currentPlayer]) {
+            return;
+          }
 
-      const player = G.players[ctx.currentPlayer];
-      const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
+          const player = G.players[ctx.currentPlayer];
+          const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
 
-      // Process turn start effects
-      G.turnNumber++;
+          // Process turn start effects
+          G.turnNumber++;
 
-      // Unfreeze cards that have been frozen for a turn
-      if (player.cards && player.cards.length > 0) {
-        player.cards.forEach(card => {
-          if (card.frozenTurns > 0) {
-            card.frozenTurns--;
-            if (card.frozenTurns === 0) {
-              card.frozen = false;
+          // Unfreeze cards that have been frozen for a turn
+          if (player.cards && player.cards.length > 0) {
+            player.cards.forEach(card => {
+              if (card.frozenTurns > 0) {
+                card.frozenTurns--;
+                if (card.frozenTurns === 0) {
+                  card.frozen = false;
+                }
+              }
+            });
+          }
+
+          // Store the randomly selected card for this turn
+          const aliveCards = player.cards.filter(c => c.currentHealth > 0 && !c.frozen);
+          if (aliveCards.length > 0) {
+            const randomCard = random.Shuffle(aliveCards)[0];
+
+            // Pick a random ability from the card
+            if (randomCard.abilities && randomCard.abilities.length > 0) {
+              const randomAbilityIndex = Math.floor(Math.random() * randomCard.abilities.length);
+
+              // Store the selected card and ability for the player to target
+              G.currentTurnCard = {
+                card: randomCard,
+                abilityIndex: randomAbilityIndex,
+                ability: randomCard.abilities[randomAbilityIndex]
+              };
             }
           }
-        });
-      }
+        },
+        onEnd: ({ G, ctx }) => {
+          // Check if game is initialized
+          if (!G || !G.players || !G.players[ctx.currentPlayer]) {
+            return;
+          }
 
-      // Store the randomly selected card for this turn
-      const aliveCards = player.cards.filter(c => c.currentHealth > 0 && !c.frozen);
-      if (aliveCards.length > 0) {
-        const randomCard = random.Shuffle(aliveCards)[0];
-
-        // Pick a random ability from the card
-        if (randomCard.abilities && randomCard.abilities.length > 0) {
-          const randomAbilityIndex = Math.floor(Math.random() * randomCard.abilities.length);
-
-          // Store the selected card and ability for the player to target
-          G.currentTurnCard = {
-            card: randomCard,
-            abilityIndex: randomAbilityIndex,
-            ability: randomCard.abilities[randomAbilityIndex]
-          };
+          // Clear any temporary buffs
+          const player = G.players[ctx.currentPlayer];
+          if (player.buffs) {
+            player.buffs = player.buffs.filter(buff => buff.duration > 1);
+            player.buffs.forEach(buff => buff.duration--);
+          }
         }
-      }
-    },
-    onEnd: ({ G, ctx }) => {
-      // Check if game is initialized
-      if (!G || !G.players || !G.players[ctx.currentPlayer]) {
-        return;
-      }
-
-      // Clear any temporary buffs
-      const player = G.players[ctx.currentPlayer];
-      if (player.buffs) {
-        player.buffs = player.buffs.filter(buff => buff.duration > 1);
-        player.buffs.forEach(buff => buff.duration--);
       }
     }
   },
 
   moves: {
+    // Reference the setPlayerTeam function defined above
+    setPlayerTeam,
+
+    // Simple attack move for PvP
+    attackCard: ({ G, ctx }, attackerId, defenderId) => {
+      if (!G || !G.players) return;
+
+      const currentPlayer = ctx.currentPlayer;
+      const player = G.players[currentPlayer];
+      const opponent = G.players[currentPlayer === '0' ? '1' : '0'];
+
+      if (!player || !opponent) return;
+
+      // Find attacker card
+      const attacker = player.cards.find(c => c.instanceId === attackerId && c.isAlive);
+      if (!attacker) return;
+
+      // Find defender card
+      const defender = opponent.cards.find(c => c.instanceId === defenderId && c.isAlive);
+      if (!defender) return;
+
+      // Deal damage
+      defender.currentHealth -= attacker.attack;
+      if (defender.currentHealth <= 0) {
+        defender.currentHealth = 0;
+        defender.isAlive = false;
+      }
+
+      // Optional: Defender counter-attacks
+      if (defender.isAlive) {
+        attacker.currentHealth -= defender.attack;
+        if (attacker.currentHealth <= 0) {
+          attacker.currentHealth = 0;
+          attacker.isAlive = false;
+        }
+      }
+
+      console.log(`${attacker.name} attacks ${defender.name}!`);
+    },
+
     // Initialize cards for both players - now works with or without external data
     initializeCards: ({ G, ctx }, customDecks) => {
       console.log('=== initializeCards Debug ===');
@@ -249,16 +530,8 @@ export const ToyboxGame = {
     },
 
     // Simple start battle move that uses default decks
-    startBattle: ({ G, ctx, events, random, playerID }) => {
+    startBattle: ({ G, ctx, events, random }) => {
       console.log('Starting battle with default decks');
-      console.log('Actual game state G:', G);
-      console.log('G.players:', G?.players);
-
-      // Safety check - ensure players exist
-      if (!G || !G.players || !G.players['0'] || !G.players['1']) {
-        console.error('Players not properly initialized!', G);
-        return;
-      }
 
       // Only initialize if cards don't exist
       if (!G.players['0'].cards.length || !G.players['1'].cards.length) {
@@ -582,116 +855,38 @@ export const ToyboxGame = {
     },
 
     // End turn manually
-    endTurn: ({ G, ctx }) => {
-      // Boardgame.io handles turn ending automatically
-      // We don't need to do anything here
-      console.log('End turn called');
+    endTurn: ({ G, ctx, events }) => {
+      console.log('End turn called for player', ctx.currentPlayer);
+      // Use boardgame.io's events to properly end the turn
+      if (events && events.endTurn) {
+        events.endTurn();
+      }
     },
 
-    // Simple AI move for automatic play
-    aiPlay: ({ G, ctx, random }) => {
-      console.log('AI Play called for player:', ctx.currentPlayer);
-
-      const player = G.players[ctx.currentPlayer];
-      const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
-
-      // Get alive cards for AI
-      const aliveCards = player.cards.filter(c => c.isAlive && !c.frozen && c.currentHealth > 0);
-
-      if (aliveCards.length === 0) {
-        console.log('AI has no cards to play');
-        return;
-      }
-
-      // Pick a random card
-      const randomCard = random.Shuffle(aliveCards)[0];
-
-      if (!randomCard.abilities || randomCard.abilities.length === 0) {
-        console.log('AI card has no abilities');
-        return;
-      }
-
-      const ability = randomCard.abilities[0];
-      const manaCost = ability.manaCost || 2;
-
-      if (player.mana < manaCost) {
-        console.log('AI not enough mana');
-        return;
-      }
-
-      // Determine targets
-      let targets = [];
-      if (ability.damage) {
-        targets = opponent.cards.filter(c => c.currentHealth > 0);
-      } else if (ability.heal || ability.shield) {
-        targets = player.cards.filter(c => c.currentHealth > 0 && c.currentHealth < c.maxHealth);
-      }
-
-      if (targets.length === 0) {
-        console.log('AI has no valid targets');
-        return;
-      }
-
-      // Pick random target and execute
-      const randomTarget = random.Shuffle(targets)[0];
-
-      // Execute the ability inline instead of calling playCard
-      player.mana -= manaCost;
-
-      if (ability.damage && randomTarget) {
-        let actualDamage = ability.damage;
-        if (randomTarget.shields > 0) {
-          const absorbed = Math.min(randomTarget.shields, actualDamage);
-          actualDamage -= absorbed;
-          randomTarget.shields -= absorbed;
-        }
-        randomTarget.currentHealth -= actualDamage;
-        console.log('AI dealt', actualDamage, 'damage to', randomTarget.name);
-
-        if (randomTarget.currentHealth <= 0) {
-          const targetOwner = randomTarget.owner;
-          G.players[targetOwner].graveyard.push(randomTarget);
-          G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== randomTarget.instanceId);
-        }
-      }
-
-      if (ability.heal && randomTarget) {
-        randomTarget.currentHealth = Math.min(randomTarget.currentHealth + ability.heal, randomTarget.maxHealth);
-        console.log('AI healed', randomTarget.name, 'for', ability.heal);
-      }
-
-      if (ability.shield && randomTarget) {
-        randomTarget.shields = (randomTarget.shields || 0) + ability.shield;
-        console.log('AI shielded', randomTarget.name);
-      }
-
-      G.animationQueue.push({
-        type: 'ability',
-        caster: randomCard,
-        ability: ability,
-        target: randomTarget.instanceId,
-        timestamp: Date.now()
-      });
-    }
+    // Removed AI logic - all moves are now human-triggered
   },
 
   endIf: ({ G, ctx }) => {
+    // Only check for end conditions during the playing phase
+    if (ctx.phase !== 'playing') {
+      return;
+    }
+
     // Check if game state is properly initialized
     if (!G || !G.players || !G.players['0'] || !G.players['1']) {
       return;
     }
 
     // Check if all cards are dead (cards array becomes empty when they die)
-    const player0HasCards = G.players['0'].cards && G.players['0'].cards.length > 0;
-    const player1HasCards = G.players['1'].cards && G.players['1'].cards.length > 0;
+    const player0HasCards = G.players['0'].cards && G.players['0'].cards.some(card => card.isAlive);
+    const player1HasCards = G.players['1'].cards && G.players['1'].cards.some(card => card.isAlive);
 
-    // If cards have been initialized (graveyard has cards or there are living cards)
-    const gameStarted = (G.players['0'].cards.length + G.players['0'].graveyard.length) > 0 ||
-                        (G.players['1'].cards.length + G.players['1'].graveyard.length) > 0;
+    // Only check for winner if game has actually started (turns have been played)
+    const gameInProgress = G.turnNumber > 0;
 
-    if (gameStarted) {
+    if (gameInProgress) {
       if (!player0HasCards) {
-        return { winner: '1' }; // Player 1 (AI) wins
+        return { winner: '1' }; // Player 1 wins
       }
       if (!player1HasCards) {
         return { winner: '0' }; // Player 0 wins
@@ -701,49 +896,8 @@ export const ToyboxGame = {
     if (G.winner !== null) {
       return { winner: G.winner };
     }
-  },
-
-  ai: {
-    enumerate: ({ G, ctx }) => {
-      const moves = [];
-
-      // Check if game is properly initialized
-      if (!G || !G.players || !G.players[ctx.currentPlayer]) {
-        return moves;
-      }
-
-      const player = G.players[ctx.currentPlayer];
-      const opponent = G.players[(ctx.currentPlayer + 1) % 2];
-
-      // Try to play each card's abilities
-      player.cards.forEach(card => {
-        if (!card.frozen && card.currentHealth > 0 && card.abilities) {
-          card.abilities.forEach((ability, index) => {
-            const manaCost = ability.manaCost || 2;
-            if (player.mana >= manaCost) {
-              // Target selection based on ability type
-              if (ability.damage) {
-                opponent.cards.forEach(target => {
-                  if (target.currentHealth > 0) {
-                    moves.push({ move: 'playCard', args: [card.instanceId, target.instanceId, index] });
-                  }
-                });
-              } else if (ability.heal || ability.shield) {
-                player.cards.forEach(target => {
-                  if (target.currentHealth > 0 && target.currentHealth < target.maxHealth) {
-                    moves.push({ move: 'playCard', args: [card.instanceId, target.instanceId, index] });
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
-
-      // End turn is always an option
-      moves.push({ move: 'endTurn', args: [] });
-
-      return moves;
-    }
   }
+  // Removed AI section - PvP only now
 };
+
+export { ToyboxGame };

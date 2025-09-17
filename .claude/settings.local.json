@@ -61,7 +61,10 @@
       "Bash(find:*)",
       "Bash(tasklist)",
       "Bash(npm search:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(cmd //c:*)",
+      "Bash(npm run:*)",
+      "Bash(del nul)"
     ],
     "deny": [],
     "ask": []

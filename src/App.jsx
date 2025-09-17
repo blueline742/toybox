@@ -12,6 +12,8 @@ import InitialLoadingScreen from './components/InitialLoadingScreen'
 import GlobalTouchHandler from './components/GlobalTouchHandler'
 import Battle3DTest from './components/Battle3DTest'
 import BoardgameBattle3DFixed from './components/Battle3D/BoardgameBattle3DFixed'
+import BoardgamePvPTest from './components/BoardgamePvPTest'
+import PvPBoardgameBattle from './components/Battle3D/PvPBoardgameBattle'
 import musicManager from './utils/musicManager'
 
 const GAME_STATES = {
@@ -22,7 +24,9 @@ const GAME_STATES = {
   PVP_LOBBY: 'pvp_lobby',
   PVP_TEAM_SELECT: 'pvp_team_select',
   BATTLE_3D_TEST: 'battle_3d_test',
-  BOARDGAME_BATTLE: 'boardgame_battle'
+  BOARDGAME_BATTLE: 'boardgame_battle',
+  BOARDGAME_PVP_TEST: 'boardgame_pvp_test',
+  PVP_BOARDGAME_BATTLE: 'pvp_boardgame_battle'
 }
 
 function App() {
@@ -51,6 +55,10 @@ function App() {
     setGameState(GAME_STATES.BOARDGAME_BATTLE)
   }
 
+  const handleTestBoardgamePvP = () => {
+    setGameState(GAME_STATES.BOARDGAME_PVP_TEST)
+  }
+
   const handlePvPTeamSelected = (team) => {
     setSelectedTeam(team)
     setGameState(GAME_STATES.PVP_LOBBY)
@@ -58,7 +66,8 @@ function App() {
 
   const handlePvPBattleStart = (battleData) => {
     setPvpBattleData(battleData)
-    setGameState(GAME_STATES.TEAM_BATTLE)
+    // Use boardgame.io for PvP battles
+    setGameState(GAME_STATES.PVP_BOARDGAME_BATTLE)
   }
 
   const handleTeamSelected = (team) => {
@@ -187,6 +196,7 @@ function App() {
             onStartPvP={handleStartPvP}
             onTest3D={handleTest3D}
             onTestBoardgame={handleTestBoardgame}
+            onTestBoardgamePvP={handleTestBoardgamePvP}
           />
         )}
         
@@ -250,6 +260,18 @@ function App() {
 
         {gameState === GAME_STATES.BOARDGAME_BATTLE && (
           <BoardgameBattle3DFixed />
+        )}
+
+        {gameState === GAME_STATES.BOARDGAME_PVP_TEST && (
+          <BoardgamePvPTest />
+        )}
+
+        {gameState === GAME_STATES.PVP_BOARDGAME_BATTLE && (
+          <PvPBoardgameBattle
+            battleData={pvpBattleData}
+            selectedTeam={selectedTeam}
+            onBattleEnd={handleBattleEnd}
+          />
         )}
       </div>
       </SocketProvider>

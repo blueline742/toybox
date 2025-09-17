@@ -6,7 +6,7 @@ import MyToyboxCollection from './MyToyboxCollection'
 import WalletButtonPortal from './WalletButtonPortal'
 import { useTouchClick } from '../hooks/useTouchClick'
 
-const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D, onTestBoardgame }) => {
+const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D, onTestBoardgame, onTestBoardgamePvP }) => {
   const [showNFTSection, setShowNFTSection] = useState(false)
   const [showToyboxCollection, setShowToyboxCollection] = useState(false)
   const { connected } = useWallet()
@@ -117,6 +117,10 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D, onTestBoardga
   const boardgameHandlers = useTouchClick(() => {
     playButtonSound()
     if (onTestBoardgame) onTestBoardgame()
+  })
+  const boardgamePvPHandlers = useTouchClick(() => {
+    playButtonSound()
+    if (onStartPvP) onStartPvP() // Use the proper PvP flow through lobby, not test mode
   })
 
   // Function to handle scrolling back to top (used by NFT section)
@@ -279,6 +283,12 @@ const MainMenu = ({ onStartGame, onViewToys, onStartPvP, onTest3D, onTestBoardga
                   className="menu-button bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-2 rounded-lg font-bold hover:from-green-700 hover:to-teal-700 transform hover:scale-105 transition-all text-sm"
                 >
                   🎲 Boardgame.io
+                </button>
+                <button
+                  {...boardgamePvPHandlers}
+                  className="menu-button bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all text-sm"
+                >
+                  ⚔️ BG.io PvP
                 </button>
               </div>
             </div>

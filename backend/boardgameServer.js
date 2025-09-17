@@ -1,0 +1,31 @@
+// Boardgame.io Server for Toybox PvP Battles
+const { Server } = require('boardgame.io/server');
+const { ToyboxGame } = require('../src/game/boardgame/game.js');
+
+// Configure the boardgame.io server
+const server = Server({
+  games: [ToyboxGame],
+
+  // Optional: Add authentication/persistence later
+  // db: new FlatFile({ dir: './storage' }),
+
+  // Enable CORS for development
+  origins: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://toyboxsol.netlify.app',
+    'https://toybox.netlify.app'
+  ]
+});
+
+// Run the server on port 4000
+const PORT = process.env.BOARDGAME_PORT || 4000;
+server.run(PORT, () => {
+  console.log(`🎮 Boardgame.io server running on port ${PORT}`);
+  console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}`);
+  console.log(`🌐 HTTP endpoint: http://localhost:${PORT}`);
+});

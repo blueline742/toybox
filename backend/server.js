@@ -5,6 +5,7 @@ import cors from 'cors';
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import BattleEngine from './battleEngine.js';
 import PvPBattleManager from './pvpBattleManager.js';
+import fetch from 'node-fetch';
 // Anchor imports removed for now - will add when smart contract is deployed
 // import IDL from './idl/toybox_brawl.json' assert { type: 'json' };
 
@@ -166,8 +167,26 @@ io.on('connection', (socket) => {
       const opponent = waitingPlayers.shift();
       console.log(`Matched players: ${wallet} vs ${opponent.wallet}`);
       
-      // Create battle
-      const battleId = generateBattleId();
+      // Create boardgame.io match on-demand WITH proper server creation
+      const battleId = await createBoardgameMatch();
+
+      // CRITICAL: Create match on boardgame server first!
+      try {
+        const createResponse = await fetch('http://localhost:4001/create-match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchID: battleId, numPlayers: 2 })
+        });
+
+        if (createResponse.ok) {
+          console.log('✅ Match created on boardgame server:', battleId);
+        } else {
+          console.error('⚠️ Failed to create match on boardgame server');
+        }
+      } catch (error) {
+        console.error('❌ Error creating match on boardgame server:', error);
+      }
+
       const battle = {
         id: battleId,
         player1: opponent,
@@ -189,6 +208,12 @@ io.on('connection', (socket) => {
       // The opponent will join when they emit 'battle_ready'
       
       // Notify both players with each other's team data
+      // Join both players to the boardgame.io match
+      const [creds0, creds1] = await Promise.all([
+        joinBoardgameMatch(battleId, 0, opponent.wallet),
+        joinBoardgameMatch(battleId, 1, wallet)
+      ]);
+
       // Send to player 1 (opponent who was waiting) - only if not AI
       if (!opponent.isAI) {
         io.sockets.sockets.get(opponent.socket)?.emit('match_found', {
@@ -199,10 +224,11 @@ io.on('connection', (socket) => {
           },
           opponentTeam: teamData, // Player 2's team
           playerNumber: 1,
-          wagerAmount
+          wagerAmount,
+          credentials: creds0 // Pass credentials for boardgame.io
         });
       }
-      
+
       // Send to player 2 (current player)
       socket.emit('match_found', {
         battleId,
@@ -212,7 +238,8 @@ io.on('connection', (socket) => {
         },
         opponentTeam: opponent.teamData, // Player 1's team
         playerNumber: 2,
-        wagerAmount
+        wagerAmount,
+        credentials: creds1 // Pass credentials for boardgame.io
       });
 
       // If opponent is AI, simulate them being ready immediately
@@ -406,8 +433,58 @@ io.on('connection', (socket) => {
 });
 
 // Helper functions
-function generateBattleId() {
-  return `battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// Create boardgame.io match on-demand
+async function createBoardgameMatch() {
+  try {
+    const response = await fetch('http://localhost:4000/games/toybox-battle/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numPlayers: 2,
+        setupData: {}
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`✅ Created boardgame.io match: ${data.matchID}`);
+      return data.matchID;
+    } else {
+      throw new Error(`Failed to create match: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('❌ Error creating boardgame.io match:', error);
+    // Fallback to simple ID
+    const fallbackId = `battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`⚠️ Using fallback ID: ${fallbackId}`);
+    return fallbackId;
+  }
+}
+
+// Join player to boardgame.io match
+async function joinBoardgameMatch(matchId, playerId, playerName) {
+  try {
+    const response = await fetch(`http://localhost:4000/games/toybox-battle/${matchId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerID: playerId,
+        playerName: playerName || `Player ${playerId + 1}`
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`✅ Player ${playerId} joined match ${matchId}`);
+      console.log(`🔑 Credentials for player ${playerId}:`, data.playerCredentials);
+      return data.playerCredentials;
+    } else {
+      throw new Error(`Failed to join match: ${response.status}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error joining match for player ${playerId}:`, error);
+    return null;
+  }
 }
 
 async function submitBattleResult(battleId, winner) {

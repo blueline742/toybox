@@ -75,20 +75,38 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
       setQueuePosition(position);
     };
 
-    const handleMatchFound = ({ battleId: id, opponent: opp, wagerAmount: wager, opponentTeam, playerNumber }) => {
-      console.log('Match found!', id, opp, 'Opponent team:', opponentTeam);
+    const handleMatchFound = async ({ battleId: id, opponent: opp, wagerAmount: wager, opponentTeam, playerNumber, credentials }) => {
+      console.log('Match found! - MatchID:', id, 'Opponent team:', opponentTeam, 'Credentials:', credentials ? 'provided' : 'none');
+
+      // Create match on boardgame server immediately
+      try {
+        const response = await fetch('http://localhost:4001/create-match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchID: id, numPlayers: 2 }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          console.log('✅ Match created on boardgame server');
+        } else {
+          console.error('❌ Match creation failed:', data.error);
+        }
+      } catch (error) {
+        console.error('❌ Error creating match:', error.message);
+      }
+
       setMatchFound(true);
       setMatchmaking(false);
       setBattleId(id);
       // Extract the actual opponent wallet address
       const opponentWallet = playerNumber === 1 ? opp.player2 : opp.player1;
       setOpponent(opponentWallet);
-      
+
       // Play match found sound
       const matchSound = new Audio('/battlestart.wav');
       matchSound.volume = 0.5;
       matchSound.play().catch(err => console.log('Could not play sound:', err));
-      
+
       // Auto-start battle after 3 seconds
       setTimeout(() => {
         onBattleStart({
@@ -99,7 +117,8 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
           socket: socket,
           playerNumber: playerNumber,
           playerAddress: publicKey?.toString(),
-          opponentAddress: opponentWallet
+          opponentAddress: opponentWallet,
+          credentials: credentials // Pass credentials from server
         });
       }, 3000);
     };
