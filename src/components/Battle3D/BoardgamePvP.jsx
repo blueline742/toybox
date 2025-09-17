@@ -35,6 +35,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const [validTargets, setValidTargets] = useState([]);
   const [currentAbility, setCurrentAbility] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
+  const [hasStartedTurn, setHasStartedTurn] = useState(false);
 
   // Use actualPlayerID instead of playerID
   const isOurTurn = ctx?.currentPlayer === actualPlayerID;
@@ -176,6 +178,67 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
   }, [G, actualPlayerID]);
 
+  // Automatic turn start - select a random card and ability when it's our turn
+  useEffect(() => {
+    if (!isOurTurn || !bothPlayersReady || ctx?.gameover || hasStartedTurn) {
+      return;
+    }
+
+    if (playerTeam.length === 0 || aiTeam.length === 0) {
+      return;
+    }
+
+    // Get alive cards from our team
+    const aliveCards = playerTeam.filter(c => c.health > 0 || c.currentHealth > 0);
+    if (aliveCards.length === 0) {
+      return;
+    }
+
+    // Select next card in rotation
+    const activeCard = aliveCards[currentCharacterIndex % aliveCards.length];
+    if (!activeCard) {
+      return;
+    }
+
+    console.log('🎯 Auto-selecting card for turn:', activeCard.name);
+    setHasStartedTurn(true);
+
+    // Delay to make it feel more natural
+    setTimeout(() => {
+      // Select a random ability from the card
+      const abilities = activeCard.abilities || [];
+      if (abilities.length > 0) {
+        const randomAbility = abilities[Math.floor(Math.random() * abilities.length)];
+
+        console.log('🎲 Selected ability:', randomAbility.name);
+        setSelectedCard(activeCard);
+        setCurrentAbility(randomAbility);
+
+        // Determine valid targets based on ability
+        const targets = randomAbility.targetType === 'enemy'
+          ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
+          : randomAbility.targetType === 'friendly'
+          ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0 && c.id !== activeCard.id)
+          : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
+
+        if (targets.length > 0) {
+          setValidTargets(targets.map(c => c.id));
+          setIsTargeting(true);
+          setShowTargetingOverlay(true);
+          console.log('📍 Showing targeting overlay with', targets.length, 'valid targets');
+        }
+      }
+    }, 1000);
+  }, [isOurTurn, bothPlayersReady, ctx?.gameover, hasStartedTurn, playerTeam, aiTeam, currentCharacterIndex]);
+
+  // Reset turn state when turn changes
+  useEffect(() => {
+    if (!isOurTurn) {
+      setHasStartedTurn(false);
+      setCurrentCharacterIndex(prev => (prev + 1) % 4); // Move to next card for next turn
+    }
+  }, [isOurTurn]);
+
   // Handle ability activation
   const handleAbilityClick = (card) => {
     if (!isOurTurn) {
@@ -217,10 +280,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           targetCardId: null
         });
 
-        // Show spell notification
+        // Show spell notification with proper props
         setSpellNotification({
-          name: ability.name,
-          description: ability.description
+          ability: ability,
+          caster: card,
+          targets: [] // No specific targets for instant abilities
         });
 
         // Add visual effect
@@ -230,6 +294,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           cardId: card.id,
           duration: 1500
         }]);
+
+        // End turn after instant ability
+        setTimeout(() => {
+          if (moves?.endTurn) {
+            console.log('Ending turn after instant ability');
+            moves.endTurn();
+          }
+        }, 2000); // Wait for animation
       }
     }
   };
@@ -256,10 +328,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         targetCardId: targetCard.id
       });
 
-      // Show spell notification
+      // Show spell notification with proper props
       setSpellNotification({
-        name: currentAbility.name,
-        description: `${currentAbility.description} → ${targetCard.name}`
+        ability: currentAbility,
+        caster: selectedCard,
+        targets: [targetCard]
       });
 
       // Add damage number if it's a damage ability
@@ -271,6 +344,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           duration: 1500
         }]);
       }
+
+      // End turn after ability is used
+      setTimeout(() => {
+        if (moves?.endTurn) {
+          console.log('Ending turn after ability use');
+          moves.endTurn();
+        }
+      }, 2000); // Wait for animation to complete
     }
 
     // Clear targeting state
@@ -307,15 +388,104 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   }, [spellNotification]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full bg-gradient-to-b from-blue-900 to-purple-900">
+      {/* Turn Indicator */}
+      {!ctx?.gameover && bothPlayersReady && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30">
+          <div className={`px-6 py-3 rounded-lg font-bold text-lg shadow-xl ${
+            isOurTurn
+              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white animate-pulse'
+              : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-300'
+          }`}>
+            {isOurTurn ? '⚔️ Your Turn!' : '⏳ Opponent\'s Turn'}
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for Players */}
+      {isWaiting && !ctx?.gameover && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+          <div className="bg-black/80 p-8 rounded-lg text-white text-center">
+            <h2 className="text-2xl font-bold mb-4 animate-pulse">
+              ⏳ Waiting for Opponent...
+            </h2>
+            <p className="text-gray-300">
+              {G?.players?.[actualPlayerID]?.ready ? 'Your team is ready!' : 'Setting up teams...'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Game Over Screen */}
+      {ctx?.gameover && (
+        <div className="absolute inset-0 flex items-center justify-center z-40 bg-black/50">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-xl text-white shadow-2xl">
+            <h2 className="text-4xl font-bold mb-4 text-center">
+              {ctx.gameover.winner === actualPlayerID ? '🎉 Victory!' : '💀 Defeat!'}
+            </h2>
+            <p className="text-center text-gray-300 mb-6">
+              {ctx.gameover.winner === actualPlayerID
+                ? 'Congratulations! You\'ve won the battle!'
+                : 'Better luck next time!'}
+            </p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all"
+            >
+              Return to Menu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Spell Notification */}
       {spellNotification && (
         <SpellNotification
-          name={spellNotification.name}
-          description={spellNotification.description}
+          ability={spellNotification.ability}
+          caster={spellNotification.caster}
+          targets={spellNotification.targets}
+          onComplete={() => setSpellNotification(null)}
         />
       )}
 
-      <div className="absolute inset-0">
+      {/* Targeting Instructions */}
+      {isTargeting && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold animate-pulse shadow-xl">
+            Click a target to cast {currentAbility?.name}!
+          </div>
+        </div>
+      )}
+
+      {/* End Turn Button */}
+      {isOurTurn && bothPlayersReady && !ctx?.gameover && (
+        <div className="absolute bottom-8 right-8 z-20">
+          <button
+            onClick={() => {
+              if (moves?.endTurn) {
+                moves.endTurn();
+                // Clear any active targeting
+                handleCancelTargeting();
+              }
+            }}
+            className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-lg font-bold text-lg hover:from-orange-600 hover:to-red-600 transform hover:scale-105 transition-all shadow-xl"
+          >
+            End Turn ⏭️
+          </button>
+        </div>
+      )}
+
+      {/* Back to Menu Button */}
+      <div className="absolute top-4 left-4 z-20">
+        <button
+          onClick={() => window.location.href = '/'}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-all"
+        >
+          ← Back to Menu
+        </button>
+      </div>
+
+      <div className={`absolute inset-0 ${showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}`}>
         <HearthstoneScene
           playerTeam={playerTeam}
           aiTeam={aiTeam}
@@ -324,6 +494,43 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           onCardAttack={(attacker, defender) => {
             if (moves?.attackCard) {
               moves.attackCard(attacker.instanceId || attacker.id, defender.instanceId || defender.id);
+
+              // Show attack notification
+              setSpellNotification({
+                ability: {
+                  name: 'Attack',
+                  effect: 'damage',
+                  damage: attacker.attack || 10,
+                  description: 'Basic attack'
+                },
+                caster: attacker,
+                targets: [defender]
+              });
+
+              // Add damage number animation
+              setDamageNumbers(prev => [...prev, {
+                id: Date.now(),
+                value: attacker.attack || 10,
+                cardId: defender.instanceId || defender.id,
+                duration: 1500
+              }]);
+
+              // Add attack effect
+              setActiveEffects(prev => [...prev, {
+                id: Date.now(),
+                type: 'attack',
+                sourceId: attacker.instanceId || attacker.id,
+                targetId: defender.instanceId || defender.id,
+                duration: 1000
+              }]);
+
+              // End turn after attack
+              setTimeout(() => {
+                if (moves?.endTurn) {
+                  console.log('Ending turn after attack');
+                  moves.endTurn();
+                }
+              }, 2000); // Wait for animation
             }
           }}
           onAbilityClick={handleAbilityClick}
@@ -340,8 +547,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       {showTargetingOverlay && (
         <TargetingOverlay
+          activeCard={selectedCard}
+          targets={validTargets.map(id => {
+            const allCards = [...playerTeam, ...aiTeam];
+            return allCards.find(c => c.id === id);
+          }).filter(Boolean)}
+          onTargetSelect={handleTargetSelect}
           onCancel={handleCancelTargeting}
-          abilityName={currentAbility?.name}
+          selectedAbility={currentAbility}
         />
       )}
 

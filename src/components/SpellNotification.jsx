@@ -90,10 +90,10 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                       {targets.slice(0, 4).map((target, idx) => (
                         <div key={idx} className="relative">
                           <div className={`
-                            w-12 h-12 md:w-14 md:h-14 rounded-full 
+                            w-12 h-12 md:w-14 md:h-14 rounded-full
                             bg-gradient-to-br ${target.team === 'player' ? 'from-blue-500 to-cyan-500' : 'from-red-500 to-orange-500'}
                             p-0.5 shadow-lg
-                            ${ability.effect.includes('damage') ? 'animate-shake' : ability.effect.includes('heal') ? 'animate-pulse' : ''}
+                            ${ability.effect && ability.effect.includes('damage') ? 'animate-shake' : ability.effect && ability.effect.includes('heal') ? 'animate-pulse' : ''}
                           `}>
                             <div className="w-full h-full rounded-full bg-gray-800 overflow-hidden relative flex items-center justify-center">
                               {target.image ? (

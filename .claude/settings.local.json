@@ -64,7 +64,8 @@
       "Bash(xxd:*)",
       "Bash(cmd //c:*)",
       "Bash(npm run:*)",
-      "Bash(del nul)"
+      "Bash(del nul)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

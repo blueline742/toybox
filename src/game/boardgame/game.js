@@ -209,7 +209,7 @@ const setPlayerTeam = ({ G, ctx, playerID }, team) => {
     console.log('  Player 0 cards:', G.players['0'].cards.map(c => c.name));
     console.log('  Player 1 cards:', G.players['1'].cards.map(c => c.name));
     console.log('  Phase will transition to playing');
-    G.phase = 'playing';
+    // Don't set G.phase manually - let boardgame.io handle it via endIf
     G.turnNumber = 1;
   } else {
     console.log('⏳ Waiting for other player to set team');
@@ -847,6 +847,71 @@ const ToyboxGame = {
         amount: amount,
         timestamp: Date.now()
       });
+    },
+
+    // Use ability move
+    useAbility: ({ G, ctx, events }, { sourceCardId, abilityIndex, targetCardId }) => {
+      console.log('🎯 useAbility called:', { sourceCardId, abilityIndex, targetCardId });
+
+      const currentPlayerID = ctx.currentPlayer;
+      const opponentID = currentPlayerID === '0' ? '1' : '0';
+
+      // Find source card
+      const sourceCard = G.players[currentPlayerID].cards.find(c => c.id === sourceCardId);
+      if (!sourceCard || !sourceCard.isAlive) {
+        console.log('Source card not found or dead');
+        return;
+      }
+
+      // Get ability
+      const ability = sourceCard.abilities?.[abilityIndex];
+      if (!ability) {
+        console.log('Ability not found');
+        return;
+      }
+
+      console.log(`${sourceCard.name} uses ${ability.name}!`);
+
+      // Handle different ability effects
+      if (ability.damage && targetCardId) {
+        // Find target card
+        let targetCard = G.players[opponentID].cards.find(c => c.id === targetCardId);
+        if (!targetCard) {
+          targetCard = G.players[currentPlayerID].cards.find(c => c.id === targetCardId);
+        }
+
+        if (targetCard && targetCard.isAlive) {
+          targetCard.currentHealth = Math.max(0, targetCard.currentHealth - ability.damage);
+          if (targetCard.currentHealth <= 0) {
+            targetCard.isAlive = false;
+            console.log(`${targetCard.name} was defeated!`);
+          }
+          console.log(`${targetCard.name} takes ${ability.damage} damage! (${targetCard.currentHealth}/${targetCard.maxHealth})`);
+        }
+      }
+
+      if (ability.heal && targetCardId) {
+        // Find target card (should be ally)
+        const targetCard = G.players[currentPlayerID].cards.find(c => c.id === targetCardId);
+        if (targetCard && targetCard.isAlive) {
+          targetCard.currentHealth = Math.min(targetCard.maxHealth, targetCard.currentHealth + ability.heal);
+          console.log(`${targetCard.name} heals for ${ability.heal}! (${targetCard.currentHealth}/${targetCard.maxHealth})`);
+        }
+      }
+
+      // Add to animation queue
+      G.animationQueue.push({
+        type: 'ability',
+        sourceId: sourceCardId,
+        targetId: targetCardId,
+        ability: ability,
+        timestamp: Date.now()
+      });
+
+      G.turnNumber++;
+
+      // Note: Don't end turn here - let the client handle that
+      console.log('Ability executed successfully');
     },
 
     // Clear processed animations
