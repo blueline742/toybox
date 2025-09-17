@@ -322,13 +322,20 @@ const ToyboxGame = {
       moves: {
         setPlayerTeam
       },
-      endIf: (G, ctx) => {
+      endIf: ({ G, ctx }) => {
         if (!G || !G.players) {
           console.log('⚠️ endIf check - G or players not initialized');
           return false;
         }
-        const player0Ready = G.players['0']?.ready || false;
-        const player1Ready = G.players['1']?.ready || false;
+
+        // Check if both players exist
+        if (!G.players['0'] || !G.players['1']) {
+          console.log('⚠️ endIf check - Players not initialized');
+          return false;
+        }
+
+        const player0Ready = G.players['0'].ready === true;
+        const player1Ready = G.players['1'].ready === true;
         const allReady = player0Ready && player1Ready;
 
         console.log('🔍 Setup endIf check - MatchID:', G.matchID, {
@@ -342,7 +349,7 @@ const ToyboxGame = {
         }
         return allReady;
       },
-      onEnd: (G, ctx) => {
+      onEnd: ({ G, ctx }) => {
         console.log('✅ BOTH PLAYERS READY on server - Transitioning to playing phase - MatchID:', G.matchID);
         console.log('📊 Setup phase ended, transitioning to playing phase');
         if (G.players && G.players['0'] && G.players['1']) {
