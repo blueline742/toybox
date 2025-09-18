@@ -35,8 +35,13 @@ const CardWithNFT = ({
   const cardHeight = isMobile ? 1.8 : 2.5;
   const cardThickness = 0.05;
 
-  // Get NFT texture path based on character
+  // Get NFT texture path based on character and death status
   const getTexturePath = useMemo(() => {
+    // Show cardback for defeated cards
+    if (isDead) {
+      return '/assets/nft/newnft/cardback.png';
+    }
+
     if (character?.image && character.image.includes('/assets/nft/')) {
       return character.image;
     }
@@ -53,7 +58,7 @@ const CardWithNFT = ({
     if (charName.includes('voodoo') || charName.includes('curse') || charName.includes('marionette')) return NFT_PATHS[7];
 
     return NFT_PATHS[0]; // default
-  }, [character?.name, character?.image]);
+  }, [character?.name, character?.image, isDead]);
 
   // Load the specific texture - with fallback
   let texture = null;
@@ -135,7 +140,7 @@ const CardWithNFT = ({
           <meshBasicMaterial
             map={texture}
             transparent={true}
-            opacity={isDead ? 0.3 : 1}
+            opacity={1}
             side={THREE.FrontSide}
             toneMapped={false}
           />

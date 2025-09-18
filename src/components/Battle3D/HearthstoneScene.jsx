@@ -8,10 +8,11 @@ import HybridCard3D from './HybridCard3D';
 
 // Import effects
 import FireballEffect from '../effects/FireballEffect';
-import PyroblastEffect from '../effects/PyroblastEffect';
+import PyroblastEffect from './effects/Pyroblast';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
+import { useSpellEffects } from './effects/useSpellEffects';
 
 // Health and Shield Display Component
 const HealthShieldDisplay = ({ currentHealth, maxHealth, shieldAmount = 0, position = [0, 0, 0.01], isActive = false }) => {
@@ -335,21 +336,25 @@ const HearthstoneBattleArena = ({
     }
   }, [isTargeting]);
 
-  // Load textures for floor and walls
+  // Load textures for floor
   const floorTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/floor.png');
-  const wallTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/toyboxare1na.png');
-  const wall2Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba2.png');
-  const wall3Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba3.png');
-  const wall4Texture = useLoader(THREE.TextureLoader, '/assets/backgrounds/tba4.png');
 
-  // Configure textures - no repeating, just stretch single image
+  // Create simple wall material
+  const wallMaterial = useMemo(() => {
+    return new THREE.MeshStandardMaterial({
+      color: '#1a1a2e',
+      roughness: 0.8,
+      metalness: 0.1,
+      opacity: 0.95,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+  }, []);
+
+  // Configure floor texture - no repeating, just stretch single image
   useEffect(() => {
     floorTexture.wrapS = floorTexture.wrapT = THREE.ClampToEdgeWrapping;
-    wallTexture.wrapS = wallTexture.wrapT = THREE.ClampToEdgeWrapping;
-    wall2Texture.wrapS = wall2Texture.wrapT = THREE.ClampToEdgeWrapping;
-    wall3Texture.wrapS = wall3Texture.wrapT = THREE.ClampToEdgeWrapping;
-    wall4Texture.wrapS = wall4Texture.wrapT = THREE.ClampToEdgeWrapping;
-  }, [floorTexture, wallTexture, wall2Texture, wall3Texture, wall4Texture]);
+  }, [floorTexture]);
 
   // Tabletop-style card positioning - cards lay flat with slight tilt
   const getCardPosition = (index, team, isActive = false) => {
@@ -409,41 +414,29 @@ const HearthstoneBattleArena = ({
         />
       </mesh>
 
-      {/* Surrounding walls with different TBA textures */}
-      {/* Back wall - tba2.png */}
+      {/* Surrounding walls with simple material */}
+      {/* Back wall */}
       <mesh position={[0, 6, -20]} receiveShadow>
         <planeGeometry args={[40, 20]} />
-        <meshStandardMaterial
-          map={wall2Texture}
-          side={THREE.DoubleSide}
-        />
+        <primitive object={wallMaterial} />
       </mesh>
 
-      {/* Front wall (behind camera) - keep original */}
+      {/* Front wall (behind camera) */}
       <mesh position={[0, 6, 20]} rotation={[0, Math.PI, 0]} receiveShadow>
         <planeGeometry args={[40, 20]} />
-        <meshStandardMaterial
-          map={wallTexture}
-          side={THREE.DoubleSide}
-        />
+        <primitive object={wallMaterial} />
       </mesh>
 
-      {/* Left wall - tba3.png */}
+      {/* Left wall */}
       <mesh position={[-20, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[40, 20]} />
-        <meshStandardMaterial
-          map={wall3Texture}
-          side={THREE.DoubleSide}
-        />
+        <primitive object={wallMaterial} />
       </mesh>
 
-      {/* Right wall - tba4.png */}
+      {/* Right wall */}
       <mesh position={[20, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[40, 20]} />
-        <meshStandardMaterial
-          map={wall4Texture}
-          side={THREE.DoubleSide}
-        />
+        <primitive object={wallMaterial} />
       </mesh>
 
       {/* Enhanced Lighting System */}
@@ -502,7 +495,11 @@ const HearthstoneBattleArena = ({
       <group name="cards">
         {/* Player Team Cards (bottom) */}
         {playerTeam && playerTeam.map((char, index) => {
-          if (!char || !char.isAlive) return null;
+          // Check if card exists
+          if (!char) return null;
+          // Skip dead cards only if health is explicitly 0 or less
+          const isDead = char.health === 0 || (char.health < 0) || (char.isAlive === false);
+          if (isDead) return null;
 
           const isActive = currentTurn === 'player' && index === activeCharacterIndex;
           const [x, y, z, scale] = getCardPosition(index, 'player', isActive);
@@ -514,7 +511,7 @@ const HearthstoneBattleArena = ({
                 character={char}
                 position={[x, y, z]}
                 rotation={[-Math.PI / 2, 0, 0]} // Lay flat on table
-                isDead={char.currentHealth <= 0}
+                isDead={(char.health !== undefined && char.health <= 0) || (char.isAlive !== undefined && !char.isAlive) || (char.currentHealth !== undefined && char.currentHealth <= 0)}
                 teamColor="blue"
                 onClick={() => {
                   if (isValidTarget && isTargeting) {
@@ -557,8 +554,13 @@ const HearthstoneBattleArena = ({
       })}
 
         {/* AI Team Cards (top) */}
+        {console.log('🎨 HearthstoneScene - Rendering AI Team:', aiTeam?.length || 0, 'cards:', aiTeam?.map(c => c?.name))}
         {aiTeam && aiTeam.map((char, index) => {
-          if (!char || !char.isAlive) return null;
+          // Check if card exists
+          if (!char) return null;
+          // Skip dead cards only if health is explicitly 0 or less
+          const isDead = char.health === 0 || (char.health < 0) || (char.isAlive === false);
+          if (isDead) return null;
 
           const isActive = (currentTurn === 'ai' || currentTurn === 'opponent') && index === activeCharacterIndex;
           const [x, y, z, scale] = getCardPosition(index, 'ai', isActive);
@@ -570,7 +572,7 @@ const HearthstoneBattleArena = ({
                 character={char}
                 position={[x, y, z]}
                 rotation={[Math.PI / 2, Math.PI, 0]} // Lay flat on table, facing opposite direction
-                isDead={char.currentHealth <= 0}
+                isDead={(char.health !== undefined && char.health <= 0) || (char.isAlive !== undefined && !char.isAlive) || (char.currentHealth !== undefined && char.currentHealth <= 0)}
                 teamColor="red"
                 onClick={() => {
                   if (isValidTarget && isTargeting) {
@@ -664,10 +666,12 @@ const HearthstoneBattleArena = ({
       {/* Render active effects */}
       <Suspense fallback={null}>
         {activeEffects?.map((effect, index) => {
+          console.log('Rendering effect:', effect.type, effect);
           switch (effect.type) {
             case 'fireball':
               return <FireballEffect key={index} {...effect} />;
             case 'pyroblast':
+              console.log('🔥 Rendering Pyroblast effect with props:', effect);
               return <PyroblastEffect key={index} {...effect} />;
             case 'explosion':
               return <ExplosionEffect key={index} {...effect} />;
@@ -758,6 +762,8 @@ const HearthstoneScene = ({
             panSpeed={0.8}
             // No azimuth limits - can rotate 360°
           />
+
+          {/* Removed chromatic aberration and vignette to fix blur/doubling */}
         </Suspense>
       </Canvas>
     </div>

@@ -26,25 +26,25 @@ const SafeNFTCard = ({
     <>
       {/* Card Group */}
       <group>
-        {/* Front Face - NFT Image */}
+        {/* Front Face - Show cardback when dead, NFT when alive */}
         <mesh position={[0, 0, 0.001]}>
           <planeGeometry args={[cardWidth, cardHeight]} />
           <meshBasicMaterial
-            map={frontTexture}
+            map={isDead ? backTexture : frontTexture}
             transparent
-            opacity={isDead ? 0.3 : 1}
+            opacity={1}
             side={THREE.FrontSide}
             alphaTest={0.1}
           />
         </mesh>
 
-        {/* Back Face - Card Back */}
+        {/* Back Face - Always show card back */}
         <mesh position={[0, 0, -0.001]}>
           <planeGeometry args={[cardWidth, cardHeight]} />
           <meshBasicMaterial
             map={backTexture}
             transparent
-            opacity={isDead ? 0.3 : 1}
+            opacity={1}
             side={THREE.BackSide}
             alphaTest={0.1}
           />
@@ -81,13 +81,13 @@ const FallbackCard = ({
     <>
       {/* Card Group */}
       <group>
-        {/* Front Face - Colored card */}
+        {/* Front Face - Dark grey when dead, colored when alive */}
         <mesh position={[0, 0, 0.001]}>
           <planeGeometry args={[cardWidth, cardHeight]} />
           <meshBasicMaterial
-            color={teamColor === 'blue' ? '#2255aa' : '#aa2255'}
+            color={isDead ? '#2a2a2a' : (teamColor === 'blue' ? '#2255aa' : '#aa2255')}
             transparent
-            opacity={isDead ? 0.3 : 0.9}
+            opacity={0.9}
             side={THREE.FrontSide}
           />
         </mesh>

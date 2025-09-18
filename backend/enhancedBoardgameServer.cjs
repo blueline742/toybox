@@ -13,6 +13,9 @@ app.use(cors({
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:3003',
+    'http://localhost:3004',
+    'http://localhost:3005',
+    'http://localhost:3006',
     'http://localhost:5173',
     'http://localhost:5174',
     'https://toyboxsol.netlify.app',
@@ -29,6 +32,9 @@ const server = Server({
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:3003',
+    'http://localhost:3004',
+    'http://localhost:3005',
+    'http://localhost:3006',
     'http://localhost:5173',
     'http://localhost:5174',
     'https://toyboxsol.netlify.app',
@@ -96,6 +102,142 @@ app.get('/match-status/:matchID', (req, res) => {
   });
 });
 
+// Endpoint to delete/reset a match
+app.delete('/match/:matchID', (req, res) => {
+  const { matchID } = req.params;
+  const { playerID, reason } = req.body || {};
+
+  console.log('🔴 Match deletion requested:', matchID, 'Player:', playerID, 'Reason:', reason);
+
+  try {
+    // Get match info before deleting
+    const match = activeMatches.get(matchID);
+
+    if (match) {
+      // Mark match as abandoned
+      match.state = 'abandoned';
+      match.abandonedBy = playerID;
+      match.abandonedReason = reason;
+      match.abandonedAt = new Date();
+
+      console.log('⚠️ Match marked as abandoned:', matchID);
+
+      // Notify all connected clients about match abandonment
+      // This will be picked up by boardgame.io's WebSocket connections
+      if (db && db.fetch) {
+        db.fetch(matchID).then(matchData => {
+          if (matchData) {
+            // Set game state to indicate abandonment
+            const state = matchData.state;
+            if (state && state.G) {
+              state.G.abandoned = true;
+              state.G.abandonedBy = playerID;
+              state.ctx.gameover = {
+                winner: playerID === '0' ? '1' : '0',
+                reason: 'opponent_abandoned'
+              };
+              db.updateMatch(matchID, state);
+            }
+          }
+        }).catch(err => console.error('Failed to update match state:', err));
+      }
+    }
+
+    // Remove from active matches
+    if (activeMatches.has(matchID)) {
+      activeMatches.delete(matchID);
+      console.log('🗑️ Match removed from active matches:', matchID);
+    }
+
+    // Try to delete from boardgame.io's database after a delay
+    // to allow clients to receive the abandonment notification
+    setTimeout(() => {
+      if (server.db && server.db.deleteMatch) {
+        server.db.deleteMatch(matchID);
+        console.log('🗑️ Match deleted from boardgame.io database:', matchID);
+      }
+    }, 2000);
+
+    res.json({ success: true, message: 'Match deleted successfully', abandoned: true });
+  } catch (error) {
+    console.error('❌ Failed to delete match:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint to handle player leaving (for beacon/unload events)
+app.post('/player-left', express.raw({ type: 'application/json' }), (req, res) => {
+  try {
+    // Handle both text and Buffer bodies
+    const bodyText = req.body instanceof Buffer ? req.body.toString() : req.body;
+    const data = typeof bodyText === 'string' ? JSON.parse(bodyText) : bodyText;
+    const { matchID, playerID, reason } = data;
+
+    console.log('🚪 Player left via beacon/unload:', matchID, playerID, reason);
+
+    if (matchID && activeMatches.has(matchID)) {
+      const match = activeMatches.get(matchID);
+      match.state = 'abandoned';
+      match.abandonedBy = playerID;
+      match.abandonedAt = new Date();
+
+      // Mark game as abandoned in boardgame.io state
+      if (db && db.fetch) {
+        db.fetch(matchID).then(matchData => {
+          if (matchData && matchData.state) {
+            const state = matchData.state;
+            if (state.G) {
+              state.G.abandoned = true;
+              state.G.abandonedBy = playerID;
+              state.ctx.gameover = {
+                winner: playerID === '0' ? '1' : '0',
+                reason: 'opponent_left'
+              };
+              db.updateMatch(matchID, state);
+            }
+          }
+        });
+      }
+
+      // Schedule cleanup
+      setTimeout(() => {
+        activeMatches.delete(matchID);
+        if (server.db && server.db.deleteMatch) {
+          server.db.deleteMatch(matchID);
+        }
+      }, 5000);
+    }
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error handling player-left:', error);
+    res.status(500).send('Error');
+  }
+});
+
+// Clean up old matches periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  const MATCH_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  const ABANDONED_TIMEOUT = 5 * 60 * 1000; // 5 minutes for abandoned matches
+
+  activeMatches.forEach((match, matchID) => {
+    const matchAge = now - match.created;
+    const isAbandoned = match.state === 'abandoned';
+    const abandonedAge = match.abandonedAt ? now - match.abandonedAt : 0;
+
+    // Clean up abandoned matches faster
+    if ((isAbandoned && abandonedAge > ABANDONED_TIMEOUT) ||
+        (!isAbandoned && matchAge > MATCH_TIMEOUT)) {
+      activeMatches.delete(matchID);
+      if (server.db && server.db.deleteMatch) {
+        server.db.deleteMatch(matchID);
+      }
+      console.log('🧹 Cleaned up match:', matchID, isAbandoned ? '(abandoned)' : '(timeout)');
+    }
+  });
+}, 5 * 60 * 1000);
+
 // Log all server events
 const db = server.db;
 
@@ -115,12 +257,19 @@ db.updateMatch = function(matchID, state) {
     const G = state.G || {};
     const players = G.players || {};
 
+    // CRITICAL: Check for phase transition
+    if (G.phase === 'playing' && G.setupComplete) {
+      console.log('🎮 PHASE TRANSITION CONFIRMED - MatchID:', matchID);
+      console.log('  Both teams ready and game started!');
+    }
+
     console.log('📡 Broadcasting update - MatchID:', matchID, {
+      phase: G.phase,
+      setupComplete: G.setupComplete || false,
       player0Ready: players['0']?.ready || false,
       player1Ready: players['1']?.ready || false,
       player0Cards: players['0']?.cards?.length || 0,
       player1Cards: players['1']?.cards?.length || 0,
-      phase: G.phase,
     });
 
     console.log('📊 Server state update - MatchID:', matchID, {

@@ -14,7 +14,7 @@ const httpServer = createServer(app);
 // CORS configuration
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://toyboxsol.netlify.app', 'https://toybox.netlify.app']
-  : ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173", "http://localhost:5174"];
+  : ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:3005", "http://localhost:3006", "http://localhost:5173", "http://localhost:5174"];
 
 const io = new Server(httpServer, {
   cors: {
@@ -393,7 +393,7 @@ io.on('connection', (socket) => {
   
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
-    
+
     // Handle disconnect during matchmaking
     for (const [key, players] of matchmakingQueue.entries()) {
       const filtered = players.filter(p => p.socket !== socket.id);
@@ -405,30 +405,120 @@ io.on('connection', (socket) => {
         }
       }
     }
-    
+
     // Handle disconnect during battle
     for (const [battleId, battle] of activeBattles.entries()) {
       if (battle.player1.socket === socket.id || battle.player2.socket === socket.id) {
-        // Notify opponent
-        socket.to(battleId).emit('opponent_disconnected');
-        
-        // Start timeout for reconnection
+        const isPlayer1 = battle.player1.socket === socket.id;
+        const disconnectedPlayer = isPlayer1 ? 1 : 2;
+        const matchID = battle.id;
+
+        console.log(`🔴 Player ${disconnectedPlayer} disconnected from battle ${battleId}`);
+
+        // Notify opponent immediately
+        socket.to(battleId).emit('opponent_disconnected', {
+          matchID,
+          disconnectedPlayer
+        });
+
+        // Notify boardgame server to end the match
+        if (matchID) {
+          fetch(`http://localhost:4001/match/${matchID}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerID: isPlayer1 ? '0' : '1',
+              reason: 'player_disconnected'
+            })
+          }).catch(err => console.error('Failed to notify boardgame server:', err));
+        }
+
+        // Give short grace period for reconnection
         setTimeout(() => {
           const b = activeBattles.get(battleId);
-          if (b && b.state === 'in_progress') {
-            // Auto-forfeit after 30 seconds
-            const winner = b.player1.socket === socket.id ? b.player2.wallet : b.player1.wallet;
+          if (b && (b.state === 'in_progress' || b.state === 'starting')) {
+            // Auto-forfeit after 10 seconds (shorter for better UX)
+            const winner = isPlayer1 ? b.player2.wallet : b.player1.wallet;
+
+            console.log(`⚠️ Battle ${battleId} ended due to disconnect`);
+
             io.to(battleId).emit('battle_complete', {
               winner,
-              reason: 'opponent_timeout'
+              reason: 'opponent_disconnected',
+              matchID
             });
+
+            // Clean up battle
             activeBattles.delete(battleId);
           }
-        }, 30000);
+        }, 10000); // 10 seconds timeout
       }
     }
-    
+
     playerSessions.delete(socket.id);
+  });
+
+  // Handle player leaving battle (explicit leave)
+  socket.on('player_left_battle', ({ battleId, playerID, playerNumber, matchID, reason }) => {
+    console.log(`🚪 Player ${playerNumber} left battle ${battleId}`, reason);
+
+    const battle = activeBattles.get(battleId);
+    if (battle) {
+      // Notify opponent
+      socket.to(battleId).emit('opponent_left', {
+        matchID,
+        playerNumber,
+        reason
+      });
+
+      // Determine winner (opponent of the one who left)
+      const winner = playerNumber === 1 ? battle.player2.wallet : battle.player1.wallet;
+
+      // End the battle
+      io.to(battleId).emit('battle_complete', {
+        winner,
+        reason: 'opponent_left',
+        matchID
+      });
+
+      // Clean up
+      activeBattles.delete(battleId);
+
+      // Notify boardgame server
+      if (matchID) {
+        fetch(`http://localhost:4001/match/${matchID}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playerID,
+            reason: 'player_left'
+          })
+        }).catch(err => console.error('Failed to delete match:', err));
+      }
+    }
+  });
+
+  // Handle potential player leaving (beforeunload)
+  socket.on('player_leaving_battle', ({ battleId, playerID, playerNumber, matchID }) => {
+    console.log(`⚠️ Player ${playerNumber} might be leaving battle ${battleId}`);
+
+    // Mark battle as potentially ending
+    const battle = activeBattles.get(battleId);
+    if (battle) {
+      battle.playerLeaving = playerNumber;
+      battle.leavingTimeout = setTimeout(() => {
+        // If still marked as leaving after 5 seconds, consider them gone
+        if (battle.playerLeaving === playerNumber) {
+          socket.emit('player_left_battle', {
+            battleId,
+            playerID,
+            playerNumber,
+            matchID,
+            reason: 'timeout'
+          });
+        }
+      }, 5000);
+    }
   });
 });
 

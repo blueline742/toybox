@@ -49,8 +49,8 @@ const getDefaultPlayerDeck = () => [
   }
 ];
 
-// Define setPlayerTeam move function separately for phase reference
-const setPlayerTeam = ({ G, ctx, playerID }, team) => {
+// Define setPlayerTeam move function with MANUAL phase transition
+const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
   console.log(`🎯 setPlayerTeam called`);
   console.log('Raw playerID parameter:', playerID, 'type:', typeof playerID);
   console.log('Team parameter received:', team);
@@ -205,18 +205,22 @@ const setPlayerTeam = ({ G, ctx, playerID }, team) => {
   });
 
   if (allReady) {
-    console.log('🎮 Both players ready - game can start!');
+    console.log('🎮 BOTH PLAYERS READY - FORCING PHASE TRANSITION!');
     console.log('  Player 0 cards:', G.players['0'].cards.map(c => c.name));
     console.log('  Player 1 cards:', G.players['1'].cards.map(c => c.name));
-    console.log('  Phase will transition to playing');
-    // Don't set G.phase manually - let boardgame.io handle it via endIf
-    G.turnNumber = 1;
+
+    // CRITICAL: Manually transition to playing phase
+    if (ctx.phase === 'setup' && events && events.endPhase) {
+      console.log('🚀 Calling events.endPhase() to force transition');
+      events.endPhase();
+      G.phase = 'playing';
+      G.setupComplete = true;
+      G.turnNumber = 1;
+      console.log('✅ Phase transitioned to playing - Setup complete!');
+    }
   } else {
     console.log('⏳ Waiting for other player to set team');
   }
-
-  // CRITICAL: Must return the modified game state for changes to persist
-  return G;
 };
 
 const getDefaultAIDeck = () => [
@@ -300,7 +304,8 @@ const ToyboxGame = {
       winner: null,
       phase: 'setup', // Start in setup phase
       setupCount: (setupData?.setupCount || 0) + 1, // Track how many times setup is called
-      matchID: setupData?.matchID || 'unknown' // Track matchID for logging
+      matchID: setupData?.matchID || 'unknown', // Track matchID for logging
+      setupComplete: false // Track if setup phase is complete
     };
 
     console.log('📊 Initial game state created:', {
@@ -322,55 +327,19 @@ const ToyboxGame = {
       moves: {
         setPlayerTeam
       },
-      endIf: ({ G, ctx }) => {
-        if (!G || !G.players) {
-          console.log('⚠️ endIf check - G or players not initialized');
-          return false;
-        }
-
-        // Check if both players exist
-        if (!G.players['0'] || !G.players['1']) {
-          console.log('⚠️ endIf check - Players not initialized');
-          return false;
-        }
-
-        const player0Ready = G.players['0'].ready === true;
-        const player1Ready = G.players['1'].ready === true;
-        const allReady = player0Ready && player1Ready;
-
-        console.log('🔍 Setup endIf check - MatchID:', G.matchID, {
-          player0: { ready: player0Ready, cards: G.players['0']?.cards?.length || 0 },
-          player1: { ready: player1Ready, cards: G.players['1']?.cards?.length || 0 },
-          transition: allReady
-        });
-
-        if (allReady) {
-          console.log('✅ BOTH PLAYERS READY - Transitioning to playing phase - MatchID:', G.matchID);
-        }
-        return allReady;
-      },
+      // REMOVED endIf - using manual phase transition instead
+      // This avoids the boardgame.io multiplayer sync timing issue
       onEnd: ({ G, ctx }) => {
-        console.log('✅ BOTH PLAYERS READY on server - Transitioning to playing phase - MatchID:', G.matchID);
-        console.log('📊 Setup phase ended, transitioning to playing phase');
+        console.log('✅ Setup phase ended via manual transition - MatchID:', G.matchID);
+        console.log('📊 Transitioning to playing phase');
         if (G.players && G.players['0'] && G.players['1']) {
           console.log('  Player 0 team:', G.players['0'].cards.map(c => c.name));
           console.log('  Player 1 team:', G.players['1'].cards.map(c => c.name));
         }
 
-        // Create a clean, serializable game state for the playing phase
-        const nextState = {
-          players: G.players,
-          turnNumber: G.turnNumber || 1,
-          activeEffects: G.activeEffects || [],
-          animationQueue: G.animationQueue || [],
-          winner: G.winner || null,
-          phase: 'playing',
-          setupCount: G.setupCount || 1,
-          matchID: G.matchID || 'unknown'
-        };
-
-        // Ensure the state is fully serializable
-        return JSON.parse(JSON.stringify(nextState));
+        // Mark setup as complete
+        G.setupComplete = true;
+        G.phase = 'playing';
       }
     },
     playing: {
@@ -477,6 +446,81 @@ const ToyboxGame = {
       }
 
       console.log(`${attacker.name} attacks ${defender.name}!`);
+    },
+
+    // Cast spell move for abilities like Pyroblast
+    castSpell: ({ G, ctx }, casterId, targetId, abilityIndex = 0) => {
+      console.log('Spell cast initiated!', { casterId, targetId, abilityIndex });
+
+      // Get current player's cards
+      const playerId = ctx.currentPlayer;
+      const player = G.players[playerId];
+      if (!player) return;
+
+      // Find caster card
+      const caster = player.cards.find(c => c.instanceId === casterId && c.isAlive);
+      if (!caster || !caster.abilities || !caster.abilities[abilityIndex]) return;
+
+      const ability = caster.abilities[abilityIndex];
+
+      // Check if spell has already been used
+      if (ability.used) {
+        console.log('Spell has already been used!');
+        return;
+      }
+
+      // Check mana cost (if mana system is implemented)
+      if (player.currentMana !== undefined && player.currentMana < ability.manaCost) {
+        console.log('Not enough mana!');
+        return;
+      }
+
+      // Find target in opponent's cards
+      const opponentId = playerId === '0' ? '1' : '0';
+      const opponent = G.players[opponentId];
+      const target = opponent.cards.find(c => c.instanceId === targetId && c.isAlive);
+      if (!target) return;
+
+      // Deduct mana if applicable
+      if (player.currentMana !== undefined) {
+        player.currentMana -= ability.manaCost;
+      }
+
+      // Mark spell as used
+      ability.used = true;
+      console.log('Marked spell as used:', ability.name);
+
+      // Apply spell effect
+      if (ability.damage) {
+        target.currentHealth -= ability.damage;
+        if (target.currentHealth <= 0) {
+          target.currentHealth = 0;
+          target.isAlive = false;
+        }
+      }
+
+      if (ability.heal) {
+        target.currentHealth = Math.min(target.currentHealth + ability.heal, target.maxHealth);
+      }
+
+      if (ability.shield) {
+        target.shield = (target.shield || 0) + ability.shield;
+      }
+
+      if (ability.freeze) {
+        target.isFrozen = true;
+        target.frozenTurns = 2;
+      }
+
+      // Store spell effect info for visual rendering
+      G.lastSpellCast = {
+        spell: ability.name,
+        casterId,
+        targetId,
+        timestamp: Date.now()
+      };
+
+      console.log(`${caster.name} casts ${ability.name} on ${target.name}!`);
     },
 
     // Initialize cards for both players - now works with or without external data
@@ -935,7 +979,18 @@ const ToyboxGame = {
       }
     },
 
-    // Removed AI logic - all moves are now human-triggered
+    // Handle player leaving the match
+    leaveMatch: ({ G, ctx, events }) => {
+      console.log('🚪 Player', ctx.currentPlayer, 'left the game - Resetting');
+
+      // End game with opponent as winner
+      const winner = ctx.currentPlayer === '0' ? '1' : '0';
+      if (events && events.endGame) {
+        events.endGame({ winner, reason: 'opponent_left' });
+      }
+
+      return G;
+    },
   },
 
   endIf: ({ G, ctx }) => {

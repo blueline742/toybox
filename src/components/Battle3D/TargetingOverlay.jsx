@@ -60,8 +60,13 @@ const TargetingOverlay = ({
             key={target.instanceId}
             className="relative cursor-pointer transform transition-all hover:scale-110 hover:z-10"
             onClick={() => {
-              console.log('Target clicked in overlay:', target);
-              onTargetSelect(target);
+              console.log('🔴 Target clicked in overlay:', target);
+              console.log('🔴 onTargetSelect function exists?', typeof onTargetSelect);
+              if (onTargetSelect) {
+                onTargetSelect(target);
+              } else {
+                console.error('❌ onTargetSelect is not a function!');
+              }
             }}
           >
             {/* Card Image */}

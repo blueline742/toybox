@@ -77,13 +77,34 @@ function App() {
   }
 
   const handleBattleEnd = (result) => {
-    // Skip results screen and go back to appropriate screen
-    setBattleResult(result)
-    
-    // Go back to team select for another battle
-    setSelectedTeam(null)
-    setBattleResult(null)
-    setGameState(GAME_STATES.TEAM_SELECT)
+    console.log('🎯 handleBattleEnd called with:', result);
+
+    // Handle different end reasons
+    if (result && (result.reason === 'opponent_disconnected' ||
+                   result.reason === 'opponent_left' ||
+                   result.reason === 'opponent_timeout')) {
+      console.log('⚠️ Opponent disconnected/left - ending battle');
+
+      // Show result briefly then return to menu
+      setBattleResult(result);
+
+      // Return to team select after a delay
+      setTimeout(() => {
+        setSelectedTeam(null);
+        setBattleResult(null);
+        setPvpBattleData(null);
+        setGameState(GAME_STATES.TEAM_SELECT);
+      }, 3000);
+    } else if (result && result.reason === 'game_complete') {
+      // Normal game completion
+      setBattleResult(result);
+      setSelectedTeam(null);
+      setBattleResult(null);
+      setPvpBattleData(null);
+      setGameState(GAME_STATES.TEAM_SELECT);
+    } else {
+      console.log('❓ Unknown battle end reason:', result?.reason);
+    }
   }
 
   const handlePlayAgain = () => {

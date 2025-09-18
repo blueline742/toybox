@@ -6,6 +6,13 @@ const DamageNumber3D = ({ value, position, isCritical = false, isHealing = false
   const groupRef = useRef();
   const startTime = useRef(Date.now());
   const duration = 2000; // 2 seconds
+
+  // Safety check for position
+  if (!position || !Array.isArray(position) || position.length < 3) {
+    console.warn('DamageNumber3D: Invalid position prop', position);
+    return null;
+  }
+
   const startY = useRef(position[1] + 2);
 
   useFrame(() => {

@@ -65,7 +65,10 @@
       "Bash(cmd //c:*)",
       "Bash(npm run:*)",
       "Bash(del nul)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(cat:*)",
+      "Bash(awk:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": []

@@ -7,12 +7,12 @@ import TargetingOverlay from './TargetingOverlay';
 import SpellNotification from '../SpellNotification';
 
 // Create the board component that renders the 3D scene
-const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTeam, credentials, isConnected, ...otherProps }) => {
+const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTeam, credentials, isConnected, lobbySocket, matchID, ...otherProps }) => {
   // Extract playerID from otherProps if not directly provided
   const actualPlayerID = playerID || otherProps.playerID || ctx?.currentPlayer || '0';
 
   console.log('ToyboxBoard - selectedTeam received:', selectedTeam);
-  console.log('ToyboxBoard - moves available:', moves);
+  console.log('ToyboxBoard - moves available:', moves ? Object.keys(moves) : 'no moves');
   console.log('ToyboxBoard - playOrder:', ctx?.playOrder, 'numPlayers:', ctx?.numPlayers);
   console.log('ToyboxBoard - Game over?:', ctx?.gameover);
   console.log('🔴 ToyboxBoard - playerID from props:', playerID);
@@ -23,11 +23,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   console.log('🔴 ToyboxBoard - G.players:', G?.players);
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [playerTeam, setPlayerTeam] = useState([]);
-  const [aiTeam, setAiTeam] = useState([]);
+  // REMOVED: local team state - now using G.players directly
   const [activeEffects, setActiveEffects] = useState([]);
   const [damageNumbers, setDamageNumbers] = useState([]);
   const [spellNotification, setSpellNotification] = useState(null);
+  const [pyroblastActive, setPyroblastActive] = useState(false);
+  const [pyroblastCaster, setPyroblastCaster] = useState(null);
+  const [pyroblastTarget, setPyroblastTarget] = useState(null);
 
   // Targeting state
   const [isTargeting, setIsTargeting] = useState(false);
@@ -43,9 +45,25 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const isPlayer0 = actualPlayerID === '0';
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
 
-  // Check if both players are ready
-  const bothPlayersReady = G?.phase === 'playing' || (G?.players && Object.values(G.players).every(p => p.ready));
-  const isWaiting = !bothPlayersReady;
+  // Check game phase - wait only during setup
+  const isInPlayingPhase = G?.phase === 'playing';
+  const bothPlayersReady = G?.setupComplete === true || isInPlayingPhase;
+  const isWaiting = !isInPlayingPhase; // Only wait if not in playing phase
+
+  console.log('🔍 Game Phase Check:', {
+    phase: G?.phase,
+    setupComplete: G?.setupComplete,
+    isInPlayingPhase,
+    bothPlayersReady,
+    isWaiting,
+    isOurTurn,
+    currentPlayer: ctx?.currentPlayer,
+    playerID: actualPlayerID
+  });
+
+  // Check if game was abandoned
+  const gameAbandoned = G?.abandoned === true;
+  const abandonedBy = G?.abandonedBy;
 
   // Check if we're officially in the match (server has registered us)
   // We need to ensure we're connected and authenticated
@@ -101,6 +119,12 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         return;
       }
 
+      // Add extra delay for Player 1 to ensure Player 0's state is synced
+      if (actualPlayerID === '1') {
+        console.log('⏳ Player 1 waiting for state sync...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       // Now we're authenticated, submit the team
       if (moves?.setPlayerTeam && !G?.players?.[actualPlayerID]?.ready) {
         console.log('📤 Submitting team with metadata for player', actualPlayerID);
@@ -129,6 +153,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           }, 1000);
         } catch (error) {
           console.error('❌ Failed to submit team:', error);
+          // Retry after a delay if it's a stateID mismatch
+          if (error.toString().includes('stateID')) {
+            console.log('🔄 Retrying team submission after stateID mismatch...');
+            setTimeout(() => {
+              setHasAutoSelected(false); // Reset to allow retry
+            }, 2000);
+          }
         }
       } else {
         console.log('⚠️ Cannot submit team - moves not available or player already ready');
@@ -140,51 +171,94 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     return () => clearTimeout(timer);
   }, [canSelectTeam, selectedTeam, hasAutoSelected, moves, actualPlayerID, G, isConnected, bothPlayersConnected]);
 
-  // Update teams based on game state
-  useEffect(() => {
-    if (!G?.players) {
-      console.log('No players in game state yet');
-      return;
-    }
+  // CRITICAL FIX: Always use G.players for teams (synchronized state)
+  const opponentID = actualPlayerID === '0' ? '1' : '0';
 
-    console.log('🔄 BOARD STATE RECEIVED:', {
-      phase: G.phase,
+  // Ensure cards have instanceId for proper rendering
+  const playerTeam = (G?.players?.[actualPlayerID]?.cards || []).map((card, index) => ({
+    ...card,
+    instanceId: card.instanceId || `p${actualPlayerID}-${card.id}-${index}`,
+    isAlive: true, // Cards are always alive initially, health is managed separately
+    health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
+  }));
+
+  const aiTeam = (G?.players?.[opponentID]?.cards || []).map((card, index) => ({
+    ...card,
+    instanceId: card.instanceId || `p${opponentID}-${card.id}-${index}`,
+    isAlive: true, // Cards are always alive initially, health is managed separately
+    health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
+  }));
+
+  // Debug logging for card data
+  useEffect(() => {
+    console.log('🎮 Card Data Debug:');
+    console.log('  actualPlayerID:', actualPlayerID);
+    console.log('  opponentID:', opponentID);
+    console.log('  G.players:', G?.players);
+    console.log('  playerTeam:', playerTeam);
+    console.log('  aiTeam:', aiTeam);
+    console.log('  Player 0 cards raw:', G?.players?.['0']?.cards);
+    console.log('  Player 1 cards raw:', G?.players?.['1']?.cards);
+    console.log('  playerTeam processed:', playerTeam.map(c => ({ name: c.name, instanceId: c.instanceId, health: c.health, isAlive: c.isAlive })));
+    console.log('  aiTeam processed:', aiTeam.map(c => ({ name: c.name, instanceId: c.instanceId, health: c.health, isAlive: c.isAlive })));
+  }, [G, actualPlayerID, opponentID, playerTeam, aiTeam]);
+
+  useEffect(() => {
+    console.log('🔄 BOARD STATE SYNC:', {
+      phase: G?.phase,
+      setupComplete: G?.setupComplete,
       playerID: actualPlayerID,
-      player0Ready: G.players['0']?.ready,
-      player1Ready: G.players['1']?.ready,
-      player0Cards: G.players['0']?.cards?.map(c => c.name),
-      player1Cards: G.players['1']?.cards?.map(c => c.name)
+      opponentID: opponentID,
+      playerTeam: playerTeam.map(c => c?.name),
+      playerTeamLength: playerTeam.length,
+      aiTeam: aiTeam.map(c => c?.name),
+      aiTeamLength: aiTeam.length,
+      player0Ready: G?.players?.['0']?.ready,
+      player1Ready: G?.players?.['1']?.ready,
+      player0Cards: G?.players?.['0']?.cards?.length || 0,
+      player1Cards: G?.players?.['1']?.cards?.length || 0,
+      rawG: G
     });
 
-    // Determine which team is ours and which is opponent's
-    const ourTeam = G.players[actualPlayerID]?.cards || [];
-    const opponentID = actualPlayerID === '0' ? '1' : '0';
-    const opponentTeam = G.players[opponentID]?.cards || [];
-
-    console.log(`Player ${actualPlayerID} team:`, ourTeam.map(c => c.name));
-    console.log(`Opponent ${opponentID} team:`, opponentTeam.map(c => c.name));
-
-    // Update local state
-    if (ourTeam.length > 0 || opponentTeam.length > 0) {
-      setPlayerTeam(ourTeam);
-      setAiTeam(opponentTeam);
-      console.log('✅ Teams updated - Player:', ourTeam.length, 'cards, AI/Opponent:', opponentTeam.length, 'cards');
-
-      // Check if both teams are ready
-      if (ourTeam.length > 0 && opponentTeam.length > 0) {
-        console.log('🎮 Both teams ready! Starting battle...');
-        setIsInitialized(true);
-      }
+    // Check if game is ready to start
+    if (G?.phase === 'playing' && G?.setupComplete && playerTeam.length > 0 && aiTeam.length > 0) {
+      console.log('🎮 GAME STARTED - Both teams visible!');
+      setIsInitialized(true);
     }
-  }, [G, actualPlayerID]);
+
+    // If we're in playing phase but can't see opponent's cards, log a warning
+    if (G?.phase === 'playing' && aiTeam.length === 0 && G?.players?.[opponentID]?.cards?.length > 0) {
+      console.warn('⚠️ State sync issue detected - opponent cards not visible!');
+      console.log('Opponent state:', G?.players?.[opponentID]);
+      // Force a re-render after a short delay
+      setTimeout(() => {
+        console.log('🔄 Attempting to force state refresh...');
+        setIsInitialized(false);
+        setTimeout(() => setIsInitialized(true), 100);
+      }, 1000);
+    }
+  }, [G, playerTeam, aiTeam, actualPlayerID, opponentID]);
 
   // Automatic turn start - select a random card and ability when it's our turn
   useEffect(() => {
+    console.log('🎮 Auto-turn check:', {
+      isOurTurn,
+      bothPlayersReady,
+      gameover: ctx?.gameover,
+      hasStartedTurn,
+      playerTeamLength: playerTeam.length,
+      aiTeamLength: aiTeam.length
+    });
+
     if (!isOurTurn || !bothPlayersReady || ctx?.gameover || hasStartedTurn) {
+      console.log('⏸️ Skipping auto-turn:', {
+        reason: !isOurTurn ? 'not our turn' : !bothPlayersReady ? 'not ready' : ctx?.gameover ? 'game over' : 'already started'
+      });
       return;
     }
 
     if (playerTeam.length === 0 || aiTeam.length === 0) {
+      console.log('⏸️ Skipping auto-turn: teams not loaded');
       return;
     }
 
@@ -214,6 +288,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setSelectedCard(activeCard);
         setCurrentAbility(randomAbility);
 
+        // Show spell notification for the selected ability
+        setSpellNotification({
+          ability: randomAbility,
+          caster: activeCard,
+          targets: []
+        });
+
         // Determine valid targets based on ability
         const targets = randomAbility.targetType === 'enemy'
           ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
@@ -222,7 +303,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
         if (targets.length > 0) {
-          setValidTargets(targets.map(c => c.id));
+          setValidTargets(targets.map(c => c.instanceId || c.id));
           setIsTargeting(true);
           setShowTargetingOverlay(true);
           console.log('📍 Showing targeting overlay with', targets.length, 'valid targets');
@@ -254,8 +335,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     console.log('Activating ability:', ability.name, 'from card:', card.name);
 
+    // Check if this is Pyroblast or another targeted spell
+    const isPyroblast = ability.name?.toLowerCase() === 'pyroblast';
+    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || isPyroblast;
+
     // Handle different ability types
-    if (ability.requiresTarget) {
+    if (requiresTarget) {
+      console.log('This ability requires a target');
       // Set up targeting mode
       setIsTargeting(true);
       setShowTargetingOverlay(true);
@@ -269,8 +355,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         ? playerTeam.filter(c => c.health > 0 && c.id !== card.id)
         : [...playerTeam, ...aiTeam].filter(c => c.health > 0);
 
-      setValidTargets(targets.map(c => c.id));
-      console.log('Valid targets:', targets.map(c => c.name));
+      setValidTargets(targets.map(c => c.instanceId || c.id));
+      console.log('Valid targets:', targets.map(c => ({ name: c.name, instanceId: c.instanceId || c.id })));
     } else {
       // Instant ability - no target needed
       if (moves?.useAbility) {
@@ -308,55 +394,175 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
   // Handle target selection
   const handleTargetSelect = (targetCard) => {
+    console.log('🎯 handleTargetSelect called with:', targetCard);
+    console.log('Current state:', { isTargeting, currentAbility, selectedCard });
+    console.log('Available moves:', moves ? Object.keys(moves) : 'no moves');
+
     if (!isTargeting || !currentAbility || !selectedCard) {
       console.log('Not in targeting mode');
+      console.log('isTargeting:', isTargeting, 'currentAbility:', currentAbility, 'selectedCard:', selectedCard);
       return;
     }
 
-    if (!validTargets.includes(targetCard.id)) {
+    // Check if target is valid (use instanceId for comparison)
+    const targetInstanceId = targetCard.instanceId || targetCard.id;
+    if (!validTargets.includes(targetInstanceId)) {
       console.log('Invalid target');
+      console.log('Valid targets:', validTargets);
+      console.log('Target card instanceId:', targetInstanceId);
       return;
     }
 
     console.log('Target selected:', targetCard.name);
 
+    // Determine target team
+    const targetTeam = playerTeam.some(c => c.id === targetCard.id) ? 'player' : 'enemy';
+
+    // Check if this is a Pyroblast spell
+    const isPyroblast = currentAbility.name?.toLowerCase() === 'pyroblast';
+
     // Execute ability with target
-    if (moves?.useAbility) {
+    if (moves?.castSpell && isPyroblast) {
+      console.log('🔥 Casting Pyroblast spell');
+      console.log('Caster:', selectedCard);
+      console.log('Target:', targetCard);
+      console.log('Target team:', targetTeam);
+
+      // Use the new castSpell move for Pyroblast
+      moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+
+      // Calculate positions for the Pyroblast effect
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const targetIndex = targetTeam === 'enemy'
+        ? aiTeam.findIndex(c => c.id === targetCard.id)
+        : playerTeam.findIndex(c => c.id === targetCard.id);
+
+      console.log('Caster index:', casterIndex, 'Target index:', targetIndex);
+
+      const startPosition = [
+        casterIndex * 2 - 3,
+        playerID === '0' ? -2 : 2,
+        0
+      ];
+
+      const endPosition = [
+        targetIndex * 2 - 3,
+        targetTeam === 'enemy' ? (playerID === '0' ? 2 : -2) : (playerID === '0' ? -2 : 2),
+        0
+      ];
+
+      console.log('Start position:', startPosition);
+      console.log('End position:', endPosition);
+
+      // Add Pyroblast to activeEffects for rendering
+      const pyroblastEffect = {
+        id: Date.now(),
+        type: 'pyroblast',
+        startPosition: startPosition,
+        endPosition: endPosition,
+        active: true,
+        duration: 2500
+      };
+
+      console.log('Adding Pyroblast effect:', pyroblastEffect);
+      setActiveEffects(prev => {
+        const newEffects = [...prev, pyroblastEffect];
+        console.log('Updated activeEffects:', newEffects);
+        return newEffects;
+      });
+
+      // Trigger the enhanced Pyroblast effect
+      setPyroblastActive(true);
+      setPyroblastCaster(selectedCard);
+      setPyroblastTarget(targetCard);
+
+      // Clear after effect duration
+      setTimeout(() => {
+        setPyroblastActive(false);
+        setPyroblastCaster(null);
+        setPyroblastTarget(null);
+      }, 2500);
+
+      // Clear targeting state after casting
+      setIsTargeting(false);
+      setSelectedCard(null);
+      setCurrentAbility(null);
+      setValidTargets([]);
+
+    } else if (moves?.useAbility) {
+      console.log('🎯 Executing ability:', currentAbility.name);
+      console.log('Source card:', selectedCard.id);
+      console.log('Target card:', targetCard.id);
+
       moves.useAbility({
         sourceCardId: selectedCard.id,
         abilityIndex: 0,
         targetCardId: targetCard.id
       });
 
-      // Show spell notification with proper props
-      setSpellNotification({
-        ability: currentAbility,
-        caster: selectedCard,
-        targets: [targetCard]
-      });
+      // Clear targeting state immediately after executing
+      setIsTargeting(false);
+      setShowTargetingOverlay(false);
+      setSelectedCard(null);
+      setCurrentAbility(null);
+      setValidTargets([]);
+    } else if (moves?.playCard) {
+      // Fallback to playCard if useAbility doesn't exist
+      console.log('🎯 Using playCard fallback for ability:', currentAbility.name);
+      moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
 
-      // Add damage number if it's a damage ability
-      if (currentAbility.effect === 'damage' && currentAbility.value) {
-        setDamageNumbers(prev => [...prev, {
-          id: Date.now(),
-          value: currentAbility.value,
-          cardId: targetCard.id,
-          duration: 1500
-        }]);
-      }
-
-      // End turn after ability is used
-      setTimeout(() => {
-        if (moves?.endTurn) {
-          console.log('Ending turn after ability use');
-          moves.endTurn();
-        }
-      }, 2000); // Wait for animation to complete
+      // Clear targeting state
+      setIsTargeting(false);
+      setShowTargetingOverlay(false);
+      setSelectedCard(null);
+      setCurrentAbility(null);
+      setValidTargets([]);
+    } else {
+      console.error('❌ No move available to execute ability!');
+      console.log('Available moves:', Object.keys(moves || {}));
     }
 
-    // Clear targeting state
-    handleCancelTargeting();
-  };
+    // Show spell notification with proper props
+    setSpellNotification({
+      ability: currentAbility,
+      caster: selectedCard,
+      targets: [targetCard]
+    });
+
+    // Add damage number if it's a damage ability
+    if (currentAbility.damage || (currentAbility.effect === 'damage' && currentAbility.value)) {
+      // Calculate position based on target card's team and index
+      const targetTeam = playerTeam.find(c => c.id === targetCard.id) ? 'player' : 'ai';
+      const targetIndex = targetTeam === 'player'
+        ? playerTeam.findIndex(c => c.id === targetCard.id)
+        : aiTeam.findIndex(c => c.id === targetCard.id);
+
+      // Simple position calculation (will be refined in HearthstoneScene)
+      const position = [
+        targetIndex * 2 - 3, // X position based on index
+        targetTeam === 'player' ? -2 : 2, // Y position based on team
+        0 // Z position
+      ];
+
+      setDamageNumbers(prev => [...prev, {
+        id: Date.now(),
+        value: currentAbility.damage || currentAbility.value,
+        cardId: targetCard.id,
+        position: position,
+        duration: 1500
+      }]);
+    }
+
+    // End turn after ability is used
+    setTimeout(() => {
+      if (moves?.endTurn) {
+        console.log('Ending turn after ability use');
+        moves.endTurn();
+      }
+    }, 2000); // Wait for animation to complete
+
+    // Don't call handleCancelTargeting here - already handled above
+  }
 
   const handleCancelTargeting = () => {
     setIsTargeting(false);
@@ -364,7 +570,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     setValidTargets([]);
     setCurrentAbility(null);
     setSelectedCard(null);
-  };
+  }
 
   // Clean up effects after their duration
   useEffect(() => {
@@ -377,6 +583,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     return () => clearInterval(cleanup);
   }, []);
 
+  // Watch for Pyroblast spell cast in game state - temporarily disabled for debugging
+
   // Clear spell notification after delay
   useEffect(() => {
     if (spellNotification) {
@@ -387,6 +595,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
   }, [spellNotification]);
 
+  // Render the main battle UI
   return (
     <div className="relative w-full h-full bg-gradient-to-b from-blue-900 to-purple-900">
       {/* Turn Indicator */}
@@ -402,8 +611,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         </div>
       )}
 
-      {/* Waiting for Players */}
-      {isWaiting && !ctx?.gameover && (
+      {/* Waiting for Players - Only show in setup phase */}
+      {G?.phase !== 'playing' && !ctx?.gameover && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
           <div className="bg-black/80 p-8 rounded-lg text-white text-center">
             <h2 className="text-2xl font-bold mb-4 animate-pulse">
@@ -412,21 +621,38 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
             <p className="text-gray-300">
               {G?.players?.[actualPlayerID]?.ready ? 'Your team is ready!' : 'Setting up teams...'}
             </p>
+            <p className="text-sm text-gray-400 mt-2">
+              Phase: {G?.phase || 'unknown'} | Setup: {G?.setupComplete ? 'Complete' : 'In Progress'} | P0: {G?.players?.['0']?.ready ? '✓' : '✗'} | P1: {G?.players?.['1']?.ready ? '✓' : '✗'}
+            </p>
           </div>
         </div>
       )}
 
       {/* Game Over Screen */}
-      {ctx?.gameover && (
+      {(ctx?.gameover || gameAbandoned) && (
         <div className="absolute inset-0 flex items-center justify-center z-40 bg-black/50">
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-xl text-white shadow-2xl">
             <h2 className="text-4xl font-bold mb-4 text-center">
-              {ctx.gameover.winner === actualPlayerID ? '🎉 Victory!' : '💀 Defeat!'}
+              {gameAbandoned ? (
+                abandonedBy === actualPlayerID ? '🚪 You Left!' : '🏆 Opponent Left!'
+              ) : ctx.gameover?.reason === 'opponent_abandoned' || ctx.gameover?.reason === 'opponent_left' ? (
+                '🏆 Opponent Left!'
+              ) : (
+                ctx.gameover?.winner === actualPlayerID ? '🎉 Victory!' : '💀 Defeat!'
+              )}
             </h2>
             <p className="text-center text-gray-300 mb-6">
-              {ctx.gameover.winner === actualPlayerID
-                ? 'Congratulations! You\'ve won the battle!'
-                : 'Better luck next time!'}
+              {gameAbandoned ? (
+                abandonedBy === actualPlayerID
+                  ? 'You left the battle.'
+                  : 'Your opponent has left the battle. You win by default!'
+              ) : ctx.gameover?.reason === 'opponent_abandoned' || ctx.gameover?.reason === 'opponent_left' ? (
+                'Your opponent left the game. You win by default!'
+              ) : ctx.gameover?.winner === actualPlayerID ? (
+                'Congratulations! You\'ve won the battle!'
+              ) : (
+                'Better luck next time!'
+              )}
             </p>
             <button
               onClick={() => window.location.href = '/'}
@@ -478,19 +704,53 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       {/* Back to Menu Button */}
       <div className="absolute top-4 left-4 z-20">
         <button
-          onClick={() => window.location.href = '/'}
+          onClick={() => {
+            console.log('🚪 User clicked Back to Menu');
+
+            // Notify server that player is leaving
+            if (lobbySocket && lobbySocket.connected) {
+              lobbySocket.emit('player_left_battle', {
+                battleId: matchID,
+                playerID: actualPlayerID,
+                playerNumber: actualPlayerID === '0' ? 1 : 2,
+                matchID: matchID,
+                reason: 'user_left'
+              });
+            }
+
+            // Clean up match
+            fetch(`http://localhost:4001/match/${matchID}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                playerID: actualPlayerID,
+                reason: 'user_left_via_button'
+              })
+            }).catch(err => console.error('Failed to delete match:', err));
+
+            // Give time for cleanup then navigate
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 100);
+          }}
           className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-all"
         >
           ← Back to Menu
         </button>
       </div>
 
-      <div className={`absolute inset-0 ${showTargetingOverlay ? 'blur-md scale-105 transition-all duration-300' : 'transition-all duration-300'}`}>
+      <div className="absolute inset-0">
         <HearthstoneScene
           playerTeam={playerTeam}
           aiTeam={aiTeam}
           isPlayerTurn={isOurTurn}
           onEndTurn={() => moves?.endTurn && moves.endTurn()}
+          onCardClick={(card) => {
+            console.log('Card clicked in HearthstoneScene:', card);
+            if (isTargeting) {
+              handleTargetSelect(card);
+            }
+          }}
           onCardAttack={(attacker, defender) => {
             if (moves?.attackCard) {
               moves.attackCard(attacker.instanceId || attacker.id, defender.instanceId || defender.id);
@@ -539,24 +799,37 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           validTargets={validTargets}
           activeEffects={activeEffects}
           damageNumbers={damageNumbers}
-          isWaiting={isWaiting}
+          isWaiting={!isInPlayingPhase}
           currentPlayer={ctx?.currentPlayer}
           playerID={actualPlayerID}
         />
       </div>
 
-      {showTargetingOverlay && (
-        <TargetingOverlay
-          activeCard={selectedCard}
-          targets={validTargets.map(id => {
-            const allCards = [...playerTeam, ...aiTeam];
-            return allCards.find(c => c.id === id);
-          }).filter(Boolean)}
-          onTargetSelect={handleTargetSelect}
-          onCancel={handleCancelTargeting}
-          selectedAbility={currentAbility}
-        />
-      )}
+      {showTargetingOverlay && (() => {
+        const mappedTargets = validTargets.map(targetInstanceId => {
+          const allCards = [...playerTeam, ...aiTeam];
+          return allCards.find(c => (c.instanceId || c.id) === targetInstanceId);
+        }).filter(Boolean);
+
+        console.log('🎯 TARGETING OVERLAY RENDER:', {
+          showTargetingOverlay,
+          selectedCard,
+          currentAbility,
+          validTargets,
+          mappedTargets,
+          handleTargetSelectExists: typeof handleTargetSelect
+        });
+
+        return (
+          <TargetingOverlay
+            activeCard={selectedCard}
+            targets={mappedTargets}
+            onTargetSelect={handleTargetSelect}
+            onCancel={handleCancelTargeting}
+            selectedAbility={currentAbility}
+          />
+        );
+      })()}
 
       {/* Debug info */}
       <div className="absolute bottom-2 left-2 text-white text-sm bg-black/50 p-2 rounded">
@@ -572,7 +845,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 };
 
 // Main component that creates and manages the client
-const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam }) => {
+const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocket, onBattleEnd }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   console.log('🎮 BoardgamePvP initialized:', {
@@ -592,12 +865,14 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam }) => {
       multiplayer: SocketIO({
         server: 'http://localhost:4000',
         socketOpts: {
-          transports: ['polling'],
+          transports: ['websocket', 'polling'], // Prefer websocket for better sync
           forceNew: true,
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000
+          reconnectionDelayMax: 5000,
+          upgrade: true, // Allow upgrading from polling to websocket
+          rememberUpgrade: true
         }
       }),
       playerID: String(playerID),
@@ -657,13 +932,16 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam }) => {
     );
   }
 
-  // Render the Client component - pass playerID as a prop to the board
+  // Render the Client component - pass playerID and lobbySocket as props to the board
   return (
     <ClientComponent
       selectedTeam={selectedTeam}
       credentials={credentials}
       isConnected={isConnected}
       playerID={playerID}
+      lobbySocket={lobbySocket}
+      matchID={matchID}
+      onBattleEnd={onBattleEnd}
     />
   );
 };
