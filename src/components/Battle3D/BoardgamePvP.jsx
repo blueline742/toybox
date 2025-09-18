@@ -40,6 +40,21 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [hasStartedTurn, setHasStartedTurn] = useState(false);
 
+  // Debug Player 2 Canvas issue
+  useEffect(() => {
+    if (actualPlayerID === '1') {
+      console.log('🔵 Player 2 State Check:', {
+        showTargetingOverlay,
+        isTargeting,
+        currentAbility,
+        selectedCard,
+        validTargets: validTargets.length,
+        gameOver: ctx?.gameover,
+        hasError: false
+      });
+    }
+  }, [showTargetingOverlay, isTargeting, currentAbility, selectedCard, validTargets, ctx?.gameover, actualPlayerID]);
+
   // Use actualPlayerID instead of playerID
   const isOurTurn = ctx?.currentPlayer === actualPlayerID;
   const isPlayer0 = actualPlayerID === '0';
@@ -234,7 +249,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       setTimeout(() => {
         console.log('🔄 Attempting to force state refresh...');
         setIsInitialized(false);
-        setTimeout(() => setIsInitialized(true), 100);
+      setTimeout(() => setIsInitialized(true), 100);
       }, 1000);
     }
   }, [G, playerTeam, aiTeam, actualPlayerID, opponentID]);
@@ -374,7 +389,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         });
 
         // Add visual effect
-        setActiveEffects(prev => [...prev, {
+      setActiveEffects(prev => [...prev, {
           id: Date.now(),
           type: ability.effect,
           cardId: card.id,
@@ -382,7 +397,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         }]);
 
         // End turn after instant ability
-        setTimeout(() => {
+      setTimeout(() => {
           if (moves?.endTurn) {
             console.log('Ending turn after instant ability');
             moves.endTurn();
@@ -418,12 +433,18 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Determine target team
     const targetTeam = playerTeam.some(c => c.id === targetCard.id) ? 'player' : 'enemy';
 
-    // Check if this is a Pyroblast spell
-    const isPyroblast = currentAbility.name?.toLowerCase() === 'pyroblast';
+    // Check if this is a Pyroblast spell or any fire spell
+    console.log('🔥 Current ability:', currentAbility);
+    console.log('🔥 Ability name:', currentAbility.name);
+    console.log('🔥 Ability lowercase:', currentAbility.name?.toLowerCase());
+
+    const isPyroblast = currentAbility.name?.toLowerCase() === 'pyroblast' ||
+                       currentAbility.name?.toLowerCase().includes('pyro') ||
+                       currentAbility.name?.toLowerCase().includes('fire');
 
     // Execute ability with target
     if (moves?.castSpell && isPyroblast) {
-      console.log('🔥 Casting Pyroblast spell');
+      console.log('🔥 Casting Pyroblast-like spell:', currentAbility.name);
       console.log('Caster:', selectedCard);
       console.log('Target:', targetCard);
       console.log('Target team:', targetTeam);
@@ -431,7 +452,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Use the new castSpell move for Pyroblast
       moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
 
-      // Calculate positions for the Pyroblast effect
+      // Calculate precise 3D positions for the Pyroblast effect
       const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
       const targetIndex = targetTeam === 'enemy'
         ? aiTeam.findIndex(c => c.id === targetCard.id)
@@ -439,16 +460,37 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       console.log('Caster index:', casterIndex, 'Target index:', targetIndex);
 
+      // Match the exact card positioning from HearthstoneScene
+      const isMobile = window.innerWidth <= 768;
+      const spacing = isMobile ? 2.5 : 2.2;
+      const totalCards = 4;
+
+      // Center the cards horizontally (matching getCardPosition function)
+      const startX = -(totalCards - 1) * spacing / 2;
+
+      // Calculate X positions for caster and target
+      const casterX = startX + (casterIndex * spacing);
+      const targetX = startX + (targetIndex * spacing);
+
+      // Y position (height above table)
+      const cardY = 0.4;
+
+      // Z positions (distance from center - matching HearthstoneScene)
+      const playerZ = 5.5;  // Player cards are at z = 5.5
+      const aiZ = -5.5;     // AI cards are at z = -5.5
+
       const startPosition = [
-        casterIndex * 2 - 3,
-        playerID === '0' ? -2 : 2,
-        0
+        casterX,
+        cardY + 0.5,  // Slightly above the card
+        actualPlayerID === '0' ? playerZ : aiZ
       ];
 
       const endPosition = [
-        targetIndex * 2 - 3,
-        targetTeam === 'enemy' ? (playerID === '0' ? 2 : -2) : (playerID === '0' ? -2 : 2),
-        0
+        targetX,
+        cardY + 0.5,  // Slightly above the target card
+        targetTeam === 'enemy'
+          ? (actualPlayerID === '0' ? aiZ : playerZ)  // Enemy team opposite side
+          : (actualPlayerID === '0' ? playerZ : aiZ)   // Same team same side
       ];
 
       console.log('Start position:', startPosition);
@@ -464,59 +506,88 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         duration: 2500
       };
 
-      console.log('Adding Pyroblast effect:', pyroblastEffect);
-      setActiveEffects(prev => {
-        const newEffects = [...prev, pyroblastEffect];
-        console.log('Updated activeEffects:', newEffects);
-        return newEffects;
-      });
+      console.log('🎆 Adding Pyroblast effect:', pyroblastEffect);
+      console.log('🎆 Start:', startPosition, 'End:', endPosition);
 
-      // Trigger the enhanced Pyroblast effect
-      setPyroblastActive(true);
-      setPyroblastCaster(selectedCard);
-      setPyroblastTarget(targetCard);
+      setActiveEffects(prev => {
+          const newEffects = [...prev, pyroblastEffect];
+        console.log('🎆 Updated activeEffects array:', newEffects);
+        console.log('🎆 Total effects:', newEffects.length);
+          return newEffects;
+        });
+
+      // Clear targeting state immediately to hide overlay
+      setShowTargetingOverlay(false);
+
+      // Trigger the enhanced Pyroblast effect with a small delay
+      setTimeout(() => {
+        console.log('🎆 Setting pyroblastActive to true');
+        setPyroblastActive(true);
+        setPyroblastCaster(selectedCard);
+        setPyroblastTarget(targetCard);
+        console.log('🎆 Pyroblast state updated:', {
+          active: true,
+          caster: selectedCard.name,
+          target: targetCard.name
+        });
+      }, 50);
 
       // Clear after effect duration
       setTimeout(() => {
         setPyroblastActive(false);
         setPyroblastCaster(null);
         setPyroblastTarget(null);
-      }, 2500);
+      }, 2550);
 
-      // Clear targeting state after casting
-      setIsTargeting(false);
-      setSelectedCard(null);
-      setCurrentAbility(null);
-      setValidTargets([]);
+      // Clear remaining targeting state
+      setTimeout(() => {
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
 
     } else if (moves?.useAbility) {
-      console.log('🎯 Executing ability:', currentAbility.name);
-      console.log('Source card:', selectedCard.id);
-      console.log('Target card:', targetCard.id);
+        console.log('🎯 Executing ability:', currentAbility.name);
+        console.log('Source card:', selectedCard.id);
+        console.log('Target card:', targetCard.id);
 
-      moves.useAbility({
-        sourceCardId: selectedCard.id,
-        abilityIndex: 0,
-        targetCardId: targetCard.id
-      });
+        moves.useAbility({
+          sourceCardId: selectedCard.id,
+          abilityIndex: 0,
+          targetCardId: targetCard.id
+        });
 
-      // Clear targeting state immediately after executing
-      setIsTargeting(false);
-      setShowTargetingOverlay(false);
-      setSelectedCard(null);
-      setCurrentAbility(null);
-      setValidTargets([]);
+      // Only trigger Pyroblast effect for actual Pyroblast spell
+      // Disabled for now to prevent rendering glitches
+      /*
+      if (currentAbility.damage || currentAbility.effect === 'damage') {
+        console.log('🎆 Triggering visual effect for ability:', currentAbility.name);
+        // Visual effects disabled temporarily to fix rendering issues
+      }
+      */
+
+      // Clear targeting state with a small delay to prevent rendering issues
+      setTimeout(() => {
+        setIsTargeting(false);
+        setShowTargetingOverlay(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
     } else if (moves?.playCard) {
-      // Fallback to playCard if useAbility doesn't exist
-      console.log('🎯 Using playCard fallback for ability:', currentAbility.name);
-      moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+        // Fallback to playCard if useAbility doesn't exist
+        console.log('🎯 Using playCard fallback for ability:', currentAbility.name);
+        moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
 
-      // Clear targeting state
-      setIsTargeting(false);
-      setShowTargetingOverlay(false);
-      setSelectedCard(null);
-      setCurrentAbility(null);
-      setValidTargets([]);
+      // Clear targeting state with delay
+      setTimeout(() => {
+        setIsTargeting(false);
+        setShowTargetingOverlay(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
     } else {
       console.error('❌ No move available to execute ability!');
       console.log('Available moves:', Object.keys(moves || {}));
@@ -533,7 +604,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     if (currentAbility.damage || (currentAbility.effect === 'damage' && currentAbility.value)) {
       // Calculate position based on target card's team and index
       const targetTeam = playerTeam.find(c => c.id === targetCard.id) ? 'player' : 'ai';
-      const targetIndex = targetTeam === 'player'
+        const targetIndex = targetTeam === 'player'
         ? playerTeam.findIndex(c => c.id === targetCard.id)
         : aiTeam.findIndex(c => c.id === targetCard.id);
 
@@ -561,7 +632,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }
     }, 2000); // Wait for animation to complete
 
-    // Don't call handleCancelTargeting here - already handled above
   }
 
   const handleCancelTargeting = () => {
@@ -739,7 +809,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         </button>
       </div>
 
-      <div className="absolute inset-0">
+      {/* Main 3D Scene Container */}
+      <div className="absolute inset-0" style={{
+        // Keep canvas always visible and interactive except when overlay is shown
+        pointerEvents: showTargetingOverlay ? 'none' : 'auto',
+        // Ensure Canvas is always visible unless game is over
+        display: ctx?.gameover ? 'none' : 'block',
+        zIndex: 1
+      }}>
         <HearthstoneScene
           playerTeam={playerTeam}
           aiTeam={aiTeam}
@@ -802,10 +879,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           isWaiting={!isInPlayingPhase}
           currentPlayer={ctx?.currentPlayer}
           playerID={actualPlayerID}
+          pyroblastActive={pyroblastActive}
+          pyroblastCaster={pyroblastCaster}
+          pyroblastTarget={pyroblastTarget}
         />
       </div>
 
-      {showTargetingOverlay && (() => {
+      {/* Targeting Overlay - Show for both players */}
+      {showTargetingOverlay && selectedCard && currentAbility && (() => {
         const mappedTargets = validTargets.map(targetInstanceId => {
           const allCards = [...playerTeam, ...aiTeam];
           return allCards.find(c => (c.instanceId || c.id) === targetInstanceId);
@@ -817,9 +898,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           currentAbility,
           validTargets,
           mappedTargets,
+          actualPlayerID,
           handleTargetSelectExists: typeof handleTargetSelect
         });
 
+        // Show the same overlay for both players
         return (
           <TargetingOverlay
             activeCard={selectedCard}
@@ -894,7 +977,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
       // Force a re-render after a short delay
       setTimeout(() => {
         setIsConnected(false);
-        setTimeout(() => setIsConnected(true), 100);
+      setTimeout(() => setIsConnected(true), 100);
       }, 1000);
     };
 

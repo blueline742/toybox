@@ -1,6 +1,7 @@
 import React, { Suspense, useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { Text, RoundedBox, Loader, OrbitControls, useGLTF, useTexture, Line, Billboard } from '@react-three/drei';
+import { EffectComposer, Vignette, Bloom, ChromaticAberration } from '@react-three/postprocessing';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
 import DamageNumber3D from './DamageNumber3D';
@@ -9,6 +10,7 @@ import HybridCard3D from './HybridCard3D';
 // Import effects
 import FireballEffect from '../effects/FireballEffect';
 import PyroblastEffect from './effects/Pyroblast';
+import EnhancedPyroblast from './effects/EnhancedPyroblast';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
@@ -309,7 +311,9 @@ const HearthstoneBattleArena = ({
   validTargets,
   activeCharacterIndex,
   currentTurn,
-  activeEffects
+  activeEffects,
+  pyroblastCaster,
+  pyroblastTarget
 }) => {
   // State for targeting system
   const [selectedCard, setSelectedCard] = useState(null); // { id, position: [x, y, z] }
@@ -671,8 +675,17 @@ const HearthstoneBattleArena = ({
             case 'fireball':
               return <FireballEffect key={index} {...effect} />;
             case 'pyroblast':
-              console.log('🔥 Rendering Pyroblast effect with props:', effect);
-              return <PyroblastEffect key={index} {...effect} />;
+              console.log('🔥 Rendering Enhanced Pyroblast effect with props:', effect);
+              return <EnhancedPyroblast
+                key={index}
+                startPosition={effect.startPosition}
+                endPosition={effect.endPosition}
+                onComplete={() => {
+                  console.log('Pyroblast animation complete');
+                }}
+                casterCard={pyroblastCaster}
+                targetCard={pyroblastTarget}
+              />;
             case 'explosion':
               return <ExplosionEffect key={index} {...effect} />;
             case 'healing':
@@ -698,13 +711,44 @@ const HearthstoneScene = ({
   activeCharacterIndex,
   currentTurn,
   activeEffects,
-  damageNumbers
+  damageNumbers,
+  pyroblastActive,
+  pyroblastCaster,
+  pyroblastTarget
 }) => {
+  // Add error state
+  const [hasError, setHasError] = useState(false);
+
+  // Reset error on component mount
+  useEffect(() => {
+    setHasError(false);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          <div className="text-xl mb-2">3D Scene Error</div>
+          <button
+            onClick={() => setHasError(false)}
+            className="px-4 py-2 bg-blue-500 rounded"
+          >
+            Reload Scene
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-screen">
       <Loader />
 
       <Canvas
+        onError={(error) => {
+          console.error('Canvas error:', error);
+          setHasError(true);
+        }}
         shadows
         camera={{
           position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10], // Good angle to see table and cards
@@ -734,6 +778,8 @@ const HearthstoneScene = ({
             activeCharacterIndex={activeCharacterIndex}
             currentTurn={currentTurn}
             activeEffects={activeEffects}
+            pyroblastCaster={pyroblastCaster}
+            pyroblastTarget={pyroblastTarget}
           />
 
           {/* Damage Numbers */}
@@ -763,7 +809,24 @@ const HearthstoneScene = ({
             // No azimuth limits - can rotate 360°
           />
 
-          {/* Removed chromatic aberration and vignette to fix blur/doubling */}
+          {/* Post-processing effects for dramatic spell visuals - DISABLED for debugging */}
+          {false && pyroblastActive && (
+            <EffectComposer>
+              <Vignette
+                eskil={false}
+                offset={0.1}
+                darkness={1.2}
+              />
+              <Bloom
+                intensity={1.5}
+                luminanceThreshold={0.5}
+                luminanceSmoothing={0.7}
+              />
+              <ChromaticAberration
+                offset={[0.002, 0.002]}
+              />
+            </EffectComposer>
+          )}
         </Suspense>
       </Canvas>
     </div>

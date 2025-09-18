@@ -42,9 +42,11 @@ const TargetingOverlay = ({
   if (!activeCard) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 bg-black/30 pointer-events-none">
+      {/* Removed backdrop-blur to prevent WebGL issues */}
+      {/* Make container pointer-events-none, but individual elements clickable */}
       {/* Header */}
-      <div className="text-center py-4">
+      <div className="text-center py-4 pointer-events-none">
         <h2 className="text-2xl font-bold text-white drop-shadow-lg">Choose Your Target</h2>
         {selectedAbility && (
           <p className="text-yellow-400 mt-2 drop-shadow-lg">
@@ -54,11 +56,11 @@ const TargetingOverlay = ({
       </div>
 
       {/* Target Cards - Top Section */}
-      <div className="flex justify-center items-center gap-4 px-4 mt-8">
+      <div className="flex justify-center items-center gap-4 px-4 mt-8 pointer-events-none">
         {targets.map((target, index) => (
           <div
             key={target.instanceId}
-            className="relative cursor-pointer transform transition-all hover:scale-110 hover:z-10"
+            className="relative cursor-pointer transform transition-all hover:scale-110 hover:z-10 pointer-events-auto"
             onClick={() => {
               console.log('🔴 Target clicked in overlay:', target);
               console.log('🔴 onTargetSelect function exists?', typeof onTargetSelect);
@@ -150,7 +152,7 @@ const TargetingOverlay = ({
         {/* Cancel Button */}
         <button
           onClick={onCancel}
-          className="absolute bottom-4 right-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          className="absolute bottom-4 right-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors pointer-events-auto"
         >
           Cancel
         </button>
