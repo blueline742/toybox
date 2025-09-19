@@ -1010,7 +1010,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
       game: ToyboxGame,
       board: ToyboxBoard,
       multiplayer: SocketIO({
-        server: 'http://localhost:4000',
+        server: import.meta.env.VITE_BOARDGAME_SERVER_URL || 'http://localhost:4000',
         socketOpts: {
           transports: ['websocket', 'polling'], // Prefer websocket for better sync
           forceNew: true,

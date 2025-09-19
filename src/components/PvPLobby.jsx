@@ -80,7 +80,9 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
 
       // Create match on boardgame server immediately
       try {
-        const response = await fetch('http://localhost:4001/create-match', {
+        const boardgameServerUrl = import.meta.env.VITE_BOARDGAME_SERVER_URL || 'http://localhost:4000';
+        const createMatchUrl = boardgameServerUrl.replace(':4000', ':4001') + '/create-match';
+        const response = await fetch(createMatchUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matchID: id, numPlayers: 2 }),
