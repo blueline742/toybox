@@ -12,6 +12,8 @@ import FireballEffect from '../effects/FireballEffect';
 import PyroblastEffect from './effects/Pyroblast';
 import SimplePyroblast from './effects/SimplePyroblast';
 import EnhancedPyroblastV2 from './effects/EnhancedPyroblastV2';
+import OptimizedChainLightningEffect from '../ThreeJS/OptimizedChainLightningEffect';
+import OptimizedBrickDudeEffects from '../ThreeJS/OptimizedBrickDudeEffects';
 import IceNovaEffect, { FrozenOverlay } from './effects/IceNovaEffect';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
@@ -683,6 +685,54 @@ const HearthstoneBattleArena = ({
                 key={`frozen-${effect.id}`}
                 position={effect.position}
                 duration={effect.duration || 10000}
+              />;
+            case 'chain_lightning':
+              console.log('⚡ Rendering Chain Lightning effect');
+              if (!effect.casterPosition || !effect.targets || effect.targets.length === 0) {
+                console.warn('Invalid data for Chain Lightning effect');
+                return null;
+              }
+              return <OptimizedChainLightningEffect
+                key={`chain-lightning-${effect.id}`}
+                casterPosition={effect.casterPosition}
+                targets={effect.targets}
+                onComplete={() => {
+                  console.log('Chain Lightning animation complete');
+                }}
+              />;
+            case 'sword_slash':
+              console.log('⚔️ Rendering Sword Slash effect');
+              return <OptimizedBrickDudeEffects
+                key={`sword-slash-${effect.id}`}
+                effectType="sword_slash"
+                casterPosition={effect.casterPosition}
+                targets={effect.targets}
+                casterCardId={effect.casterCardId}
+                onComplete={() => {
+                  console.log('Sword Slash animation complete');
+                }}
+              />;
+            case 'block_defence':
+              console.log('🛡️ Rendering Block Defence effect');
+              return <OptimizedBrickDudeEffects
+                key={`block-defence-${effect.id}`}
+                effectType="block_defence"
+                casterPosition={effect.casterPosition}
+                targets={effect.targets}
+                onComplete={() => {
+                  console.log('Block Defence animation complete');
+                }}
+              />;
+            case 'whirlwind':
+              console.log('🌪️ Rendering Whirlwind Slash effect');
+              return <OptimizedBrickDudeEffects
+                key={`whirlwind-${effect.id}`}
+                effectType="whirlwind"
+                casterPosition={effect.casterPosition}
+                targets={effect.targets}
+                onComplete={() => {
+                  console.log('Whirlwind Slash animation complete');
+                }}
               />;
             default:
               return null;

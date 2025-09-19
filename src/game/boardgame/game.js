@@ -651,6 +651,10 @@ const ToyboxGame = {
       const abilityNameLower = (ability.name || ability.id || '').toLowerCase().replace(/\s+/g, '');
       const effectType = abilityNameLower.includes('pyroblast') ? 'pyroblast' :
                         abilityNameLower.includes('icenova') ? 'ice_nova' :
+                        (abilityNameLower.includes('lightning') || abilityNameLower.includes('zap')) ? 'chain_lightning' :
+                        abilityNameLower.includes('swordslash') ? 'sword_slash' :
+                        abilityNameLower.includes('blockdefence') ? 'block_defence' :
+                        abilityNameLower.includes('whirlwind') ? 'whirlwind' :
                         abilityNameLower.includes('fireball') ? 'fireball' :
                         ability.animation || 'default';
 
@@ -893,6 +897,10 @@ const ToyboxGame = {
       const abilityNameLower = (ability.name || ability.id || '').toLowerCase().replace(/\s+/g, '');
       const effectType = abilityNameLower.includes('pyroblast') ? 'pyroblast' :
                         abilityNameLower.includes('icenova') ? 'ice_nova' :
+                        (abilityNameLower.includes('lightning') || abilityNameLower.includes('zap')) ? 'chain_lightning' :
+                        abilityNameLower.includes('swordslash') ? 'sword_slash' :
+                        abilityNameLower.includes('blockdefence') ? 'block_defence' :
+                        abilityNameLower.includes('whirlwind') ? 'whirlwind' :
                         abilityNameLower.includes('fireball') ? 'fireball' :
                         ability.animation || 'default';
 

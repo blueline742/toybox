@@ -197,6 +197,12 @@ const HybridCard3D = ({
       position={[position[0], position[1] + yOffset, position[2]]}
       rotation={rotation}
       scale={[scale, scale, scale]}
+      userData={{
+        cardId: character?.instanceId || character?.id,
+        characterName: character?.name,
+        isCard: true
+      }}
+      name={`card-${character?.instanceId || character?.id}`}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       onClick={handleClick}

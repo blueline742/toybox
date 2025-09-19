@@ -235,15 +235,64 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           });
         }
 
+        // For Chain Lightning, calculate all target positions
+        let chainTargets = [];
+        if (effect.type === 'chain_lightning') {
+          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
+          const isPlayerCasting = casterInPlayer !== -1;
+          const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
+
+          chainTargets = enemyTeam.filter(c => c.health > 0).map((card, index) => {
+            const x = (index - 1.5) * 2;
+            const z = isPlayerCasting
+              ? (actualPlayerID === '0' ? -5.5 : 5.5)
+              : (actualPlayerID === '0' ? 5.5 : -5.5);
+            return {
+              position: [x, 0.5, z],
+              cardId: card.instanceId || card.id
+            };
+          });
+        }
+
         // Add the synced effect
         const syncedEffect = {
           ...effect,
           startPosition: effect.type === 'pyroblast' ? startPosition : undefined,
           endPosition: effect.type === 'pyroblast' ? endPosition : undefined,
-          casterPosition: effect.type === 'ice_nova' ? startPosition : undefined,
+          casterPosition: (effect.type === 'ice_nova' || effect.type === 'chain_lightning' || effect.type === 'sword_slash' || effect.type === 'block_defence' || effect.type === 'whirlwind') ? startPosition : undefined,
           targetPositions: effect.type === 'ice_nova' ? targetPositions : undefined,
+          targets: effect.type === 'chain_lightning' ? chainTargets :
+                   (effect.type === 'sword_slash' || effect.type === 'block_defence' || effect.type === 'whirlwind') ?
+                   (effect.type === 'sword_slash' ?
+                     (() => {
+                       // Calculate target position for sword slash
+                       const targetCard = [...playerTeam, ...aiTeam].find(c => c.instanceId === effect.targetCardId);
+                       if (targetCard) {
+                         const targetInPlayer = playerTeam.findIndex(c => c.instanceId === targetCard.instanceId) !== -1;
+                         const targetIndex = targetInPlayer ?
+                           playerTeam.findIndex(c => c.instanceId === targetCard.instanceId) :
+                           aiTeam.findIndex(c => c.instanceId === targetCard.instanceId);
+                         const x = (targetIndex - 1.5) * 2;
+                         const z = targetInPlayer
+                           ? (actualPlayerID === '0' ? 5.5 : -5.5)
+                           : (actualPlayerID === '0' ? -5.5 : 5.5);
+                         return [{position: [x, 0.5, z], cardId: effect.targetCardId}];
+                       }
+                       return [{position: [0, 0.5, 0], cardId: effect.targetCardId}];
+                     })() :
+                     effect.type === 'block_defence' ?
+                       playerTeam.filter(c => c.health > 0).map((card, index) => ({
+                         position: [(index - 1.5) * 2, 0.5, actualPlayerID === '0' ? 5.5 : -5.5],
+                         cardId: card.instanceId || card.id
+                       })) :
+                       aiTeam.filter(c => c.health > 0).map((card, index) => ({
+                         position: [(index - 1.5) * 2, 0.5, actualPlayerID === '0' ? -5.5 : 5.5],
+                         cardId: card.instanceId || card.id
+                       }))
+                   ) : undefined,
           active: true,
-          duration: 8000,
+          duration: effect.type === 'chain_lightning' ? 2000 :
+                   (effect.type === 'sword_slash' || effect.type === 'block_defence' || effect.type === 'whirlwind') ? 2500 : 8000,
           synced: true // Mark as synced from game state
         };
 
@@ -630,6 +679,186 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         ability: { name: 'Ice Nova', description: 'Freezing wave!' },
         caster: selectedCard,
         targets: enemyTeam.filter(e => e.health > 0)
+      });
+
+      // Clear remaining targeting state
+      setTimeout(() => {
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
+
+    } else if (currentAbility.name?.toLowerCase() === 'sword slash' ||
+               currentAbility.id === 'sword_slash') {
+      // Brick Dude - Sword Slash Effect
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const isPlayerCasting = casterIndex !== -1;
+
+      const casterX = isPlayerCasting
+        ? (casterIndex - 1.5) * 2
+        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2;
+
+      const casterZ = isPlayerCasting
+        ? (actualPlayerID === '0' ? 5.5 : -5.5)
+        : (actualPlayerID === '0' ? -5.5 : 5.5);
+
+      const casterPosition = [casterX, 0.5, casterZ];
+
+      // Get target position
+      const targetIndex = aiTeam.findIndex(c => c.id === targetCard.id);
+      const targetX = (targetIndex - 1.5) * 2;
+      const targetZ = isPlayerCasting
+        ? (actualPlayerID === '0' ? -5.5 : 5.5)
+        : (actualPlayerID === '0' ? 5.5 : -5.5);
+
+      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'sword slash' || a.id === 'sword_slash'
+      ) ?? 0;
+
+      if (targetCard && targetCard.health > 0) {
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
+      }
+
+      setShowTargetingOverlay(false);
+      setSpellNotification({
+        ability: { name: 'Sword Slash', description: 'Brick sword strike!' },
+        caster: selectedCard,
+        targets: [targetCard]
+      });
+
+      setTimeout(() => {
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
+
+    } else if (currentAbility.name?.toLowerCase() === 'block defence' ||
+               currentAbility.id === 'block_defence') {
+      // Brick Dude - Block Defence Effect (shields all allies)
+      const allyTeam = playerTeam.filter(c => c.health > 0);
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const casterX = (casterIndex - 1.5) * 2;
+      const casterZ = actualPlayerID === '0' ? 5.5 : -5.5;
+
+      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'block defence' || a.id === 'block_defence'
+      ) ?? 1;
+
+      // No target needed for self/team buff - just cast it
+      moves.castSpell(selectedCard.instanceId || selectedCard.id, selectedCard.instanceId || selectedCard.id, abilityIndex);
+
+      setShowTargetingOverlay(false);
+      setSpellNotification({
+        ability: { name: 'Block Defence', description: 'Shields for all!' },
+        caster: selectedCard,
+        targets: allyTeam
+      });
+
+      setTimeout(() => {
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
+
+    } else if (currentAbility.name?.toLowerCase().includes('whirlwind') ||
+               currentAbility.id === 'whirlwind_slash') {
+      // Brick Dude - Whirlwind Slash (Ultimate)
+      const enemyTeam = aiTeam.filter(c => c.health > 0);
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const casterX = (casterIndex - 1.5) * 2;
+      const casterZ = actualPlayerID === '0' ? 5.5 : -5.5;
+
+      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase().includes('whirlwind') || a.id === 'whirlwind_slash'
+      ) ?? 2;
+
+      // Execute on first enemy (AOE will hit all)
+      if (enemyTeam.length > 0) {
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, enemyTeam[0].instanceId || enemyTeam[0].id, abilityIndex);
+      }
+
+      setShowTargetingOverlay(false);
+      setSpellNotification({
+        ability: { name: 'WHIRLWIND SLASH', description: 'Spinning devastation!' },
+        caster: selectedCard,
+        targets: enemyTeam
+      });
+
+      setTimeout(() => {
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
+
+    } else if (currentAbility.name?.toLowerCase() === 'lightning zap' ||
+               currentAbility.name?.toLowerCase().includes('chain') ||
+               currentAbility.name?.toLowerCase().includes('lightning')) {
+      // Chain Lightning Effect
+
+      // Find all enemy targets
+      const enemyTeam = aiTeam.filter(c => c.health > 0);
+
+      // Calculate caster position (Wizard Toy)
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const isPlayerCasting = casterIndex !== -1;
+
+      const casterX = isPlayerCasting
+        ? (casterIndex - 1.5) * 2
+        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2;
+
+      const casterZ = isPlayerCasting
+        ? (actualPlayerID === '0' ? 5.5 : -5.5)
+        : (actualPlayerID === '0' ? -5.5 : 5.5);
+
+      const casterPosition = [casterX, 0.5, casterZ];
+
+      // Calculate all target positions for the chain effect
+      const chainTargets = enemyTeam.map((card, index) => {
+        const x = (index - 1.5) * 2;
+        const z = isPlayerCasting
+          ? (actualPlayerID === '0' ? -5.5 : 5.5)
+          : (actualPlayerID === '0' ? 5.5 : -5.5);
+        return {
+          position: [x, 0.5, z],
+          cardId: card.id
+        };
+      });
+
+      // Add Chain Lightning effect to active effects
+      const chainLightningEffect = {
+        id: Date.now(),
+        type: 'chain_lightning',
+        casterPosition: casterPosition,
+        targets: chainTargets,
+        active: true,
+        duration: 2000  // 2 seconds for the full chain
+      };
+
+      // This will sync to both players through G.activeEffects
+      // The effect will be picked up by the useEffect that syncs G.activeEffects
+
+      // Find the correct ability index for Lightning Zap
+      const lightningIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'lightning zap' || a.id === 'lightning_zap'
+      ) ?? 1; // Default to index 1 for Wizard Toy
+
+      // Execute the spell on the first target (will chain to others)
+      if (targetCard && targetCard.health > 0) {
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, lightningIndex);
+      }
+
+      // Clear targeting state
+      setShowTargetingOverlay(false);
+
+      // Add spell notification
+      setSpellNotification({
+        ability: { name: 'Lightning Zap', description: 'Chain Lightning!' },
+        caster: selectedCard,
+        targets: enemyTeam
       });
 
       // Clear remaining targeting state
