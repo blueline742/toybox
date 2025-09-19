@@ -17,6 +17,7 @@ import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
 import { useSpellEffects } from './effects/useSpellEffects';
+import MagicalBackground from './MagicalBackground';
 
 // Health and Shield Display Component
 const HealthShieldDisplay = ({ currentHealth, maxHealth, shieldAmount = 0, position = [0, 0, 0.01], isActive = false }) => {
@@ -345,17 +346,6 @@ const HearthstoneBattleArena = ({
   // Load textures for floor
   const floorTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/floor.png');
 
-  // Create simple wall material
-  const wallMaterial = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      color: '#1a1a2e',
-      roughness: 0.8,
-      metalness: 0.1,
-      opacity: 0.95,
-      transparent: true,
-      side: THREE.DoubleSide
-    });
-  }, []);
 
   // Configure floor texture - no repeating, just stretch single image
   useEffect(() => {
@@ -420,30 +410,6 @@ const HearthstoneBattleArena = ({
         />
       </mesh>
 
-      {/* Surrounding walls with simple material */}
-      {/* Back wall */}
-      <mesh position={[0, 6, -20]} receiveShadow>
-        <planeGeometry args={[40, 20]} />
-        <primitive object={wallMaterial} />
-      </mesh>
-
-      {/* Front wall (behind camera) */}
-      <mesh position={[0, 6, 20]} rotation={[0, Math.PI, 0]} receiveShadow>
-        <planeGeometry args={[40, 20]} />
-        <primitive object={wallMaterial} />
-      </mesh>
-
-      {/* Left wall */}
-      <mesh position={[-20, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[40, 20]} />
-        <primitive object={wallMaterial} />
-      </mesh>
-
-      {/* Right wall */}
-      <mesh position={[20, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[40, 20]} />
-        <primitive object={wallMaterial} />
-      </mesh>
 
       {/* Enhanced Lighting System */}
       {/* Base ambient for overall brightness - increased for NFT visibility */}
@@ -773,6 +739,7 @@ const HearthstoneScene = ({
       <Loader />
 
       <Canvas
+        dpr={Math.min(window.devicePixelRatio, 1.5)}
         onError={(error) => {
           console.error('Canvas error:', error);
           setHasError(true);
@@ -795,6 +762,19 @@ const HearthstoneScene = ({
         }}
       >
         <Suspense fallback={null}>
+          {/* Magical Background with mobile optimization */}
+          <MagicalBackground
+            sparkleCount={window.innerWidth <= 768 ? 200 : 400}
+            sparkleSize={window.innerWidth <= 768 ? 0.12 : 0.18}
+            domeScale={100}
+            glowSphereRadius={60}
+            godRayRadius={25}
+            godRayHeight={40}
+            godRayColor="#ffd6ff"
+            godRaySpeed={0.6}
+            godRayIntensity={0.35}
+          />
+
           <HearthstoneBattleArena
             playerTeam={playerTeam}
             aiTeam={aiTeam}
