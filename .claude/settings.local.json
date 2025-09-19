@@ -68,7 +68,10 @@
       "Bash(git restore:*)",
       "Bash(cat:*)",
       "Bash(awk:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(netlify deploy:*)",
+      "Bash(npx netlify-cli deploy:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

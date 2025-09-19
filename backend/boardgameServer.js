@@ -1,6 +1,6 @@
 // Boardgame.io Server for Toybox PvP Battles
-const { Server } = require('boardgame.io/server');
-const { ToyboxGame } = require('../src/game/boardgame/game.js');
+import { Server } from 'boardgame.io/dist/cjs/server.js';
+import { ToyboxGame } from '../src/game/boardgame/game.js';
 
 // Configure the boardgame.io server
 const server = Server({

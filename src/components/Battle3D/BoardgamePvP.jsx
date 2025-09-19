@@ -11,16 +11,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Extract playerID from otherProps if not directly provided
   const actualPlayerID = playerID || otherProps.playerID || ctx?.currentPlayer || '0';
 
-  console.log('ToyboxBoard - selectedTeam received:', selectedTeam);
-  console.log('ToyboxBoard - moves available:', moves ? Object.keys(moves) : 'no moves');
-  console.log('ToyboxBoard - playOrder:', ctx?.playOrder, 'numPlayers:', ctx?.numPlayers);
-  console.log('ToyboxBoard - Game over?:', ctx?.gameover);
-  console.log('🔴 ToyboxBoard - playerID from props:', playerID);
-  console.log('🔴 ToyboxBoard - actualPlayerID:', actualPlayerID);
-  console.log('🔴 ToyboxBoard - isConnected:', isConnected);
-  console.log('🔴 ToyboxBoard - ctx:', ctx);
-  console.log('🔴 ToyboxBoard - gameMetadata:', gameMetadata);
-  console.log('🔴 ToyboxBoard - G.players:', G?.players);
 
   const [isInitialized, setIsInitialized] = useState(false);
   // REMOVED: local team state - now using G.players directly
@@ -40,20 +30,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
   const [hasStartedTurn, setHasStartedTurn] = useState(false);
 
-  // Debug Player 2 Canvas issue
-  useEffect(() => {
-    if (actualPlayerID === '1') {
-      console.log('🔵 Player 2 State Check:', {
-        showTargetingOverlay,
-        isTargeting,
-        currentAbility,
-        selectedCard,
-        validTargets: validTargets.length,
-        gameOver: ctx?.gameover,
-        hasError: false
-      });
-    }
-  }, [showTargetingOverlay, isTargeting, currentAbility, selectedCard, validTargets, ctx?.gameover, actualPlayerID]);
+  // Debug Player 2 Canvas issue - REMOVED to improve performance
+  // This useEffect was causing excessive re-renders
 
   // Use actualPlayerID instead of playerID
   const isOurTurn = ctx?.currentPlayer === actualPlayerID;
@@ -64,17 +42,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const isInPlayingPhase = G?.phase === 'playing';
   const bothPlayersReady = G?.setupComplete === true || isInPlayingPhase;
   const isWaiting = !isInPlayingPhase; // Only wait if not in playing phase
-
-  console.log('🔍 Game Phase Check:', {
-    phase: G?.phase,
-    setupComplete: G?.setupComplete,
-    isInPlayingPhase,
-    bothPlayersReady,
-    isWaiting,
-    isOurTurn,
-    currentPlayer: ctx?.currentPlayer,
-    playerID: actualPlayerID
-  });
 
   // Check if game was abandoned
   const gameAbandoned = G?.abandoned === true;
@@ -98,18 +65,15 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
 
     if (!isConnected) {
-      console.log(`⏳ Waiting for connection... (attempt ${attemptCount + 1}/${maxAttempts})`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return waitForAuthentication(attemptCount + 1);
     }
 
     if (!ctx?.playOrder || ctx.playOrder.length !== 2) {
-      console.log(`⏳ Waiting for both players... (attempt ${attemptCount + 1}/${maxAttempts})`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return waitForAuthentication(attemptCount + 1);
     }
 
-    console.log('✅ Authentication complete! PlayerID:', actualPlayerID, 'Connected:', isConnected);
     return true;
   };
 
@@ -120,12 +84,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
 
     const submitTeam = async () => {
-      console.log('🎯 Auto-submitting team for player', actualPlayerID);
-      console.log('  Team:', selectedTeam.map(t => t.name));
-      console.log('  CanSelectTeam:', canSelectTeam);
-      console.log('  IsConnected:', isConnected);
-      console.log('  BothPlayersConnected:', bothPlayersConnected);
-      console.log('  PlayerReady:', G?.players?.[actualPlayerID]?.ready);
 
       // Wait for authentication first
       const isAuthenticated = await waitForAuthentication();
@@ -136,13 +94,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       // Add extra delay for Player 1 to ensure Player 0's state is synced
       if (actualPlayerID === '1') {
-        console.log('⏳ Player 1 waiting for state sync...');
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       // Now we're authenticated, submit the team
       if (moves?.setPlayerTeam && !G?.players?.[actualPlayerID]?.ready) {
-        console.log('📤 Submitting team with metadata for player', actualPlayerID);
 
         // Include metadata to ensure correct player assignment
         const teamWithMetadata = {
@@ -154,30 +110,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         try {
           moves.setPlayerTeam(teamWithMetadata);
           setHasAutoSelected(true);
-          console.log('✅ Team submitted successfully for player', actualPlayerID);
-
-          // Log the current state after submission
-          setTimeout(() => {
-            console.log('📊 Post-submission state check:', {
-              player0Ready: G?.players?.['0']?.ready,
-              player1Ready: G?.players?.['1']?.ready,
-              player0Cards: G?.players?.['0']?.cards?.length,
-              player1Cards: G?.players?.['1']?.cards?.length,
-              phase: G?.phase
-            });
-          }, 1000);
         } catch (error) {
           console.error('❌ Failed to submit team:', error);
           // Retry after a delay if it's a stateID mismatch
           if (error.toString().includes('stateID')) {
-            console.log('🔄 Retrying team submission after stateID mismatch...');
             setTimeout(() => {
               setHasAutoSelected(false); // Reset to allow retry
             }, 2000);
           }
         }
       } else {
-        console.log('⚠️ Cannot submit team - moves not available or player already ready');
       }
     };
 
@@ -206,74 +148,148 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
   // Debug logging for card data
   useEffect(() => {
-    console.log('🎮 Card Data Debug:');
-    console.log('  actualPlayerID:', actualPlayerID);
-    console.log('  opponentID:', opponentID);
-    console.log('  G.players:', G?.players);
-    console.log('  playerTeam:', playerTeam);
-    console.log('  aiTeam:', aiTeam);
-    console.log('  Player 0 cards raw:', G?.players?.['0']?.cards);
-    console.log('  Player 1 cards raw:', G?.players?.['1']?.cards);
-    console.log('  playerTeam processed:', playerTeam.map(c => ({ name: c.name, instanceId: c.instanceId, health: c.health, isAlive: c.isAlive })));
-    console.log('  aiTeam processed:', aiTeam.map(c => ({ name: c.name, instanceId: c.instanceId, health: c.health, isAlive: c.isAlive })));
   }, [G, actualPlayerID, opponentID, playerTeam, aiTeam]);
 
   useEffect(() => {
-    console.log('🔄 BOARD STATE SYNC:', {
-      phase: G?.phase,
-      setupComplete: G?.setupComplete,
-      playerID: actualPlayerID,
-      opponentID: opponentID,
-      playerTeam: playerTeam.map(c => c?.name),
-      playerTeamLength: playerTeam.length,
-      aiTeam: aiTeam.map(c => c?.name),
-      aiTeamLength: aiTeam.length,
-      player0Ready: G?.players?.['0']?.ready,
-      player1Ready: G?.players?.['1']?.ready,
-      player0Cards: G?.players?.['0']?.cards?.length || 0,
-      player1Cards: G?.players?.['1']?.cards?.length || 0,
-      rawG: G
-    });
 
     // Check if game is ready to start
     if (G?.phase === 'playing' && G?.setupComplete && playerTeam.length > 0 && aiTeam.length > 0) {
-      console.log('🎮 GAME STARTED - Both teams visible!');
       setIsInitialized(true);
     }
 
     // If we're in playing phase but can't see opponent's cards, log a warning
     if (G?.phase === 'playing' && aiTeam.length === 0 && G?.players?.[opponentID]?.cards?.length > 0) {
       console.warn('⚠️ State sync issue detected - opponent cards not visible!');
-      console.log('Opponent state:', G?.players?.[opponentID]);
       // Force a re-render after a short delay
       setTimeout(() => {
-        console.log('🔄 Attempting to force state refresh...');
         setIsInitialized(false);
       setTimeout(() => setIsInitialized(true), 100);
       }, 1000);
     }
   }, [G, playerTeam, aiTeam, actualPlayerID, opponentID]);
 
-  // Automatic turn start - select a random card and ability when it's our turn
+  // Simplified sync mechanism - just track G.activeEffects directly
+  // No need for complex tracking refs that cause performance issues
   useEffect(() => {
-    console.log('🎮 Auto-turn check:', {
-      isOurTurn,
-      bothPlayersReady,
-      gameover: ctx?.gameover,
-      hasStartedTurn,
-      playerTeamLength: playerTeam.length,
-      aiTeamLength: aiTeam.length
+    if (!G?.activeEffects || !G.activeEffects.length) {
+      // Only clear if we currently have effects
+      setActiveEffects(prev => prev.length > 0 ? [] : prev);
+      return;
+    }
+
+    // Simply sync all effects from game state
+    const newEffects = [];
+    G.activeEffects.forEach(effect => {
+
+      // Calculate positions for the effect based on card IDs
+
+        // Calculate positions for the effect based on card IDs
+        let startPosition = [0, 0.5, 0];
+        let endPosition = [0, 0.5, 0];
+
+        // Find caster card position
+        if (effect.casterCardId) {
+          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
+          const casterInAI = aiTeam.findIndex(c => c.instanceId === effect.casterCardId);
+
+          if (casterInPlayer !== -1) {
+            const x = (casterInPlayer - 1.5) * 2;
+            const z = actualPlayerID === '0' ? 5.5 : -5.5;
+            startPosition = [x, 0.5, z];
+          } else if (casterInAI !== -1) {
+            const x = (casterInAI - 1.5) * 2;
+            const z = actualPlayerID === '0' ? -5.5 : 5.5;
+            startPosition = [x, 0.5, z];
+          }
+        }
+
+        // Find target card position for targeted spells
+        if (effect.targetCardId && effect.type === 'pyroblast') {
+          const targetInPlayer = playerTeam.findIndex(c => c.instanceId === effect.targetCardId);
+          const targetInAI = aiTeam.findIndex(c => c.instanceId === effect.targetCardId);
+
+          if (targetInPlayer !== -1) {
+            const x = (targetInPlayer - 1.5) * 2;
+            const z = actualPlayerID === '0' ? 5.5 : -5.5;
+            endPosition = [x, 0.5, z];
+          } else if (targetInAI !== -1) {
+            const x = (targetInAI - 1.5) * 2;
+            const z = actualPlayerID === '0' ? -5.5 : 5.5;
+            endPosition = [x, 0.5, z];
+          }
+        }
+
+        // For Ice Nova, calculate enemy positions
+        let targetPositions = [];
+        if (effect.type === 'ice_nova') {
+          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
+          const isPlayerCasting = casterInPlayer !== -1;
+          const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
+
+          targetPositions = enemyTeam.filter(c => c.health > 0).map((card, index) => {
+            const x = (index - 1.5) * 2;
+            const z = isPlayerCasting
+              ? (actualPlayerID === '0' ? -5.5 : 5.5)
+              : (actualPlayerID === '0' ? 5.5 : -5.5);
+            return [x, 0.5, z];
+          });
+        }
+
+        // Add the synced effect
+        const syncedEffect = {
+          ...effect,
+          startPosition: effect.type === 'pyroblast' ? startPosition : undefined,
+          endPosition: effect.type === 'pyroblast' ? endPosition : undefined,
+          casterPosition: effect.type === 'ice_nova' ? startPosition : undefined,
+          targetPositions: effect.type === 'ice_nova' ? targetPositions : undefined,
+          active: true,
+          duration: 8000,
+          synced: true // Mark as synced from game state
+        };
+
+      newEffects.push(syncedEffect);
     });
 
+    // Update all effects at once to prevent multiple re-renders
+    setActiveEffects(newEffects);
+  }, [G?.activeEffects?.length]); // Only re-run when the number of effects changes
+
+  // Backup polling mechanism to ensure effects are synced - DISABLED to reduce jitter
+  // The main useEffect should handle sync, polling can cause duplicate processing
+  /*
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (G?.activeEffects?.length > 0) {
+        // Trigger the sync by updating a dummy state
+        setActiveEffects(prev => {
+          // Check for any unprocessed effects
+          const unprocessed = G.activeEffects.filter(effect =>
+            !prev.find(e => e.id === effect.id) &&
+            !processedEffectsRef.current.has(effect.id)
+          );
+
+          if (unprocessed.length > 0) {
+            // Process them through the normal flow by clearing processed refs
+            unprocessed.forEach(effect => {
+              processedEffectsRef.current.delete(effect.id);
+            });
+          }
+          return prev;
+        });
+      }
+    }, 500); // Poll every 500ms
+
+    return () => clearInterval(pollInterval);
+  }, [G?.activeEffects]);
+  */
+
+  // Automatic turn start - select a random card and ability when it's our turn
+  useEffect(() => {
     if (!isOurTurn || !bothPlayersReady || ctx?.gameover || hasStartedTurn) {
-      console.log('⏸️ Skipping auto-turn:', {
-        reason: !isOurTurn ? 'not our turn' : !bothPlayersReady ? 'not ready' : ctx?.gameover ? 'game over' : 'already started'
-      });
       return;
     }
 
     if (playerTeam.length === 0 || aiTeam.length === 0) {
-      console.log('⏸️ Skipping auto-turn: teams not loaded');
       return;
     }
 
@@ -289,7 +305,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       return;
     }
 
-    console.log('🎯 Auto-selecting card for turn:', activeCard.name);
     setHasStartedTurn(true);
 
     // Delay to make it feel more natural
@@ -317,8 +332,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           selectedAbility = abilities[Math.floor(Math.random() * abilities.length)];
         }
 
-        console.log('🎲 Selected ability:', selectedAbility.name,
-                   activeCard.name === 'Wizard Toy' ? '(Wizard weighted selection)' : '');
         setSelectedCard(activeCard);
         setCurrentAbility(selectedAbility);
 
@@ -340,7 +353,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           setValidTargets(targets.map(c => c.instanceId || c.id));
           setIsTargeting(true);
           setShowTargetingOverlay(true);
-          console.log('📍 Showing targeting overlay with', targets.length, 'valid targets');
         }
       }
     }, 1000);
@@ -357,17 +369,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Handle ability activation
   const handleAbilityClick = (card) => {
     if (!isOurTurn) {
-      console.log('Not our turn!');
       return;
     }
 
     const ability = card.abilities?.[0];
     if (!ability) {
-      console.log('No ability on this card');
       return;
     }
 
-    console.log('Activating ability:', ability.name, 'from card:', card.name);
 
     // Check if this is Pyroblast or another targeted spell
     const isPyroblast = ability.name?.toLowerCase() === 'pyroblast';
@@ -376,7 +385,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Handle different ability types
     if (requiresTarget) {
-      console.log('This ability requires a target');
       // Set up targeting mode
       setIsTargeting(true);
       setShowTargetingOverlay(true);
@@ -394,12 +402,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
       setValidTargets(targets.map(c => c.instanceId || c.id));
-      console.log('Valid targets for', ability.name, ':', targets.map(c => ({
-        name: c.name,
-        id: c.id,
-        instanceId: c.instanceId,
-        health: c.health || c.currentHealth
-      })));
     } else {
       // Instant ability - no target needed
       if (moves?.useAbility) {
@@ -427,7 +429,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         // End turn after instant ability
       setTimeout(() => {
           if (moves?.endTurn) {
-            console.log('Ending turn after instant ability');
             moves.endTurn();
           }
         }, 2000); // Wait for animation
@@ -437,46 +438,23 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
   // Handle target selection
   const handleTargetSelect = (targetCard) => {
-    console.log('🎯 handleTargetSelect called with:', targetCard);
-    console.log('Current state:', {
-      isTargeting,
-      currentAbility: currentAbility ? currentAbility.name : null,
-      selectedCard: selectedCard ? selectedCard.name : null,
-      validTargets
-    });
-    console.log('Available moves:', moves ? Object.keys(moves) : 'no moves');
 
     if (!isTargeting || !currentAbility || !selectedCard) {
-      console.log('❌ Not in targeting mode - missing:', {
-        isTargeting: !isTargeting ? 'isTargeting' : null,
-        currentAbility: !currentAbility ? 'currentAbility' : null,
-        selectedCard: !selectedCard ? 'selectedCard' : null
-      });
       return;
     }
 
     // Check if target is valid (use instanceId for comparison)
     const targetInstanceId = targetCard.instanceId || targetCard.id;
-    console.log('🔍 Checking target validity:', {
-      targetId: targetInstanceId,
-      validTargets,
-      isValid: validTargets.includes(targetInstanceId)
-    });
 
     if (!validTargets.includes(targetInstanceId)) {
-      console.log('❌ Invalid target - not in valid targets list');
       return;
     }
 
-    console.log('Target selected:', targetCard.name);
 
     // Determine target team
     const targetTeam = playerTeam.some(c => c.id === targetCard.id) ? 'player' : 'enemy';
 
     // Check if this is a Pyroblast spell or any fire spell
-    console.log('🔥 Current ability:', currentAbility);
-    console.log('🔥 Ability name:', currentAbility.name);
-    console.log('🔥 Ability lowercase:', currentAbility.name?.toLowerCase());
 
     const isPyroblast = currentAbility.name?.toLowerCase() === 'pyroblast' ||
                        currentAbility.name?.toLowerCase().includes('pyro') ||
@@ -488,13 +466,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Execute ability with target
     if (moves?.castSpell && isPyroblast) {
-      console.log('🔥 Casting Pyroblast-like spell:', currentAbility.name);
-      console.log('Caster:', selectedCard);
-      console.log('Target:', targetCard);
-      console.log('Target team:', targetTeam);
+
+      // Find the correct ability index for Pyroblast
+      const pyroblastIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'pyroblast' || a.id === 'pyroblast'
+      ) ?? 0;
 
       // Use the new castSpell move for Pyroblast
-      moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+      moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, pyroblastIndex);
 
       // Calculate precise 3D positions for the Pyroblast effect
       const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
@@ -502,7 +481,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         ? aiTeam.findIndex(c => c.id === targetCard.id)
         : playerTeam.findIndex(c => c.id === targetCard.id);
 
-      console.log('Caster index:', casterIndex, 'Target index:', targetIndex);
 
       // Match the exact card positioning from HearthstoneScene
       const isMobile = window.innerWidth <= 768;
@@ -537,8 +515,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           : (actualPlayerID === '0' ? playerZ : aiZ)   // Same team same side
       ];
 
-      console.log('Start position:', startPosition);
-      console.log('End position:', endPosition);
 
       // Add Pyroblast to activeEffects using the safe SimplePyroblast
       const pyroblastEffect = {
@@ -550,8 +526,25 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         duration: 6000  // 6 seconds - longer than turn delay to ensure full animation
       };
 
-      console.log('🎆 Adding SimplePyroblast effect:', pyroblastEffect);
-      setActiveEffects(prev => [...prev, pyroblastEffect]);
+      // Effects are now synced from G.activeEffects for both players
+      // setActiveEffects(prev => [...prev, pyroblastEffect]);
+
+      // Execute the spell move - this will add the effect to G.activeEffects
+      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'pyroblast' || a.id === 'pyroblast'
+      ) ?? 0;
+
+      // Execute the spell move - this will add the effect to G.activeEffects
+
+      if (moves.castSpell) {
+        moves.castSpell(
+          selectedCard.instanceId || selectedCard.id,
+          targetCard.instanceId || targetCard.id,
+          abilityIndex
+        );
+      } else {
+        console.error('❌ moves.castSpell is not available!');
+      }
 
       // Clear targeting state immediately to hide overlay
       setShowTargetingOverlay(false);
@@ -572,8 +565,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }, 100);
 
     } else if (moves?.castSpell && isIceNova) {
-      console.log('❄️ Casting Ice Nova spell:', currentAbility.name);
-      console.log('Caster:', selectedCard);
 
       // Z positions (distance from center - matching HearthstoneScene)
       const playerZ = 5.5;  // Player cards are at z = 5.5
@@ -606,8 +597,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         return [x, y, z];
       });
 
-      console.log('❄️ Ice Nova caster position:', casterPosition);
-      console.log('❄️ Enemy positions:', enemyPositions);
 
       // Add Ice Nova effect
       const iceNovaEffect = {
@@ -620,12 +609,17 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         duration: 8000  // 8 seconds for the full effect
       };
 
-      console.log('❄️ Adding Ice Nova effect:', iceNovaEffect);
-      setActiveEffects(prev => [...prev, iceNovaEffect]);
+      // Effects are now synced from G.activeEffects for both players
+      // setActiveEffects(prev => [...prev, iceNovaEffect]);
+
+      // Find the correct ability index for Ice Nova
+      const iceNovaIndex = selectedCard.abilities?.findIndex(a =>
+        a.name?.toLowerCase() === 'ice nova' || a.id === 'ice_nova'
+      ) ?? 0;
 
       // Execute the spell on first enemy (AOE will hit all)
       if (targetCard && targetCard.health > 0) {
-        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, iceNovaIndex);
       }
 
       // Clear targeting state
@@ -647,9 +641,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }, 100);
 
     } else if (moves?.useAbility) {
-        console.log('🎯 Executing ability:', currentAbility.name);
-        console.log('Source card:', selectedCard.id);
-        console.log('Target card:', targetCard.id);
 
         moves.useAbility({
           sourceCardId: selectedCard.id,
@@ -661,7 +652,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Disabled for now to prevent rendering glitches
       /*
       if (currentAbility.damage || currentAbility.effect === 'damage') {
-        console.log('🎆 Triggering visual effect for ability:', currentAbility.name);
         // Visual effects disabled temporarily to fix rendering issues
       }
       */
@@ -676,7 +666,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }, 100);
     } else if (moves?.playCard) {
         // Fallback to playCard if useAbility doesn't exist
-        console.log('🎯 Using playCard fallback for ability:', currentAbility.name);
         moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
 
       // Clear targeting state with delay
@@ -687,9 +676,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setCurrentAbility(null);
         setValidTargets([]);
       }, 100);
-    } else {
-      console.error('❌ No move available to execute ability!');
-      console.log('Available moves:', Object.keys(moves || {}));
     }
 
     // Show spell notification with proper props
@@ -726,7 +712,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // End turn after ability is used
     setTimeout(() => {
       if (moves?.endTurn) {
-        console.log('Ending turn after ability use');
         moves.endTurn();
       }
     }, 2000); // Wait for animation to complete
@@ -741,13 +726,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     setSelectedCard(null);
   }
 
-  // Clean up effects after their duration
+  // Clean up effects after their duration - simplified to reduce lag
   useEffect(() => {
+    // Only clean up damage numbers, not spell effects (they're managed by G.activeEffects)
     const cleanup = setInterval(() => {
       const now = Date.now();
-      setActiveEffects(prev => prev.filter(e => now - e.id < e.duration));
       setDamageNumbers(prev => prev.filter(d => now - d.id < d.duration));
-    }, 100);
+    }, 2000); // Reduced frequency to minimize re-renders
 
     return () => clearInterval(cleanup);
   }, []);
@@ -874,7 +859,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       <div className="absolute top-4 left-4 z-20">
         <button
           onClick={() => {
-            console.log('🚪 User clicked Back to Menu');
 
             // Notify server that player is leaving
             if (lobbySocket && lobbySocket.connected) {
@@ -920,9 +904,10 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           playerTeam={playerTeam}
           aiTeam={aiTeam}
           isPlayerTurn={isOurTurn}
+          activeEffects={activeEffects}
+          damageNumbers={damageNumbers}
           onEndTurn={() => moves?.endTurn && moves.endTurn()}
           onCardClick={(card) => {
-            console.log('Card clicked in HearthstoneScene:', card);
             if (isTargeting) {
               handleTargetSelect(card);
             }
@@ -963,7 +948,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
               // End turn after attack
               setTimeout(() => {
                 if (moves?.endTurn) {
-                  console.log('Ending turn after attack');
                   moves.endTurn();
                 }
               }, 2000); // Wait for animation
@@ -973,7 +957,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           onTargetSelect={handleTargetSelect}
           isTargeting={isTargeting}
           validTargets={validTargets}
-          activeEffects={activeEffects}
           damageNumbers={damageNumbers}
           isWaiting={!isInPlayingPhase}
           currentPlayer={ctx?.currentPlayer}
@@ -990,16 +973,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           const allCards = [...playerTeam, ...aiTeam];
           return allCards.find(c => (c.instanceId || c.id) === targetInstanceId);
         }).filter(Boolean);
-
-        console.log('🎯 TARGETING OVERLAY RENDER:', {
-          showTargetingOverlay,
-          selectedCard,
-          currentAbility,
-          validTargets,
-          mappedTargets,
-          actualPlayerID,
-          handleTargetSelectExists: typeof handleTargetSelect
-        });
 
         // Show the same overlay for both players
         return (
@@ -1030,16 +1003,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocket, onBattleEnd }) => {
   const [isConnected, setIsConnected] = useState(false);
 
-  console.log('🎮 BoardgamePvP initialized:', {
-    matchID,
-    playerID,
-    credentials: credentials ? 'provided' : 'none',
-    selectedTeam: selectedTeam?.map(t => t.name)
-  });
-
   // Create the client component using useMemo
   const ClientComponent = useMemo(() => {
-    console.log('📱 Creating boardgame.io client for player', playerID);
 
     return Client({
       game: ToyboxGame,
@@ -1066,12 +1031,10 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
   // Handle connection state
   useEffect(() => {
-    console.log('✅ Client component created for player', playerID);
     setIsConnected(true);
 
     // Handle WebGL context loss recovery
     const handleContextLost = (event) => {
-      console.log('⚠️ WebGL Context Lost, attempting recovery');
       event.preventDefault();
       // Force a re-render after a short delay
       setTimeout(() => {
@@ -1081,7 +1044,6 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     };
 
     const handleContextRestored = () => {
-      console.log('✅ WebGL Context Restored');
       setIsConnected(true);
     };
 
@@ -1098,7 +1060,6 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   // Force sync on connection
   useEffect(() => {
     if (isConnected) {
-      console.log('🔄 Connection established for player', playerID);
     }
   }, [isConnected, playerID]);
 

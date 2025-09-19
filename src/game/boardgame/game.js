@@ -51,45 +51,33 @@ const getDefaultPlayerDeck = () => [
 
 // Define setPlayerTeam move function with MANUAL phase transition
 const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
-  console.log(`🎯 setPlayerTeam called`);
-  console.log('Raw playerID parameter:', playerID, 'type:', typeof playerID);
-  console.log('Team parameter received:', team);
-  console.log('ctx.currentPlayer:', ctx.currentPlayer);
-  console.log('ctx.playOrder:', ctx.playOrder);
 
   let actualPlayerID = null;
   let teamCards = team;
 
   // PRIORITY 1: Check if team has submittedBy metadata (from client)
   if (team && typeof team === 'object' && !Array.isArray(team)) {
-    console.log('📦 Team object detected with potential metadata');
 
     if (team.submittedBy !== undefined && team.submittedBy !== null) {
       actualPlayerID = String(team.submittedBy);
-      console.log('✅ Using submittedBy from metadata:', actualPlayerID);
     }
 
     // Extract the actual cards array
     teamCards = team.cards || team;
-    console.log('📋 Extracted cards:', teamCards?.length, 'cards');
   }
 
   // PRIORITY 2: Use ctx.currentPlayer if available and no metadata
   if (!actualPlayerID && ctx.currentPlayer !== null && ctx.currentPlayer !== undefined) {
     actualPlayerID = String(ctx.currentPlayer);
-    console.log('📌 Using ctx.currentPlayer as fallback:', actualPlayerID);
   }
 
   // PRIORITY 3: Infer from game state - which player hasn't set their team yet
   if (!actualPlayerID) {
-    console.log('🔍 Attempting to infer playerID from game state...');
 
     if (!G.players['0'].ready) {
       actualPlayerID = '0';
-      console.log('📌 Inferred Player 0 (not ready yet)');
     } else if (!G.players['1'].ready) {
       actualPlayerID = '1';
-      console.log('📌 Inferred Player 1 (not ready yet)');
     } else {
       console.error('❌ Both players already ready, cannot accept new team');
       console.error('Player states:', {
@@ -100,7 +88,6 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
     }
   }
 
-  console.log('🎯 Final playerID determined:', actualPlayerID);
 
   // Validate team cards
   if (!teamCards || !Array.isArray(teamCards) || teamCards.length === 0) {
@@ -116,11 +103,9 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
 
   // Check if this player already set their team
   if (G.players[actualPlayerID].ready) {
-    console.log('⚠️ Player', actualPlayerID, 'already set their team');
     return G;
   }
 
-  console.log(`🎲 Player ${actualPlayerID} setting team with ${teamCards.length} cards - MatchID:`, ctx?.matchID || G.matchID);
 
   // Transform the selected team into the game format - ensure only serializable data
   const playerCards = teamCards.map((card, index) => {
@@ -191,35 +176,20 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
   // Update the player's cards and mark as ready
   G.players[actualPlayerID].cards = playerCards;
   G.players[actualPlayerID].ready = true;
-  console.log(`✅ Player ${actualPlayerID} team set - Cards:`, playerCards.map(c => c.name), '- MatchID:', ctx?.matchID || G.matchID);
 
   // Check if both players are ready
   const allReady = G.players['0'].ready && G.players['1'].ready;
 
-  console.log('📊 Current ready status after team set:', {
-    player0Ready: G.players['0'].ready,
-    player1Ready: G.players['1'].ready,
-    player0Cards: G.players['0'].cards.length,
-    player1Cards: G.players['1'].cards.length,
-    bothReady: allReady
-  });
-
   if (allReady) {
-    console.log('🎮 BOTH PLAYERS READY - FORCING PHASE TRANSITION!');
-    console.log('  Player 0 cards:', G.players['0'].cards.map(c => c.name));
-    console.log('  Player 1 cards:', G.players['1'].cards.map(c => c.name));
 
     // CRITICAL: Manually transition to playing phase
     if (ctx.phase === 'setup' && events && events.endPhase) {
-      console.log('🚀 Calling events.endPhase() to force transition');
       events.endPhase();
       G.phase = 'playing';
       G.setupComplete = true;
       G.turnNumber = 1;
-      console.log('✅ Phase transitioned to playing - Setup complete!');
     }
   } else {
-    console.log('⏳ Waiting for other player to set team');
   }
 };
 
@@ -274,12 +244,6 @@ const ToyboxGame = {
   name: 'toybox-battle',
 
   setup: (ctx, setupData) => {
-    console.log('🎮 GAME SETUP CALLED');
-    console.log('  Context:', ctx);
-    console.log('  SetupData:', setupData);
-    console.log('  PlayOrder:', ctx?.playOrder);
-    console.log('  NumPlayers:', ctx?.numPlayers);
-    console.log('  MatchID:', setupData?.matchID || 'unknown');
 
     // Initialize players manually since playerSetup might not be working
     const players = {};
@@ -308,11 +272,6 @@ const ToyboxGame = {
       setupComplete: false // Track if setup phase is complete
     };
 
-    console.log('📊 Initial game state created:', {
-      phase: gameState.phase,
-      setupCount: gameState.setupCount,
-      playersReady: Object.values(gameState.players).map(p => p.ready)
-    });
     return gameState;
   },
 
@@ -330,11 +289,7 @@ const ToyboxGame = {
       // REMOVED endIf - using manual phase transition instead
       // This avoids the boardgame.io multiplayer sync timing issue
       onEnd: ({ G, ctx }) => {
-        console.log('✅ Setup phase ended via manual transition - MatchID:', G.matchID);
-        console.log('📊 Transitioning to playing phase');
         if (G.players && G.players['0'] && G.players['1']) {
-          console.log('  Player 0 team:', G.players['0'].cards.map(c => c.name));
-          console.log('  Player 1 team:', G.players['1'].cards.map(c => c.name));
         }
 
         // Mark setup as complete
@@ -445,12 +400,10 @@ const ToyboxGame = {
         }
       }
 
-      console.log(`${attacker.name} attacks ${defender.name}!`);
     },
 
     // Cast spell move for abilities like Pyroblast
     castSpell: ({ G, ctx }, casterId, targetId, abilityIndex = 0) => {
-      console.log('Spell cast initiated!', { casterId, targetId, abilityIndex });
 
       // Get current player's cards
       const playerId = ctx.currentPlayer;
@@ -465,13 +418,11 @@ const ToyboxGame = {
 
       // Check if spell has already been used
       if (ability.used) {
-        console.log('Spell has already been used!');
         return;
       }
 
       // Check mana cost (if mana system is implemented)
       if (player.currentMana !== undefined && player.currentMana < ability.manaCost) {
-        console.log('Not enough mana!');
         return;
       }
 
@@ -488,7 +439,6 @@ const ToyboxGame = {
 
       // Mark spell as used
       ability.used = true;
-      console.log('Marked spell as used:', ability.name);
 
       // Apply spell effect
       if (ability.damage) {
@@ -520,14 +470,10 @@ const ToyboxGame = {
         timestamp: Date.now()
       };
 
-      console.log(`${caster.name} casts ${ability.name} on ${target.name}!`);
     },
 
     // Initialize cards for both players - now works with or without external data
     initializeCards: ({ G, ctx }, customDecks) => {
-      console.log('=== initializeCards Debug ===');
-      console.log('G state before:', G);
-      console.log('customDecks:', customDecks);
 
       // Determine which decks to use
       let playerDeck, aiDeck;
@@ -538,7 +484,6 @@ const ToyboxGame = {
         aiDeck = customDecks.aiTestTeam || customDecks.aiCards || getDefaultAIDeck();
       } else {
         // Use default decks
-        console.log('No custom decks provided, using defaults');
         playerDeck = getDefaultPlayerDeck();
         aiDeck = getDefaultAIDeck();
       }
@@ -571,9 +516,6 @@ const ToyboxGame = {
         owner: 1
       }));
 
-      console.log('Cards initialized successfully!');
-      console.log('Player 0 cards:', G.players['0'].cards);
-      console.log('Player 1 cards:', G.players['1'].cards);
 
       // Important: boardgame.io requires moves to not mutate G directly
       // The framework handles the immutability, but we need to ensure we're working
@@ -582,7 +524,6 @@ const ToyboxGame = {
 
     // Simple start battle move that uses default decks
     startBattle: ({ G, ctx, events, random }) => {
-      console.log('Starting battle with default decks');
 
       // Only initialize if cards don't exist
       if (!G.players['0'].cards.length || !G.players['1'].cards.length) {
@@ -615,9 +556,6 @@ const ToyboxGame = {
           owner: 1
         }));
 
-        console.log('Battle started with default decks!');
-        console.log('Player 0 cards:', G.players['0'].cards);
-        console.log('Player 1 cards:', G.players['1'].cards);
       }
     },
 
@@ -630,7 +568,6 @@ const ToyboxGame = {
 
       const { card, target, ability } = action;
 
-      console.log(`${card.name} uses ${ability.name} on ${target.name}`);
 
       // Apply ability effects
       if (ability.damage && target) {
@@ -681,7 +618,6 @@ const ToyboxGame = {
         return;
       }
 
-      console.log('playCard called with:', { cardId, targetId, abilityIndex });
 
       const player = G.players[ctx.currentPlayer];
       if (!player || !player.cards) {
@@ -697,47 +633,58 @@ const ToyboxGame = {
 
       const card = player.cards.find(c => c.instanceId === cardId);
 
-      console.log('Found card:', card);
-      console.log('Player cards:', player.cards);
 
       if (!card || card.frozen || card.currentHealth <= 0) {
-        console.log('Card not valid:', { card, frozen: card?.frozen, health: card?.currentHealth });
         return;
       }
 
       const ability = card.abilities?.[abilityIndex];
       if (!ability) {
-        console.log('No ability found at index:', abilityIndex);
         return;
       }
 
+
       // No mana cost anymore!
 
-      // Queue animation
+      // Queue animation with visual effect information
+      // Check ability name (normalize to lowercase and remove spaces)
+      const abilityNameLower = (ability.name || ability.id || '').toLowerCase().replace(/\s+/g, '');
+      const effectType = abilityNameLower.includes('pyroblast') ? 'pyroblast' :
+                        abilityNameLower.includes('icenova') ? 'ice_nova' :
+                        abilityNameLower.includes('fireball') ? 'fireball' :
+                        ability.animation || 'default';
+
       G.animationQueue.push({
         type: 'ability',
         caster: card,
         ability: ability,
         target: targetId,
+        effectType: effectType,
         timestamp: Date.now()
       });
+
+      // Also add to activeEffects for visual rendering
+      const newEffect = {
+        id: Date.now(),
+        type: effectType,
+        casterPosition: card.position || [0, 0, 0],
+        targetPosition: targetId ? [0, 0, 0] : null, // Will be calculated on client
+        casterCardId: card.instanceId,
+        targetCardId: targetId,
+        timestamp: Date.now()
+      };
+
+      G.activeEffects.push(newEffect);
 
       // Find target
       let target = null;
       if (targetId) {
         // Check both teams for target
         target = [...player.cards, ...opponent.cards].find(c => c.instanceId === targetId);
-        console.log('Found target:', target);
       }
 
       // Apply ability effects
       if (ability.damage && target) {
-        console.log('Applying damage:', {
-          ability: ability,
-          targetBefore: { ...target },
-          damage: ability.damage
-        });
-
         // Apply damage considering shields
         let actualDamage = ability.damage;
         if (target.shields > 0) {
@@ -748,18 +695,11 @@ const ToyboxGame = {
 
         target.currentHealth -= actualDamage;
 
-        console.log('After damage:', {
-          targetAfter: { ...target },
-          actualDamage: actualDamage,
-          newHealth: target.currentHealth
-        });
-
         // If card dies, move to graveyard
         if (target.currentHealth <= 0) {
           const targetOwner = target.owner;
           G.players[targetOwner].graveyard.push(target);
           G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== target.instanceId);
-          console.log('Target died and moved to graveyard');
         }
       }
 
@@ -900,9 +840,165 @@ const ToyboxGame = {
       });
     },
 
+    // Cast spell move - this is what the frontend actually calls
+    castSpell: ({ G, ctx }, sourceCardId, targetCardId, abilityIndex) => {
+
+      const currentPlayer = ctx.currentPlayer;
+      const player = G.players[currentPlayer];
+      const opponent = G.players[currentPlayer === '0' ? '1' : '0'];
+
+      if (!player || !opponent) {
+        return;
+      }
+
+      // Find card - handle both instanceId and simplified p0-0 format
+      let card = player.cards.find(c => c.instanceId === sourceCardId);
+
+      // If not found by instanceId, try to parse p0-0 format
+      if (!card && sourceCardId.includes('-')) {
+        const parts = sourceCardId.split('-');
+        if (parts[0] === 'p' + currentPlayer) {
+          const cardIndex = parseInt(parts[parts.length - 1]);
+          card = player.cards[cardIndex];
+        }
+      }
+
+      // Also check by id
+      if (!card) {
+        card = player.cards.find(c => c.id === sourceCardId);
+      }
+
+
+      if (!card || card.frozen || card.currentHealth <= 0) {
+        return;
+      }
+
+      // Check if it's the ultimate ability (index 2 usually) or regular ability
+      let ability;
+      if (abilityIndex === 2 && card.ultimateAbility) {
+        ability = card.ultimateAbility;
+      } else {
+        ability = card.abilities?.[abilityIndex];
+      }
+
+      if (!ability) {
+        return;
+      }
+
+
+      // No mana cost anymore!
+
+      // Queue animation with visual effect information
+      // Check ability name (normalize to lowercase and remove spaces)
+      const abilityNameLower = (ability.name || ability.id || '').toLowerCase().replace(/\s+/g, '');
+      const effectType = abilityNameLower.includes('pyroblast') ? 'pyroblast' :
+                        abilityNameLower.includes('icenova') ? 'ice_nova' :
+                        abilityNameLower.includes('fireball') ? 'fireball' :
+                        ability.animation || 'default';
+
+      G.animationQueue.push({
+        type: 'ability',
+        caster: card,
+        ability: ability,
+        target: targetCardId,
+        effectType: effectType,
+        timestamp: Date.now()
+      });
+
+      // Add to activeEffects for visual rendering with unique ID
+      const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newEffect = {
+        id: effectId,
+        type: effectType,
+        casterPosition: card.position || [0, 0, 0],
+        targetPosition: targetCardId ? [0, 0, 0] : null, // Will be calculated on client
+        casterCardId: card.instanceId,
+        targetCardId: targetCardId,
+        timestamp: Date.now()
+      };
+
+      G.activeEffects.push(newEffect);
+
+      // Note: Server-side cleanup is handled in clearExpiredEffects move
+      // Don't use setTimeout as it causes proxy revocation errors
+
+      // Find target
+      let target = null;
+      if (targetCardId) {
+        // First try to find by instanceId
+        target = [...player.cards, ...opponent.cards].find(c => c.instanceId === targetCardId);
+
+        // If not found, try p0-0 format
+        if (!target && targetCardId.includes('-')) {
+          const parts = targetCardId.split('-');
+          if (parts[0] === 'p0' || parts[0] === 'p1') {
+            const playerIndex = parts[0].substring(1);
+            const cardIndex = parseInt(parts[parts.length - 1]);
+            const targetPlayer = G.players[playerIndex];
+            if (targetPlayer && targetPlayer.cards[cardIndex]) {
+              target = targetPlayer.cards[cardIndex];
+            }
+          }
+        }
+
+      }
+
+      // Apply ability effects
+      if (ability.damage && target) {
+        // Apply damage considering shields
+        let actualDamage = ability.damage;
+        if (target.shields > 0) {
+          const absorbed = Math.min(target.shields, actualDamage);
+          actualDamage -= absorbed;
+          target.shields -= absorbed;
+        }
+
+        target.currentHealth -= actualDamage;
+
+        // If card dies, move to graveyard
+        if (target.currentHealth <= 0) {
+          const targetOwner = target.owner;
+          G.players[targetOwner].graveyard.push(target);
+          G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== target.instanceId);
+        }
+      }
+
+      if (ability.heal && target) {
+        target.currentHealth = Math.min(target.currentHealth + ability.heal, target.maxHealth);
+      }
+
+      if (ability.freeze && target) {
+        target.frozen = true;
+        target.frozenTurns = 2; // Frozen for 2 turns
+
+        G.animationQueue.push({
+          type: 'freeze',
+          target: target,
+          timestamp: Date.now()
+        });
+      }
+
+      if (ability.shield) {
+        const shieldTarget = target || card;
+        shieldTarget.shields += ability.shield;
+
+        G.animationQueue.push({
+          type: 'shield',
+          target: shieldTarget,
+          amount: ability.shield,
+          timestamp: Date.now()
+        });
+      }
+
+      // Mark ability as used
+      if (!card.usedAbilities) card.usedAbilities = [];
+      card.usedAbilities.push(ability.id || ability.name);
+
+    },
+
+
     // Use ability move
     useAbility: ({ G, ctx, events }, { sourceCardId, abilityIndex, targetCardId }) => {
-      console.log('🎯 useAbility called:', { sourceCardId, abilityIndex, targetCardId });
 
       const currentPlayerID = ctx.currentPlayer;
       const opponentID = currentPlayerID === '0' ? '1' : '0';
@@ -910,18 +1006,15 @@ const ToyboxGame = {
       // Find source card
       const sourceCard = G.players[currentPlayerID].cards.find(c => c.id === sourceCardId);
       if (!sourceCard || !sourceCard.isAlive) {
-        console.log('Source card not found or dead');
         return;
       }
 
       // Get ability
       const ability = sourceCard.abilities?.[abilityIndex];
       if (!ability) {
-        console.log('Ability not found');
         return;
       }
 
-      console.log(`${sourceCard.name} uses ${ability.name}!`);
 
       // Handle different ability effects
       if (ability.damage && targetCardId) {
@@ -935,9 +1028,7 @@ const ToyboxGame = {
           targetCard.currentHealth = Math.max(0, targetCard.currentHealth - ability.damage);
           if (targetCard.currentHealth <= 0) {
             targetCard.isAlive = false;
-            console.log(`${targetCard.name} was defeated!`);
           }
-          console.log(`${targetCard.name} takes ${ability.damage} damage! (${targetCard.currentHealth}/${targetCard.maxHealth})`);
         }
       }
 
@@ -946,7 +1037,6 @@ const ToyboxGame = {
         const targetCard = G.players[currentPlayerID].cards.find(c => c.id === targetCardId);
         if (targetCard && targetCard.isAlive) {
           targetCard.currentHealth = Math.min(targetCard.maxHealth, targetCard.currentHealth + ability.heal);
-          console.log(`${targetCard.name} heals for ${ability.heal}! (${targetCard.currentHealth}/${targetCard.maxHealth})`);
         }
       }
 
@@ -962,7 +1052,6 @@ const ToyboxGame = {
       G.turnNumber++;
 
       // Note: Don't end turn here - let the client handle that
-      console.log('Ability executed successfully');
     },
 
     // Clear processed animations
@@ -970,9 +1059,41 @@ const ToyboxGame = {
       G.animationQueue = [];
     },
 
+    // Clear expired visual effects - only allow current player to call this
+    clearExpiredEffects: ({ G, ctx }) => {
+      // Only allow the current player to clear effects to prevent spam
+      if (!ctx || ctx.currentPlayer === undefined) {
+        return;
+      }
+
+      const now = Date.now();
+      const EFFECT_DURATION = 8000; // 8 seconds to match client timing
+
+      const initialCount = G.activeEffects.length;
+      G.activeEffects = G.activeEffects.filter(effect =>
+        now - effect.timestamp < EFFECT_DURATION
+      );
+
+      const clearedCount = initialCount - G.activeEffects.length;
+      if (clearedCount > 0) {
+      }
+    },
+
     // End turn manually
     endTurn: ({ G, ctx, events }) => {
-      console.log('End turn called for player', ctx.currentPlayer);
+
+      // Clean up expired effects when turn ends
+      const now = Date.now();
+      const EFFECT_DURATION = 8000; // 8 seconds
+      const initialCount = G.activeEffects.length;
+
+      G.activeEffects = G.activeEffects.filter(effect =>
+        now - effect.timestamp < EFFECT_DURATION
+      );
+
+      if (initialCount > G.activeEffects.length) {
+      }
+
       // Use boardgame.io's events to properly end the turn
       if (events && events.endTurn) {
         events.endTurn();
@@ -981,7 +1102,6 @@ const ToyboxGame = {
 
     // Handle player leaving the match
     leaveMatch: ({ G, ctx, events }) => {
-      console.log('🚪 Player', ctx.currentPlayer, 'left the game - Resetting');
 
       // End game with opponent as winner
       const winner = ctx.currentPlayer === '0' ? '1' : '0';
