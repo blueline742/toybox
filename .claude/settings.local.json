@@ -71,7 +71,9 @@
       "Bash(cmd /c:*)",
       "Bash(netlify deploy:*)",
       "Bash(npx netlify-cli deploy:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npx netlify-cli:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []
