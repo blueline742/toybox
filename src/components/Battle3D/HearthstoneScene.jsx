@@ -747,7 +747,7 @@ const HearthstoneScene = ({
         shadows
         camera={{
           position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10], // Good angle to see table and cards
-          fov: window.innerWidth <= 768 ? 50 : 50, // Good FOV for tabletop view
+          fov: window.innerWidth <= 768 ? 65 : 50, // Wider FOV on mobile for better visibility
           near: 0.1,
           far: 1000
         }}
