@@ -10,7 +10,9 @@ import HybridCard3D from './HybridCard3D';
 // Import effects
 import FireballEffect from '../effects/FireballEffect';
 import PyroblastEffect from './effects/Pyroblast';
-import EnhancedPyroblast from './effects/EnhancedPyroblast';
+import SimplePyroblast from './effects/SimplePyroblast';
+import EnhancedPyroblastV2 from './effects/EnhancedPyroblastV2';
+import IceNovaEffect, { FrozenOverlay } from './effects/IceNovaEffect';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
@@ -675,9 +677,14 @@ const HearthstoneBattleArena = ({
             case 'fireball':
               return <FireballEffect key={index} {...effect} />;
             case 'pyroblast':
-              console.log('🔥 Rendering Enhanced Pyroblast effect with props:', effect);
-              return <EnhancedPyroblast
-                key={index}
+              console.log('🔥 Rendering EnhancedPyroblastV2 with drei components');
+              if (!effect.startPosition || !effect.endPosition) {
+                console.warn('Invalid positions for Pyroblast effect');
+                return null;
+              }
+              // Use EnhancedPyroblastV2 for better visuals
+              return <EnhancedPyroblastV2
+                key={`pyroblast-${effect.id}`}
                 startPosition={effect.startPosition}
                 endPosition={effect.endPosition}
                 onComplete={() => {
@@ -690,6 +697,27 @@ const HearthstoneBattleArena = ({
               return <ExplosionEffect key={index} {...effect} />;
             case 'healing':
               return <HealingEffect key={index} {...effect} />;
+            case 'ice_nova':
+              console.log('❄️ Rendering Ice Nova effect');
+              return <IceNovaEffect
+                key={`ice-nova-${effect.id}`}
+                casterPosition={effect.casterPosition}
+                targetPositions={effect.targetPositions}
+                onComplete={() => {
+                  console.log('Ice Nova animation complete');
+                }}
+                onHitTarget={(index, position) => {
+                  console.log('❄️ Ice Nova hit target at index:', index, 'position:', position);
+                  // Could add frozen overlay here if needed
+                }}
+              />;
+            case 'frozen':
+              console.log('❄️ Rendering Frozen overlay');
+              return <FrozenOverlay
+                key={`frozen-${effect.id}`}
+                position={effect.position}
+                duration={effect.duration || 10000}
+              />;
             default:
               return null;
           }
@@ -809,21 +837,19 @@ const HearthstoneScene = ({
             // No azimuth limits - can rotate 360°
           />
 
-          {/* Post-processing effects for dramatic spell visuals - DISABLED for debugging */}
-          {false && pyroblastActive && (
+          {/* Post-processing effects for dramatic spell visuals */}
+          {activeEffects && activeEffects.some(e => e.type === 'pyroblast' || e.type === 'ice_nova') && (
             <EffectComposer>
+              <Bloom
+                intensity={1.5}
+                luminanceThreshold={0.2}
+                luminanceSmoothing={0.9}
+                height={300}
+              />
               <Vignette
                 eskil={false}
                 offset={0.1}
-                darkness={1.2}
-              />
-              <Bloom
-                intensity={1.5}
-                luminanceThreshold={0.5}
-                luminanceSmoothing={0.7}
-              />
-              <ChromaticAberration
-                offset={[0.002, 0.002]}
+                darkness={0.8}
               />
             </EffectComposer>
           )}

@@ -294,26 +294,45 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Delay to make it feel more natural
     setTimeout(() => {
-      // Select a random ability from the card
+      // Select an ability from the card based on weighted chances
       const abilities = activeCard.abilities || [];
       if (abilities.length > 0) {
-        const randomAbility = abilities[Math.floor(Math.random() * abilities.length)];
+        let selectedAbility;
 
-        console.log('🎲 Selected ability:', randomAbility.name);
+        // Special handling for Wizard Toy with weighted spell selection
+        if (activeCard.name === 'Wizard Toy') {
+          const rand = Math.random();
+          if (rand < 0.50) {
+            // 50% chance for Ice Nova
+            selectedAbility = abilities.find(a => a.id === 'ice_nova') || abilities[2];
+          } else if (rand < 0.75) {
+            // 25% chance for Pyroblast
+            selectedAbility = abilities.find(a => a.id === 'pyroblast') || abilities[0];
+          } else {
+            // 25% chance for Lightning Zap (Chain Lightning)
+            selectedAbility = abilities.find(a => a.id === 'lightning_zap') || abilities[1];
+          }
+        } else {
+          // Use default random selection for other characters
+          selectedAbility = abilities[Math.floor(Math.random() * abilities.length)];
+        }
+
+        console.log('🎲 Selected ability:', selectedAbility.name,
+                   activeCard.name === 'Wizard Toy' ? '(Wizard weighted selection)' : '');
         setSelectedCard(activeCard);
-        setCurrentAbility(randomAbility);
+        setCurrentAbility(selectedAbility);
 
         // Show spell notification for the selected ability
         setSpellNotification({
-          ability: randomAbility,
+          ability: selectedAbility,
           caster: activeCard,
           targets: []
         });
 
         // Determine valid targets based on ability
-        const targets = randomAbility.targetType === 'enemy'
+        const targets = selectedAbility.targetType === 'enemy'
           ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
-          : randomAbility.targetType === 'friendly'
+          : selectedAbility.targetType === 'friendly'
           ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0 && c.id !== activeCard.id)
           : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
@@ -352,7 +371,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Check if this is Pyroblast or another targeted spell
     const isPyroblast = ability.name?.toLowerCase() === 'pyroblast';
-    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || isPyroblast;
+    const isIceNova = ability.name?.toLowerCase() === 'ice nova' || ability.effect === 'freeze_all';
+    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || isPyroblast || isIceNova;
 
     // Handle different ability types
     if (requiresTarget) {
@@ -364,14 +384,22 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       setSelectedCard(card);
 
       // Determine valid targets based on ability
-      const targets = ability.targetType === 'enemy'
-        ? aiTeam.filter(c => c.health > 0)
+      // Ice Nova targets all enemies but still needs target selection
+      const targets = isIceNova
+        ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0) // Ice Nova always targets all enemies
+        : ability.targetType === 'enemy'
+        ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
         : ability.targetType === 'friendly'
-        ? playerTeam.filter(c => c.health > 0 && c.id !== card.id)
-        : [...playerTeam, ...aiTeam].filter(c => c.health > 0);
+        ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0 && c.id !== card.id)
+        : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
       setValidTargets(targets.map(c => c.instanceId || c.id));
-      console.log('Valid targets:', targets.map(c => ({ name: c.name, instanceId: c.instanceId || c.id })));
+      console.log('Valid targets for', ability.name, ':', targets.map(c => ({
+        name: c.name,
+        id: c.id,
+        instanceId: c.instanceId,
+        health: c.health || c.currentHealth
+      })));
     } else {
       // Instant ability - no target needed
       if (moves?.useAbility) {
@@ -410,21 +438,33 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Handle target selection
   const handleTargetSelect = (targetCard) => {
     console.log('🎯 handleTargetSelect called with:', targetCard);
-    console.log('Current state:', { isTargeting, currentAbility, selectedCard });
+    console.log('Current state:', {
+      isTargeting,
+      currentAbility: currentAbility ? currentAbility.name : null,
+      selectedCard: selectedCard ? selectedCard.name : null,
+      validTargets
+    });
     console.log('Available moves:', moves ? Object.keys(moves) : 'no moves');
 
     if (!isTargeting || !currentAbility || !selectedCard) {
-      console.log('Not in targeting mode');
-      console.log('isTargeting:', isTargeting, 'currentAbility:', currentAbility, 'selectedCard:', selectedCard);
+      console.log('❌ Not in targeting mode - missing:', {
+        isTargeting: !isTargeting ? 'isTargeting' : null,
+        currentAbility: !currentAbility ? 'currentAbility' : null,
+        selectedCard: !selectedCard ? 'selectedCard' : null
+      });
       return;
     }
 
     // Check if target is valid (use instanceId for comparison)
     const targetInstanceId = targetCard.instanceId || targetCard.id;
+    console.log('🔍 Checking target validity:', {
+      targetId: targetInstanceId,
+      validTargets,
+      isValid: validTargets.includes(targetInstanceId)
+    });
+
     if (!validTargets.includes(targetInstanceId)) {
-      console.log('Invalid target');
-      console.log('Valid targets:', validTargets);
-      console.log('Target card instanceId:', targetInstanceId);
+      console.log('❌ Invalid target - not in valid targets list');
       return;
     }
 
@@ -441,6 +481,10 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     const isPyroblast = currentAbility.name?.toLowerCase() === 'pyroblast' ||
                        currentAbility.name?.toLowerCase().includes('pyro') ||
                        currentAbility.name?.toLowerCase().includes('fire');
+
+    const isIceNova = currentAbility.name?.toLowerCase() === 'ice nova' ||
+                      currentAbility.name?.toLowerCase().includes('frost') ||
+                      currentAbility.name?.toLowerCase().includes('ice');
 
     // Execute ability with target
     if (moves?.castSpell && isPyroblast) {
@@ -496,48 +540,103 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       console.log('Start position:', startPosition);
       console.log('End position:', endPosition);
 
-      // Add Pyroblast to activeEffects for rendering
+      // Add Pyroblast to activeEffects using the safe SimplePyroblast
       const pyroblastEffect = {
         id: Date.now(),
         type: 'pyroblast',
         startPosition: startPosition,
         endPosition: endPosition,
         active: true,
-        duration: 2500
+        duration: 6000  // 6 seconds - longer than turn delay to ensure full animation
       };
 
-      console.log('🎆 Adding Pyroblast effect:', pyroblastEffect);
-      console.log('🎆 Start:', startPosition, 'End:', endPosition);
-
-      setActiveEffects(prev => {
-          const newEffects = [...prev, pyroblastEffect];
-        console.log('🎆 Updated activeEffects array:', newEffects);
-        console.log('🎆 Total effects:', newEffects.length);
-          return newEffects;
-        });
+      console.log('🎆 Adding SimplePyroblast effect:', pyroblastEffect);
+      setActiveEffects(prev => [...prev, pyroblastEffect]);
 
       // Clear targeting state immediately to hide overlay
       setShowTargetingOverlay(false);
 
-      // Trigger the enhanced Pyroblast effect with a small delay
-      setTimeout(() => {
-        console.log('🎆 Setting pyroblastActive to true');
-        setPyroblastActive(true);
-        setPyroblastCaster(selectedCard);
-        setPyroblastTarget(targetCard);
-        console.log('🎆 Pyroblast state updated:', {
-          active: true,
-          caster: selectedCard.name,
-          target: targetCard.name
-        });
-      }, 50);
+      // Add spell notification
+      setSpellNotification({
+        ability: { name: 'Pyroblast', damage: 35, description: 'Massive fireball!' },
+        caster: selectedCard,
+        targets: [targetCard]
+      });
 
-      // Clear after effect duration
+      // Clear remaining targeting state
       setTimeout(() => {
-        setPyroblastActive(false);
-        setPyroblastCaster(null);
-        setPyroblastTarget(null);
-      }, 2550);
+        setIsTargeting(false);
+        setSelectedCard(null);
+        setCurrentAbility(null);
+        setValidTargets([]);
+      }, 100);
+
+    } else if (moves?.castSpell && isIceNova) {
+      console.log('❄️ Casting Ice Nova spell:', currentAbility.name);
+      console.log('Caster:', selectedCard);
+
+      // Z positions (distance from center - matching HearthstoneScene)
+      const playerZ = 5.5;  // Player cards are at z = 5.5
+      const aiZ = -5.5;     // AI cards are at z = -5.5
+
+      // Ice Nova is AOE - hits all enemies
+      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
+      const isPlayerCasting = casterIndex !== -1;
+
+      // Calculate caster position
+      const casterX = isPlayerCasting
+        ? (casterIndex - 1.5) * 2  // Player positions
+        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2; // AI positions
+
+      const casterY = 0.5;
+      const casterZ = isPlayerCasting
+        ? (actualPlayerID === '0' ? playerZ : aiZ)
+        : (actualPlayerID === '0' ? aiZ : playerZ);
+
+      const casterPosition = [casterX, casterY, casterZ];
+
+      // Get all enemy positions
+      const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
+      const enemyPositions = enemyTeam.filter(c => c.health > 0).map((card, index) => {
+        const x = (index - 1.5) * 2;
+        const y = 0.5;
+        const z = isPlayerCasting
+          ? (actualPlayerID === '0' ? aiZ : playerZ)
+          : (actualPlayerID === '0' ? playerZ : aiZ);
+        return [x, y, z];
+      });
+
+      console.log('❄️ Ice Nova caster position:', casterPosition);
+      console.log('❄️ Enemy positions:', enemyPositions);
+
+      // Add Ice Nova effect
+      const iceNovaEffect = {
+        id: Date.now(),
+        type: 'ice_nova',
+        casterPosition: casterPosition,
+        targetPositions: enemyPositions,
+        enemyCardIds: enemyTeam.filter(c => c.health > 0).map(c => c.id),
+        active: true,
+        duration: 8000  // 8 seconds for the full effect
+      };
+
+      console.log('❄️ Adding Ice Nova effect:', iceNovaEffect);
+      setActiveEffects(prev => [...prev, iceNovaEffect]);
+
+      // Execute the spell on first enemy (AOE will hit all)
+      if (targetCard && targetCard.health > 0) {
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+      }
+
+      // Clear targeting state
+      setShowTargetingOverlay(false);
+
+      // Add spell notification
+      setSpellNotification({
+        ability: { name: 'Ice Nova', description: 'Freezing wave!' },
+        caster: selectedCard,
+        targets: enemyTeam.filter(e => e.health > 0)
+      });
 
       // Clear remaining targeting state
       setTimeout(() => {

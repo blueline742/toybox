@@ -669,7 +669,7 @@ const ToyboxGame = {
       if (events && events.endTurn) {
         setTimeout(() => {
           events.endTurn();
-        }, 2000); // Wait 2 seconds to show the action
+        }, 5000); // Wait 5 seconds to show spell animations (especially Pyroblast)
       }
     },
 

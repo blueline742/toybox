@@ -92,20 +92,24 @@ const PvPTeamSelect = ({ onTeamSelected, onBack, maxTeamSize = 4 }) => {
       return
     }
 
-    // Check if this character is already animating
-    if (animatingCharacters.has(character.nftId)) {
-      return // Prevent double animation
-    }
+    // Don't check for animating since we allow duplicates
 
     // Play card selection sound
     const selectSound = new Audio('/selectcard.wav')
     selectSound.volume = 0.3
     selectSound.play().catch(err => console.log('Could not play select sound:', err))
 
-    if (selectedTeam.find(c => c.nftId === character.nftId)) {
-      // Remove from team
-      setSelectedTeam(prev => prev.filter(c => c.nftId !== character.nftId))
-      setIsConfirming(false)
+    // Allow selecting same character multiple times
+    // Count how many times this character is already selected
+    const currentCount = selectedTeam.filter(c => c.name === character.name).length;
+
+    // If clicking an already selected character and team is full, remove the first instance
+    if (currentCount > 0 && selectedTeam.length >= maxTeamSize) {
+      const indexToRemove = selectedTeam.findIndex(c => c.name === character.name);
+      if (indexToRemove !== -1) {
+        setSelectedTeam(prev => prev.filter((c, idx) => idx !== indexToRemove));
+        setIsConfirming(false);
+      }
     } else if (selectedTeam.length < maxTeamSize) {
       // Get position for animation
       const cardElement = cardRefs.current[character.nftId]
@@ -145,7 +149,13 @@ const PvPTeamSelect = ({ onTeamSelected, onBack, maxTeamSize = 4 }) => {
   }
 
   const addToTeam = (character) => {
-    setSelectedTeam(prev => [...prev, character])
+    // Create a unique instance for duplicates
+    const characterInstance = {
+      ...character,
+      instanceId: `${character.nftId}_${Date.now()}_${Math.random()}`, // Unique instance ID
+      nftId: character.nftId // Keep original for visual identification
+    }
+    setSelectedTeam(prev => [...prev, characterInstance])
     if (selectedTeam.length === maxTeamSize - 1) {
       setIsConfirming(true)
     }
@@ -278,7 +288,9 @@ const PvPTeamSelect = ({ onTeamSelected, onBack, maxTeamSize = 4 }) => {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                 {characters.map(character => {
-                  const isSelected = selectedTeam.find(c => c.nftId === character.nftId)
+                  // Count how many times this character is selected
+                  const selectionCount = selectedTeam.filter(c => c.name === character.name).length
+                  const isSelected = selectionCount > 0
                   const isAvailable = character.owned
 
                   const isAnimating = animatingCharacters.has(character.nftId)
@@ -318,10 +330,10 @@ const PvPTeamSelect = ({ onTeamSelected, onBack, maxTeamSize = 4 }) => {
                             </div>
                           )}
 
-                          {/* Selected indicator */}
+                          {/* Selected indicator with count */}
                           {isSelected && (
                             <div className="absolute top-2 right-2 bg-green-500 text-white text-sm px-3 py-1 rounded-full font-bold shadow-lg">
-                              ✓
+                              {selectionCount > 1 ? selectionCount : '✓'}
                             </div>
                           )}
 

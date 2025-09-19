@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Trail, Sparkles, Billboard, Float } from '@react-three/drei';
+import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 const EnhancedPyroblast = ({
@@ -11,10 +11,21 @@ const EnhancedPyroblast = ({
   targetCard
 }) => {
   const fireballRef = useRef();
-  const trailRef = useRef();
   const [progress, setProgress] = useState(0);
   const [isExploding, setIsExploding] = useState(false);
-  const [trailPositions, setTrailPositions] = useState([startPosition]);
+
+  // Log when component mounts
+  useEffect(() => {
+    console.log('🎆 EnhancedPyroblast mounted with:', {
+      startPosition,
+      endPosition,
+      casterCard: casterCard?.name,
+      targetCard: targetCard?.name
+    });
+    return () => {
+      console.log('🎆 EnhancedPyroblast unmounting');
+    };
+  }, []);
 
   // Create a curve for the projectile path
   const curve = React.useMemo(() => {
@@ -57,9 +68,6 @@ const EnhancedPyroblast = ({
       const scale = 1 + Math.sin(state.clock.elapsedTime * 10) * 0.2;
       fireballRef.current.scale.setScalar(scale);
     }
-
-    // Update trail
-    setTrailPositions(prev => [...prev.slice(-20), [point.x, point.y, point.z]]);
   });
 
   return (
@@ -100,14 +108,13 @@ const EnhancedPyroblast = ({
             />
           </mesh>
 
-          {/* Orbiting particles */}
+          {/* Orbiting particles - Reduced for performance */}
           <Sparkles
-            count={30}
+            count={15}
             scale={1.5}
-            size={3}
-            speed={2}
+            size={2}
+            speed={1}
             color="#ff6600"
-            opacity={0.8}
           />
 
           {/* Point light for dynamic lighting */}
@@ -120,16 +127,7 @@ const EnhancedPyroblast = ({
         </group>
       )}
 
-      {/* Fire Trail */}
-      {trailPositions.length > 1 && !isExploding && (
-        <Trail
-          width={2}
-          length={10}
-          color={new THREE.Color('#ff6600')}
-          attenuation={(width) => width * width}
-          positions={trailPositions}
-        />
-      )}
+      {/* Fire Trail - Removed to fix rendering issues */}
 
       {/* Explosion Effect */}
       {isExploding && (
@@ -145,14 +143,13 @@ const EnhancedPyroblast = ({
             />
           </mesh>
 
-          {/* Explosion particles */}
+          {/* Explosion particles - Reduced for performance */}
           <Sparkles
-            count={100}
-            scale={4}
-            size={6}
-            speed={5}
+            count={50}
+            scale={3}
+            size={4}
+            speed={3}
             color="#ff6600"
-            opacity={0.9}
           />
 
           {/* Explosion light */}
@@ -165,19 +162,7 @@ const EnhancedPyroblast = ({
         </group>
       )}
 
-      {/* Ambient particles along the path */}
-      {!isExploding && progress > 0.1 && (
-        <group position={fireballRef.current?.position || startPosition}>
-          <Sparkles
-            count={20}
-            scale={2}
-            size={2}
-            speed={1}
-            color="#ffaa00"
-            opacity={0.5}
-          />
-        </group>
-      )}
+      {/* Ambient particles along the path - Removed to fix rendering issues */}
     </>
   );
 };
