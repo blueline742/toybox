@@ -171,8 +171,9 @@ io.on('connection', (socket) => {
       const battleId = await createBoardgameMatch();
 
       // CRITICAL: Create match on boardgame server first!
+      const boardgameServerUrl = process.env.BOARDGAME_SERVER_URL || 'http://localhost:4001';
       try {
-        const createResponse = await fetch('http://localhost:4001/create-match', {
+        const createResponse = await fetch(`${boardgameServerUrl}/create-match`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matchID: battleId, numPlayers: 2 })
@@ -423,7 +424,8 @@ io.on('connection', (socket) => {
 
         // Notify boardgame server to end the match
         if (matchID) {
-          fetch(`http://localhost:4001/match/${matchID}`, {
+          const boardgameServerUrl = process.env.BOARDGAME_SERVER_URL || 'http://localhost:4001';
+          fetch(`${boardgameServerUrl}/match/${matchID}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -525,8 +527,9 @@ io.on('connection', (socket) => {
 // Helper functions
 // Create boardgame.io match on-demand
 async function createBoardgameMatch() {
+  const boardgameApiUrl = process.env.BOARDGAME_API_URL || 'http://localhost:4000';
   try {
-    const response = await fetch('http://localhost:4000/games/toybox-battle/create', {
+    const response = await fetch(`${boardgameApiUrl}/games/toybox-battle/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -553,8 +556,9 @@ async function createBoardgameMatch() {
 
 // Join player to boardgame.io match
 async function joinBoardgameMatch(matchId, playerId, playerName) {
+  const boardgameApiUrl = process.env.BOARDGAME_API_URL || 'http://localhost:4000';
   try {
-    const response = await fetch(`http://localhost:4000/games/toybox-battle/${matchId}/join`, {
+    const response = await fetch(`${boardgameApiUrl}/games/toybox-battle/${matchId}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
