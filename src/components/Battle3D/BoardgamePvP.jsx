@@ -5,13 +5,15 @@ import { ToyboxGame } from '../../game/boardgame/game';
 import HearthstoneScene from './HearthstoneScene';
 import TargetingOverlay from './TargetingOverlay';
 import SpellNotification from '../SpellNotification';
+import assetPreloader from '../../utils/AssetPreloader';
 
 // Create the board component that renders the 3D scene
 const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTeam, credentials, isConnected, lobbySocket, matchID, ...otherProps }) => {
   // Extract playerID from otherProps if not directly provided
   const actualPlayerID = playerID || otherProps.playerID || ctx?.currentPlayer || '0';
 
-
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   // REMOVED: local team state - now using G.players directly
   const [activeEffects, setActiveEffects] = useState([]);
@@ -53,6 +55,46 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const bothPlayersConnected = ctx?.playOrder?.length === 2;
   // Only allow moves if game is initialized, not game over, and we haven't set our team yet
   const canSelectTeam = isInMatch && bothPlayersConnected && !ctx?.gameover && G?.phase !== 'playing' && !G?.players?.[actualPlayerID]?.ready;
+
+  // Preload critical PvP assets when component mounts
+  useEffect(() => {
+    // Check if assets are already loaded from initial load
+    if (assetPreloader.assets.images.size > 0) {
+      // Assets already loaded from app initialization
+      setAssetsLoaded(true);
+      return;
+    }
+
+    // Load only critical PvP assets if not already loaded
+    const loadPvPAssets = async () => {
+      const criticalAssets = [
+        // NFT Battle Cards - Critical for PvP
+        { type: 'image', name: 'nft_robot', src: '/assets/nft/newnft/robotnft.png' },
+        { type: 'image', name: 'nft_wizard', src: '/assets/nft/newnft/wizardnft.png' },
+        { type: 'image', name: 'nft_archwizard', src: '/assets/nft/newnft/archwizardnft.png' },
+        { type: 'image', name: 'nft_duckie', src: '/assets/nft/newnft/duckienft.png' },
+        { type: 'image', name: 'nft_brickdude', src: '/assets/nft/newnft/brickdudenft.png' },
+        { type: 'image', name: 'nft_windup', src: '/assets/nft/newnft/winduptoynft.png' },
+        { type: 'image', name: 'nft_dino', src: '/assets/nft/newnft/dinonft.png' },
+        { type: 'image', name: 'nft_voodoo', src: '/assets/nft/newnft/voodoonft.png' },
+        { type: 'image', name: 'nft_cardback', src: '/assets/nft/newnft/cardback.png' }
+      ];
+
+      // Track progress
+      assetPreloader.onProgress((progress) => {
+        setLoadingProgress(progress);
+      });
+
+      assetPreloader.onLoadComplete(() => {
+        setAssetsLoaded(true);
+        console.log('✅ PvP assets loaded and ready');
+      });
+
+      await assetPreloader.loadAssets(criticalAssets);
+    };
+
+    loadPvPAssets();
+  }, []);
 
   // Helper function to wait for server authentication
   const waitForAuthentication = async (attemptCount = 0) => {
@@ -981,6 +1023,23 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Render the main battle UI
   return (
     <div className="relative w-full h-full bg-gradient-to-b from-blue-900 to-purple-900">
+      {/* Asset Loading Screen */}
+      {!assetsLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 bg-gradient-to-b from-blue-900 to-purple-900">
+          <div className="text-center">
+            <div className="text-6xl mb-4 animate-bounce">🎮</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Loading Battle Assets...</h2>
+            <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden mx-auto">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full transition-all duration-300"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+            <p className="text-white/70 text-sm mt-2">Optimizing for smooth gameplay...</p>
+          </div>
+        </div>
+      )}
+
       {/* Turn Indicator */}
       {!ctx?.gameover && bothPlayersReady && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30">

@@ -311,6 +311,17 @@ class AssetPreloader {
 
 // Define game assets to preload - Only include assets that actually exist
 export const gameAssets = [
+  // NFT Battle Cards - Critical for PvP performance
+  { type: 'image', name: 'nft_robot', src: '/assets/nft/newnft/robotnft.png' },
+  { type: 'image', name: 'nft_wizard', src: '/assets/nft/newnft/wizardnft.png' },
+  { type: 'image', name: 'nft_archwizard', src: '/assets/nft/newnft/archwizardnft.png' },
+  { type: 'image', name: 'nft_duckie', src: '/assets/nft/newnft/duckienft.png' },
+  { type: 'image', name: 'nft_brickdude', src: '/assets/nft/newnft/brickdudenft.png' },
+  { type: 'image', name: 'nft_windup', src: '/assets/nft/newnft/winduptoynft.png' },
+  { type: 'image', name: 'nft_dino', src: '/assets/nft/newnft/dinonft.png' },
+  { type: 'image', name: 'nft_voodoo', src: '/assets/nft/newnft/voodoonft.png' },
+  { type: 'image', name: 'nft_cardback', src: '/assets/nft/newnft/cardback.png' },
+
   // Character/Toy images that exist
   { type: 'image', name: 'robot', src: '/assets/robot.png' },
   { type: 'image', name: 'mechadino', src: '/mechadinopp.jpg' },
