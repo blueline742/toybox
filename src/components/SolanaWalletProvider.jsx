@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
@@ -16,6 +16,39 @@ export function SolanaWalletProvider({ children }) {
   // Use devnet for development
   const network = WalletAdapterNetwork.Devnet
   const endpoint = useMemo(() => clusterApiUrl(network), [network])
+
+  // Prevent wallet disconnection from causing page reload on mobile
+  useEffect(() => {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // Override window.location to prevent accidental reloads
+      const originalLocation = window.location;
+      const locationProxy = new Proxy(originalLocation, {
+        set(target, prop, value) {
+          if (prop === 'href' || prop === 'pathname') {
+            console.warn('Prevented page navigation during PvP battle:', prop, value);
+            // Only allow navigation to root from error states
+            if (value === '/' && window.location.pathname.includes('battle')) {
+              return true; // Block navigation during battles
+            }
+          }
+          return Reflect.set(target, prop, value);
+        }
+      });
+
+      // Prevent reload() calls
+      const originalReload = window.location.reload;
+      window.location.reload = function(...args) {
+        console.warn('Prevented page reload on mobile during gameplay');
+        // Don't actually reload
+        return false;
+      };
+
+      // Cleanup on unmount
+      return () => {
+        window.location.reload = originalReload;
+      };
+    }
+  }, [])
 
   const wallets = useMemo(
     () => {
@@ -75,13 +108,17 @@ export function SolanaWalletProvider({ children }) {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider 
-        wallets={wallets} 
+      <WalletProvider
+        wallets={wallets}
         autoConnect={false} // Don't auto-connect on mobile to prevent unwanted redirects
         onError={(error) => {
           console.error('Wallet connection error:', error)
           // Handle connection errors gracefully
+          // CRITICAL: Don't reload the page on wallet errors!
+          error.preventDefault?.();
+          return false;
         }}
+        localStorageKey="toybox-wallet"
       >
         <WalletModalProvider>
           {children}
