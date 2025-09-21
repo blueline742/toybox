@@ -40,24 +40,34 @@ export const usePreventReload = (isActive) => {
       return false;
     };
 
-    // Override href setter
-    Object.defineProperty(window.location, 'href', {
-      set: (url) => {
-        console.warn('❌ Blocked: window.location.href = during PvP:', url);
-        return false;
-      },
-      get: originalHref?.get || (() => window.location.href)
-    });
+    // Don't override href setter - it breaks too many things
+    // Only log attempts
+    if (originalHref && originalHref.set) {
+      Object.defineProperty(window.location, 'href', {
+        set: function(url) {
+          console.warn('⚠️ Navigation attempt during PvP:', url);
+          // Allow internal navigation but block external
+          if (url && (url.startsWith('http') || url === '/')) {
+            console.warn('❌ Blocked external navigation during PvP');
+            return false;
+          }
+          return originalHref.set.call(this, url);
+        },
+        get: originalHref.get
+      });
+    }
 
-    // Override history methods
-    history.pushState = (...args) => {
-      console.warn('❌ Blocked: history.pushState during PvP');
-      return null;
+    // Don't block history methods completely - breaks React Router
+    history.pushState = function(...args) {
+      console.log('📍 history.pushState during PvP:', args[2]);
+      // Allow it but log
+      return originalPushState.apply(this, args);
     };
 
-    history.replaceState = (...args) => {
-      console.warn('❌ Blocked: history.replaceState during PvP');
-      return null;
+    history.replaceState = function(...args) {
+      console.log('📍 history.replaceState during PvP:', args[2]);
+      // Allow it but log
+      return originalReplaceState.apply(this, args);
     };
 
     history.back = () => {
@@ -103,18 +113,18 @@ export const usePreventReload = (isActive) => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Block navigation via links
-    const blockNavigation = (e) => {
-      const target = e.target;
-      if (target.tagName === 'A' || target.closest('a')) {
+    // Don't block all navigation - only external links
+    const blockExternalNavigation = (e) => {
+      const target = e.target?.closest('a');
+      if (target && target.href && !target.href.includes(window.location.hostname)) {
         e.preventDefault();
         e.stopPropagation();
-        console.warn('❌ Blocked: link navigation during PvP');
+        console.warn('❌ Blocked: external link during PvP');
         return false;
       }
     };
 
-    document.addEventListener('click', blockNavigation, true);
+    document.addEventListener('click', blockExternalNavigation, true);
 
     // Cleanup function
     return () => {
@@ -141,7 +151,7 @@ export const usePreventReload = (isActive) => {
       document.removeEventListener('beforeunload', blockUnload, true);
       document.removeEventListener('unload', blockUnload, true);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('click', blockNavigation, true);
+      document.removeEventListener('click', blockExternalNavigation, true);
     };
   }, [isActive]);
 };
