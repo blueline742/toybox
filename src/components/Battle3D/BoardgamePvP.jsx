@@ -1523,9 +1523,12 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
           transports: ['websocket', 'polling'], // Prefer websocket for better sync
           forceNew: true,
           reconnection: true,
-          reconnectionAttempts: 10,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity, // Keep trying forever
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 2000,
+          timeout: 60000, // 60 second timeout
+          pingInterval: 5000, // Ping every 5 seconds
+          pingTimeout: 30000, // 30 second ping timeout
           upgrade: true, // Allow upgrading from polling to websocket
           rememberUpgrade: true
         }

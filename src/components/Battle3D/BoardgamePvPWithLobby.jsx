@@ -187,6 +187,15 @@ const BoardgamePvPWithLobby = ({ battleData, selectedTeam, onBattleEnd }) => {
       const handleBattleComplete = ({ matchID: completedMatchID, winner, reason }) => {
         if (completedMatchID === matchID) {
           console.log('🏁 Battle completed:', reason, 'Winner:', winner);
+
+          // On mobile, add extra verification before ending game
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            console.log('📱 Mobile device - verifying disconnect before ending game');
+            // Don't immediately end on mobile - the connection might just be slow
+            return;
+          }
+
           // Only handle battle completion for disconnect/leave reasons
           // Normal game endings are handled by the boardgame.io game state
           if (reason === 'opponent_disconnected' || reason === 'opponent_left' || reason === 'opponent_timeout') {

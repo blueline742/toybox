@@ -79,11 +79,20 @@ function App() {
   const handleBattleEnd = (result) => {
     console.log('🎯 handleBattleEnd called with:', result);
 
+    // Skip disconnect handling on mobile - connections are less stable
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     // Handle different end reasons
     if (result && (result.reason === 'opponent_disconnected' ||
                    result.reason === 'opponent_left' ||
                    result.reason === 'opponent_timeout')) {
       console.log('⚠️ Opponent disconnected/left - ending battle');
+
+      // On mobile, ignore disconnect events - they might be false positives
+      if (isMobile) {
+        console.log('📱 Mobile device - ignoring disconnect event');
+        return;
+      }
 
       // Show result briefly then return to menu
       setBattleResult(result);
