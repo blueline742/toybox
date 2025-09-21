@@ -1353,24 +1353,60 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocket, onBattleEnd }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
+  const [connectionCountdown, setConnectionCountdown] = useState(0);
 
   // Preload assets before creating client to avoid disconnect issues
   useEffect(() => {
     const checkAssetsAndLoad = async () => {
       // Check if assets are already loaded
       if (window.assetPreloader && window.assetPreloader.assets.images.size > 0) {
-        setAssetsPreloaded(true);
+        // Even if assets are loaded, add a delay on mobile to ensure stable connection
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          console.log('📱 Mobile detected - waiting for stable connection...');
+          const waitTime = 5; // 5 seconds
+          setConnectionCountdown(waitTime);
+
+          const countdownInterval = setInterval(() => {
+            setConnectionCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+
+          setTimeout(() => {
+            setAssetsPreloaded(true);
+          }, waitTime * 1000);
+        } else {
+          setAssetsPreloaded(true);
+        }
         return;
       }
 
       // If not, do a quick load of essential assets
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      console.log(`📦 Quick-loading assets for ${isMobile ? 'mobile' : 'desktop'}...`);
+      console.log(`📦 Preparing for ${isMobile ? 'mobile' : 'desktop'} play...`);
 
-      // Just mark as ready after a short delay - the ToyboxBoard will handle actual loading
+      // Much longer delay for mobile to ensure PC doesn't think they disconnected
+      const waitTime = isMobile ? 10 : 2; // seconds
+      setConnectionCountdown(waitTime);
+
+      const countdownInterval = setInterval(() => {
+        setConnectionCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
       setTimeout(() => {
         setAssetsPreloaded(true);
-      }, isMobile ? 2000 : 1000);
+      }, waitTime * 1000);
     };
 
     checkAssetsAndLoad();
@@ -1453,6 +1489,11 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
           {!assetsPreloaded && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && (
             <div className="text-yellow-300 text-sm mb-2">
               📱 Mobile detected - optimizing for your device
+            </div>
+          )}
+          {connectionCountdown > 0 && (
+            <div className="text-cyan-300 text-lg font-bold mt-3">
+              Connecting in {connectionCountdown}...
             </div>
           )}
           <div className="text-sm text-gray-300">Match ID: {matchID}</div>
