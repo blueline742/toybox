@@ -1240,15 +1240,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         </button>
       </div>
 
-      {/* Main 3D Scene Container */}
-      <div className="absolute inset-0" style={{
-        // Keep canvas always visible and interactive except when overlay is shown
-        pointerEvents: showTargetingOverlay ? 'none' : 'auto',
-        // Ensure Canvas is always visible unless game is over
-        display: ctx?.gameover ? 'none' : 'block',
-        zIndex: 1
-      }}>
-        <HearthstoneScene
+      {/* Main 3D Scene Container - Only render when assets are loaded */}
+      {assetsLoaded && (
+        <div className="absolute inset-0" style={{
+          // Keep canvas always visible and interactive except when overlay is shown
+          pointerEvents: showTargetingOverlay ? 'none' : 'auto',
+          // Ensure Canvas is always visible unless game is over
+          display: ctx?.gameover ? 'none' : 'block',
+          zIndex: 1
+        }}>
+          <HearthstoneScene
           playerTeam={playerTeam}
           aiTeam={aiTeam}
           isPlayerTurn={isOurTurn}
@@ -1314,6 +1315,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           pyroblastTarget={pyroblastTarget}
         />
       </div>
+      )}
 
       {/* Targeting Overlay - Show for both players */}
       {showTargetingOverlay && selectedCard && currentAbility && (() => {

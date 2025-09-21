@@ -789,12 +789,26 @@ const HearthstoneScene = ({
       <Loader />
 
       <Canvas
-        dpr={Math.min(window.devicePixelRatio, 1.5)}
+        dpr={Math.min(window.devicePixelRatio, window.innerWidth <= 768 ? 1 : 1.5)}
+        gl={{
+          powerPreference: window.innerWidth <= 768 ? 'low-power' : 'high-performance',
+          alpha: false,
+          stencil: false,
+          antialias: window.innerWidth <= 768 ? false : true,
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: false
+        }}
+        onCreated={({ gl }) => {
+          // Optimize for mobile
+          if (window.innerWidth <= 768) {
+            gl.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+          }
+        }}
         onError={(error) => {
           console.error('Canvas error:', error);
           setHasError(true);
         }}
-        shadows
+        shadows={window.innerWidth > 768}
         camera={{
           position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10], // Good angle to see table and cards
           fov: window.innerWidth <= 768 ? 65 : 50, // Wider FOV on mobile for better visibility
