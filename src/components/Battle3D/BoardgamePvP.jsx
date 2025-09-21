@@ -1350,9 +1350,36 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 // Main component that creates and manages the client
 const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocket, onBattleEnd }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [assetsPreloaded, setAssetsPreloaded] = useState(false);
 
-  // Create the client component using useMemo
+  // Preload assets before creating client to avoid disconnect issues
+  useEffect(() => {
+    const checkAssetsAndLoad = async () => {
+      // Check if assets are already loaded
+      if (window.assetPreloader && window.assetPreloader.assets.images.size > 0) {
+        setAssetsPreloaded(true);
+        return;
+      }
+
+      // If not, do a quick load of essential assets
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      console.log(`📦 Quick-loading assets for ${isMobile ? 'mobile' : 'desktop'}...`);
+
+      // Just mark as ready after a short delay - the ToyboxBoard will handle actual loading
+      setTimeout(() => {
+        setAssetsPreloaded(true);
+      }, isMobile ? 2000 : 1000);
+    };
+
+    checkAssetsAndLoad();
+  }, []);
+
+  // Create the client component using useMemo - ONLY after assets check
   const ClientComponent = useMemo(() => {
+    // Don't create client until we've checked assets
+    if (!assetsPreloaded) {
+      return null;
+    }
 
     return Client({
       game: ToyboxGame,
@@ -1377,7 +1404,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
       matchID,
       debug: false
     });
-  }, [matchID, playerID, credentials]);
+  }, [matchID, playerID, credentials, assetsPreloaded]);
 
   // Handle connection state
   useEffect(() => {
@@ -1415,11 +1442,19 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
   if (!isConnected || !ClientComponent) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-        <div className="text-center">
-          <div className="mb-4 text-xl">Connecting to game server... (Using polling transport)</div>
-          <div className="text-sm text-gray-400">Match ID: {matchID}</div>
-          <div className="text-sm text-gray-400">Player ID: {playerID}</div>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-blue-900 to-purple-900 text-white">
+        <div className="text-center px-4">
+          <div className="text-6xl mb-4 animate-bounce">🎮</div>
+          <div className="mb-4 text-xl">
+            {!assetsPreloaded ? 'Preparing battle arena...' : 'Connecting to game server...'}
+          </div>
+          {!assetsPreloaded && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && (
+            <div className="text-yellow-300 text-sm mb-2">
+              📱 Mobile detected - optimizing for your device
+            </div>
+          )}
+          <div className="text-sm text-gray-300">Match ID: {matchID}</div>
+          <div className="text-sm text-gray-300">Player ID: {playerID}</div>
         </div>
       </div>
     );

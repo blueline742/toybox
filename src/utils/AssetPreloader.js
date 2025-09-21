@@ -356,4 +356,9 @@ export const gameAssets = [
 // Create singleton instance
 const assetPreloader = new AssetPreloader();
 
+// Make available globally for cross-component checks
+if (typeof window !== 'undefined') {
+  window.assetPreloader = assetPreloader;
+}
+
 export default assetPreloader;
