@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useWalletSafety } from '../../contexts/WalletSafetyContext';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { ToyboxGame } from '../../game/boardgame/game';
@@ -1493,6 +1494,14 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
   const [connectionCountdown, setConnectionCountdown] = useState(0);
 
+  // Mark PvP as active
+  const { setIsPvPActive } = useWalletSafety();
+
+  useEffect(() => {
+    setIsPvPActive(true);
+    return () => setIsPvPActive(false);
+  }, [setIsPvPActive]);
+
   // Preload assets before creating client to avoid disconnect issues
   useEffect(() => {
     const checkAssetsAndLoad = async () => {
@@ -1667,15 +1676,17 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
   // Render the Client component - pass playerID and lobbySocket as props to the board
   return (
-    <ClientComponent
-      selectedTeam={selectedTeam}
-      credentials={credentials}
-      isConnected={isConnected}
-      playerID={playerID}
-      lobbySocket={lobbySocket}
-      matchID={matchID}
-      onBattleEnd={onBattleEnd}
-    />
+    <div data-pvp-active="true">
+      <ClientComponent
+        selectedTeam={selectedTeam}
+        credentials={credentials}
+        isConnected={isConnected}
+        playerID={playerID}
+        lobbySocket={lobbySocket}
+        matchID={matchID}
+        onBattleEnd={onBattleEnd}
+      />
+    </div>
   );
 };
 

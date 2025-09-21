@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { SolanaWalletProvider } from './components/SolanaWalletProvider'
+import { WalletSafetyProvider } from './contexts/WalletSafetyContext'
 import { SocketProvider } from './contexts/SocketContext'
 import MainMenu from './components/MainMenu'
 import TeamSelect from './components/TeamSelect'
@@ -164,7 +165,8 @@ function App() {
 
   return (
     <SolanaWalletProvider>
-      <SocketProvider>
+      <WalletSafetyProvider>
+        <SocketProvider>
         <GlobalTouchHandler />
         <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
         {isInitialLoading && (
@@ -304,7 +306,8 @@ function App() {
           />
         )}
       </div>
-      </SocketProvider>
+        </SocketProvider>
+      </WalletSafetyProvider>
     </SolanaWalletProvider>
   )
 }
