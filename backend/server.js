@@ -34,7 +34,11 @@ const io = new Server(httpServer, {
     credentials: true,
     allowedHeaders: ["Content-Type"]
   },
-  transports: ['polling', 'websocket']
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,  // 60 seconds (default is 5 seconds)
+  pingInterval: 25000, // 25 seconds (default is 25 seconds)
+  connectTimeout: 120000, // 2 minutes connection timeout
+  maxHttpBufferSize: 1e8 // 100 MB buffer
 });
 
 app.use(cors({
@@ -453,7 +457,7 @@ io.on('connection', (socket) => {
             // Clean up battle
             activeBattles.delete(battleId);
           }
-        }, 10000); // 10 seconds timeout
+        }, 120000); // 120 seconds (2 minutes) timeout for mobile support
       }
     }
 
