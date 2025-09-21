@@ -16,6 +16,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingTimeRemaining, setLoadingTimeRemaining] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [sceneError, setSceneError] = useState(false);
+  const [forceFallback, setForceFallback] = useState(false);
   // REMOVED: local team state - now using G.players directly
   const [activeEffects, setActiveEffects] = useState([]);
   const [damageNumbers, setDamageNumbers] = useState([]);
@@ -56,6 +58,22 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const bothPlayersConnected = ctx?.playOrder?.length === 2;
   // Only allow moves if game is initialized, not game over, and we haven't set our team yet
   const canSelectTeam = isInMatch && bothPlayersConnected && !ctx?.gameover && G?.phase !== 'playing' && !G?.players?.[actualPlayerID]?.ready;
+
+  // Detect WebGL issues on mobile
+  useEffect(() => {
+    if (assetsLoaded && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // Give 3D scene 3 seconds to render, otherwise switch to fallback
+      const fallbackTimer = setTimeout(() => {
+        const canvas = document.querySelector('canvas');
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          console.warn('3D scene failed to render on mobile, using 2D fallback');
+          setForceFallback(true);
+        }
+      }, 3000);
+
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [assetsLoaded]);
 
   // Preload critical PvP assets when component mounts
   useEffect(() => {
@@ -1241,13 +1259,17 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       </div>
 
       {/* Main 3D Scene Container - Only render when assets are loaded */}
-      {assetsLoaded && (
+      {assetsLoaded && !sceneError && (
         <div className="absolute inset-0" style={{
           // Keep canvas always visible and interactive except when overlay is shown
           pointerEvents: showTargetingOverlay ? 'none' : 'auto',
           // Ensure Canvas is always visible unless game is over
           display: ctx?.gameover ? 'none' : 'block',
           zIndex: 1
+        }}
+        onError={(e) => {
+          console.error('Scene render error:', e);
+          setSceneError(true);
         }}>
           <HearthstoneScene
           playerTeam={playerTeam}
@@ -1315,6 +1337,77 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           pyroblastTarget={pyroblastTarget}
         />
       </div>
+      )}
+
+      {/* Mobile 2D/3D Toggle Button */}
+      {assetsLoaded && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !ctx?.gameover && (
+        <div className="absolute top-4 right-4 z-30">
+          <button
+            onClick={() => setForceFallback(!forceFallback)}
+            className="bg-black/50 text-white px-3 py-1 rounded text-sm"
+          >
+            {forceFallback ? '3D View' : '2D View'}
+          </button>
+        </div>
+      )}
+
+      {/* Simple 2D Fallback for Scene Errors */}
+      {assetsLoaded && (sceneError || forceFallback) && (
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-900 to-purple-900 overflow-y-auto" style={{ zIndex: 1 }}>
+          <div className="p-4">
+            <div className="text-white text-center mb-4">
+              {sceneError ? '⚠️ 3D rendering failed - Using simple view' : '📱 Mobile 2D View'}
+            </div>
+            {/* Simple card display */}
+            <div className="mb-8">
+              <h3 className="text-white text-lg mb-2">Opponent's Cards</h3>
+              <div className="flex flex-wrap gap-2">
+                {aiTeam.map((card, i) => (
+                  <div key={i} className={`bg-red-800 p-2 rounded text-white text-sm ${card.currentHealth <= 0 ? 'opacity-50' : ''}`}>
+                    <div>{card.name}</div>
+                    <div>❤️ {card.currentHealth}/{card.maxHealth}</div>
+                    {card.shieldAmount > 0 && <div>🛡️ {card.shieldAmount}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-white text-lg mb-2">Your Cards</h3>
+              <div className="flex flex-wrap gap-2">
+                {playerTeam.map((card, i) => (
+                  <div
+                    key={i}
+                    className={`bg-blue-800 p-2 rounded text-white text-sm cursor-pointer ${card.currentHealth <= 0 ? 'opacity-50' : ''}`}
+                    onClick={() => !isTargeting && isOurTurn && handleCardClick(card)}
+                  >
+                    <div>{card.name}</div>
+                    <div>❤️ {card.currentHealth}/{card.maxHealth}</div>
+                    {card.shieldAmount > 0 && <div>🛡️ {card.shieldAmount}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Simple ability buttons */}
+            {selectedCard && isOurTurn && (
+              <div className="bg-black/50 p-4 rounded">
+                <h4 className="text-white mb-2">Select Ability for {selectedCard.name}:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedCard.abilities?.map((ability, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleAbilitySelect(selectedCard, ability)}
+                      className="bg-purple-600 text-white px-3 py-1 rounded text-sm"
+                    >
+                      {ability.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Targeting Overlay - Show for both players */}
