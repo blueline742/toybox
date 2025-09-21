@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { ToyboxGame } from '../../game/boardgame/game';
@@ -1493,53 +1492,6 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   const [isConnected, setIsConnected] = useState(false);
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
   const [connectionCountdown, setConnectionCountdown] = useState(0);
-
-  // Handle wallet during PvP
-  const wallet = useWallet();
-  const walletWasConnected = useRef(false);
-
-  // Disconnect wallet on mobile to prevent reload issues
-  useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile && wallet.connected) {
-      walletWasConnected.current = true;
-      console.log('Temporarily disconnecting wallet during PvP battle to prevent reload issues');
-      try {
-        wallet.disconnect();
-      } catch (err) {
-        console.warn('Failed to disconnect wallet:', err);
-      }
-    }
-
-    // Re-enable wallet on component unmount
-    return () => {
-      if (walletWasConnected.current && !wallet.connected) {
-        console.log('PvP battle ended, wallet can be reconnected');
-        // Don't auto-reconnect, let user do it manually
-      }
-    };
-  }, []);
-
-  // Prevent page navigation during battle
-  useEffect(() => {
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-
-    history.pushState = function(...args) {
-      console.warn('Prevented pushState during PvP battle');
-      return null;
-    };
-
-    history.replaceState = function(...args) {
-      console.warn('Prevented replaceState during PvP battle');
-      return null;
-    };
-
-    return () => {
-      history.pushState = originalPushState;
-      history.replaceState = originalReplaceState;
-    };
-  }, []);
 
   // Preload assets before creating client to avoid disconnect issues
   useEffect(() => {
