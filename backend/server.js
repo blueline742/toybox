@@ -399,6 +399,10 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
 
+    // TEMPORARY: Skip disconnect handling entirely for testing mobile stability
+    console.log('⚠️ Disconnect handling disabled for testing mobile stability');
+    return;
+
     // Handle disconnect during matchmaking
     for (const [key, players] of matchmakingQueue.entries()) {
       const filtered = players.filter(p => p.socket !== socket.id);

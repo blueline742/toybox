@@ -19,7 +19,15 @@ const server = Server({
     'http://localhost:5174',
     'https://toyboxsol.netlify.app',
     'https://toybox.netlify.app'
-  ]
+  ],
+
+  // Socket.IO configuration for mobile stability
+  socketOpts: {
+    pingTimeout: 60000,    // 60 seconds (default 5s)
+    pingInterval: 25000,   // 25 seconds
+    connectTimeout: 120000, // 2 minutes
+    transports: ['polling', 'websocket']
+  }
 });
 
 // Run the server on port 4000
