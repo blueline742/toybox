@@ -20,27 +20,18 @@ export function SolanaWalletProvider({ children }) {
   // Prevent wallet disconnection from causing page reload on mobile
   useEffect(() => {
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      // Override window.location to prevent accidental reloads
-      const originalLocation = window.location;
-      const locationProxy = new Proxy(originalLocation, {
-        set(target, prop, value) {
-          if (prop === 'href' || prop === 'pathname') {
-            console.warn('Prevented page navigation during PvP battle:', prop, value);
-            // Only allow navigation to root from error states
-            if (value === '/' && window.location.pathname.includes('battle')) {
-              return true; // Block navigation during battles
-            }
-          }
-          return Reflect.set(target, prop, value);
-        }
-      });
+      // Simple override without Proxy (better mobile compatibility)
+      const originalReload = window.location.reload.bind(window.location);
 
-      // Prevent reload() calls
-      const originalReload = window.location.reload;
-      window.location.reload = function(...args) {
+      // Override reload to prevent accidental refreshes
+      window.location.reload = function() {
         console.warn('Prevented page reload on mobile during gameplay');
-        // Don't actually reload
-        return false;
+        // Don't actually reload during PvP
+        if (window.location.pathname && window.location.pathname.includes('battle')) {
+          return false;
+        }
+        // Allow reload on other pages
+        return originalReload();
       };
 
       // Cleanup on unmount
