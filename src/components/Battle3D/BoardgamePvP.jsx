@@ -75,6 +75,39 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
   }, [assetsLoaded]);
 
+  // Prevent page reload on errors
+  useEffect(() => {
+    const handleError = (event) => {
+      console.error('Global error caught:', event.error);
+      event.preventDefault(); // Prevent page reload
+
+      // Force 2D mode on mobile if there's an error
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        setForceFallback(true);
+        setSceneError(true);
+      }
+    };
+
+    const handleUnhandledRejection = (event) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      event.preventDefault(); // Prevent page reload
+
+      // Force 2D mode on mobile if there's an error
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        setForceFallback(true);
+        setSceneError(true);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // Preload critical PvP assets when component mounts
   useEffect(() => {
     // Check if assets are already loaded from initial load
@@ -237,20 +270,24 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // CRITICAL FIX: Always use G.players for teams (synchronized state)
   const opponentID = actualPlayerID === '0' ? '1' : '0';
 
-  // Ensure cards have instanceId for proper rendering
-  const playerTeam = (G?.players?.[actualPlayerID]?.cards || []).map((card, index) => ({
-    ...card,
-    instanceId: card.instanceId || `p${actualPlayerID}-${card.id}-${index}`,
-    isAlive: true, // Cards are always alive initially, health is managed separately
-    health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
-  }));
+  // Memoize team arrays to prevent recreating on every render
+  const playerTeam = useMemo(() => {
+    return (G?.players?.[actualPlayerID]?.cards || []).map((card, index) => ({
+      ...card,
+      instanceId: card.instanceId || `p${actualPlayerID}-${card.id}-${index}`,
+      isAlive: true, // Cards are always alive initially, health is managed separately
+      health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
+    }));
+  }, [G?.players?.[actualPlayerID]?.cards, actualPlayerID]);
 
-  const aiTeam = (G?.players?.[opponentID]?.cards || []).map((card, index) => ({
-    ...card,
-    instanceId: card.instanceId || `p${opponentID}-${card.id}-${index}`,
-    isAlive: true, // Cards are always alive initially, health is managed separately
-    health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
-  }));
+  const aiTeam = useMemo(() => {
+    return (G?.players?.[opponentID]?.cards || []).map((card, index) => ({
+      ...card,
+      instanceId: card.instanceId || `p${opponentID}-${card.id}-${index}`,
+      isAlive: true, // Cards are always alive initially, health is managed separately
+      health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
+    }));
+  }, [G?.players?.[opponentID]?.cards, opponentID]);
 
   // Debug logging for card data
   useEffect(() => {
@@ -280,6 +317,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     if (!G?.activeEffects || !G.activeEffects.length) {
       // Only clear if we currently have effects
       setActiveEffects(prev => prev.length > 0 ? [] : prev);
+      return;
+    }
+
+    // Skip effect processing on mobile to reduce CPU load
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile && forceFallback) {
+      // Just clear effects on mobile 2D mode
+      setActiveEffects([]);
       return;
     }
 
@@ -407,7 +452,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Update all effects at once to prevent multiple re-renders
     setActiveEffects(newEffects);
-  }, [G?.activeEffects?.length]); // Only re-run when the number of effects changes
+  }, [G?.activeEffects, playerTeam, aiTeam, actualPlayerID, forceFallback]); // Include all dependencies
 
   // Backup polling mechanism to ensure effects are synced - DISABLED to reduce jitter
   // The main useEffect should handle sync, polling can cause duplicate processing
@@ -1505,12 +1550,22 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     checkAssetsAndLoad();
   }, []);
 
+  // Track if we've already created a client to prevent duplicates
+  const clientCreatedRef = useRef(false);
+
   // Create the client component using useMemo - ONLY after assets check
   const ClientComponent = useMemo(() => {
     // Don't create client until we've checked assets
     if (!assetsPreloaded) {
       return null;
     }
+
+    // Prevent creating multiple clients for the same match
+    if (clientCreatedRef.current) {
+      return null;
+    }
+
+    clientCreatedRef.current = true;
 
     return Client({
       game: ToyboxGame,
@@ -1521,13 +1576,13 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
           : 'https://toybox-boardgame.onrender.com',
         socketOpts: {
           transports: ['websocket', 'polling'], // Prefer websocket for better sync
-          forceNew: true,
+          forceNew: false, // Changed from true to prevent duplicate connections
           reconnection: true,
-          reconnectionAttempts: Infinity, // Keep trying forever
-          reconnectionDelay: 500,
-          reconnectionDelayMax: 2000,
+          reconnectionAttempts: 5, // Limit attempts to prevent infinite loops
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
           timeout: 60000, // 60 second timeout
-          pingInterval: 5000, // Ping every 5 seconds
+          pingInterval: 10000, // Reduced frequency
           pingTimeout: 30000, // 30 second ping timeout
           upgrade: true, // Allow upgrading from polling to websocket
           rememberUpgrade: true
@@ -1547,15 +1602,18 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     // Handle WebGL context loss recovery
     const handleContextLost = (event) => {
       event.preventDefault();
-      // Force a re-render after a short delay
-      setTimeout(() => {
-        setIsConnected(false);
-      setTimeout(() => setIsConnected(true), 100);
-      }, 1000);
+      console.warn('WebGL context lost - switching to 2D mode');
+      setForceFallback(true);
+      setSceneError(true);
     };
 
     const handleContextRestored = () => {
-      setIsConnected(true);
+      console.log('WebGL context restored');
+      // Don't automatically switch back to 3D on mobile
+      if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        setForceFallback(false);
+        setSceneError(false);
+      }
     };
 
     window.addEventListener('webglcontextlost', handleContextLost, false);
@@ -1568,13 +1626,21 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     };
   }, [playerID]);
 
-  // Force sync on connection
+  // Cleanup on unmount
   useEffect(() => {
-    if (isConnected) {
-    }
-  }, [isConnected, playerID]);
+    return () => {
+      // Reset client creation flag when component unmounts
+      clientCreatedRef.current = false;
 
-  if (!isConnected || !ClientComponent) {
+      // Clear any pending timeouts or intervals
+      const highestTimeoutId = setTimeout(() => {}, 0);
+      for (let i = 0; i < highestTimeoutId; i++) {
+        clearTimeout(i);
+      }
+    };
+  }, []);
+
+  if (!isConnected || !ClientComponent || clientCreatedRef.current === false) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-b from-blue-900 to-purple-900 text-white">
         <div className="text-center px-4">
