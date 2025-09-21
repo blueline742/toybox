@@ -14,6 +14,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingTimeRemaining, setLoadingTimeRemaining] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   // REMOVED: local team state - now using G.players directly
   const [activeEffects, setActiveEffects] = useState([]);
@@ -67,8 +68,18 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Load only critical PvP assets if not already loaded
     const loadPvPAssets = async () => {
-      const criticalAssets = [
-        // NFT Battle Cards - Critical for PvP
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      // On mobile, load fewer assets initially for faster startup
+      const criticalAssets = isMobile ? [
+        // Mobile: Only load most common cards first
+        { type: 'image', name: 'nft_robot', src: '/assets/nft/newnft/robotnft.png' },
+        { type: 'image', name: 'nft_wizard', src: '/assets/nft/newnft/wizardnft.png' },
+        { type: 'image', name: 'nft_duckie', src: '/assets/nft/newnft/duckienft.png' },
+        { type: 'image', name: 'nft_brickdude', src: '/assets/nft/newnft/brickdudenft.png' },
+        { type: 'image', name: 'nft_cardback', src: '/assets/nft/newnft/cardback.png' }
+      ] : [
+        // Desktop: Load all cards
         { type: 'image', name: 'nft_robot', src: '/assets/nft/newnft/robotnft.png' },
         { type: 'image', name: 'nft_wizard', src: '/assets/nft/newnft/wizardnft.png' },
         { type: 'image', name: 'nft_archwizard', src: '/assets/nft/newnft/archwizardnft.png' },
@@ -90,11 +101,46 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         console.log('✅ PvP assets loaded and ready');
       });
 
-      await assetPreloader.loadAssets(criticalAssets);
+      try {
+        await assetPreloader.loadAssets(criticalAssets);
+      } catch (error) {
+        console.error('⚠️ Error loading assets, proceeding anyway:', error);
+        // Force proceed even if some assets fail
+        setAssetsLoaded(true);
+      }
     };
 
     loadPvPAssets();
-  }, []);
+
+    // Mobile timeout - proceed after 30 seconds on mobile, 20 seconds on desktop
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const timeoutMs = isMobile ? 30000 : 20000;
+
+    // Set initial time remaining
+    setLoadingTimeRemaining(Math.ceil(timeoutMs / 1000));
+
+    // Update countdown timer
+    const countdownInterval = setInterval(() => {
+      setLoadingTimeRemaining(prev => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    const timeoutId = setTimeout(() => {
+      if (!assetsLoaded) {
+        console.warn(`⏰ Asset loading timeout after ${timeoutMs/1000}s, proceeding anyway`);
+        setAssetsLoaded(true);
+      }
+    }, timeoutMs);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(countdownInterval);
+    };
+  }, [assetsLoaded]);
 
   // Helper function to wait for server authentication
   const waitForAuthentication = async (attemptCount = 0) => {
@@ -1026,16 +1072,30 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       {/* Asset Loading Screen */}
       {!assetsLoaded && (
         <div className="absolute inset-0 flex items-center justify-center z-50 bg-gradient-to-b from-blue-900 to-purple-900">
-          <div className="text-center">
+          <div className="text-center px-4">
             <div className="text-6xl mb-4 animate-bounce">🎮</div>
-            <h2 className="text-2xl font-bold text-white mb-4">Loading Battle Assets...</h2>
-            <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden mx-auto">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Loading Battle Assets...</h2>
+            <div className="w-64 max-w-[80vw] h-2 bg-white/20 rounded-full overflow-hidden mx-auto">
               <div
                 className="h-full bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full transition-all duration-300"
                 style={{ width: `${loadingProgress}%` }}
               />
             </div>
-            <p className="text-white/70 text-sm mt-2">Optimizing for smooth gameplay...</p>
+            <p className="text-white/70 text-sm mt-2">
+              {loadingProgress < 100 ? 'Optimizing for smooth gameplay...' : 'Almost ready...'}
+            </p>
+            {loadingTimeRemaining > 0 && (
+              <p className="text-white/50 text-xs mt-2">
+                {loadingTimeRemaining > 10
+                  ? `Auto-continue in ${loadingTimeRemaining}s if needed`
+                  : `Starting soon... ${loadingTimeRemaining}s`}
+              </p>
+            )}
+            {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && (
+              <p className="text-yellow-300/70 text-xs mt-3">
+                📱 Mobile detected - extended loading time
+              </p>
+            )}
           </div>
         </div>
       )}
