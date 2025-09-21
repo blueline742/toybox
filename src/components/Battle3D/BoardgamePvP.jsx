@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useWalletSafety } from '../../contexts/WalletSafetyContext';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { ToyboxGame } from '../../game/boardgame/game';
@@ -1494,13 +1495,22 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
   const [connectionCountdown, setConnectionCountdown] = useState(0);
 
-  // Mark PvP as active
-  const { setIsPvPActive } = useWalletSafety();
+  // Mark PvP as active and track wallet status
+  const { setIsPvPActive, walletConnected } = useWalletSafety();
+  const wallet = useWallet();
 
   useEffect(() => {
     setIsPvPActive(true);
     return () => setIsPvPActive(false);
   }, [setIsPvPActive]);
+
+  // Log wallet status for future staking features
+  useEffect(() => {
+    if (walletConnected) {
+      console.log('💰 Wallet connected during PvP - ready for future staking features!');
+      console.log('Wallet address:', wallet.publicKey?.toString());
+    }
+  }, [walletConnected, wallet.publicKey]);
 
   // Preload assets before creating client to avoid disconnect issues
   useEffect(() => {
