@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useWalletSafety } from '../../contexts/WalletSafetyContext';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { usePreventReload } from '../../hooks/usePreventReload';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { ToyboxGame } from '../../game/boardgame/game';
@@ -1496,8 +1495,23 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
   const [connectionCountdown, setConnectionCountdown] = useState(0);
 
-  // Aggressively prevent reloads on mobile/wallet browsers
-  usePreventReload(true);
+  // Simple reload prevention for mobile
+  useEffect(() => {
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
+
+    const preventReload = (e) => {
+      console.log('Preventing reload during PvP battle');
+      e.preventDefault();
+      e.returnValue = 'Battle in progress!';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', preventReload);
+
+    return () => {
+      window.removeEventListener('beforeunload', preventReload);
+    };
+  }, []);
 
   // Mark PvP as active and track wallet status
   const { setIsPvPActive, walletConnected } = useWalletSafety();
