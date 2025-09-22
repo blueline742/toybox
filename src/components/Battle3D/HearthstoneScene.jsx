@@ -321,6 +321,44 @@ const SimpleTable = () => {
   );
 };
 
+// Kid Room Environment Component
+const KidroomEnvironment = () => {
+  const { scene } = useGLTF('/assets/kidroom.glb');
+
+  // Clone and configure the scene
+  const clonedScene = useMemo(() => {
+    const cloned = scene.clone();
+
+    // Scale the room to fit our battle arena
+    cloned.scale.set(2, 2, 2); // Adjust scale as needed
+
+    // Position it so the floor aligns with our play area
+    cloned.position.set(0, -2, 0);
+
+    // Traverse and configure materials
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+
+        // Make sure materials are visible
+        if (child.material) {
+          child.material.side = THREE.DoubleSide;
+        }
+      }
+    });
+
+    return cloned;
+  }, [scene]);
+
+  return <primitive object={clonedScene} />;
+};
+
+// Preload the kidroom model
+KidroomEnvironment.preload = () => {
+  useGLTF.preload('/assets/kidroom.glb');
+};
+
 // Battle Arena with Hearthstone layout
 const HearthstoneBattleArena = ({
   playerTeam,
@@ -361,15 +399,6 @@ const HearthstoneBattleArena = ({
     }
   }, [isTargeting]);
 
-  // Load textures for floor
-  const floorTexture = useLoader(THREE.TextureLoader, '/assets/backgrounds/floor.png');
-
-
-  // Configure floor texture - no repeating, just stretch single image
-  useEffect(() => {
-    floorTexture.wrapS = floorTexture.wrapT = THREE.ClampToEdgeWrapping;
-  }, [floorTexture]);
-
   // Tabletop-style card positioning - cards lay flat with slight tilt
   const getCardPosition = (index, team, isActive = false) => {
     const isMobile = window.innerWidth <= 768;
@@ -391,10 +420,16 @@ const HearthstoneBattleArena = ({
 
   return (
     <>
-      {/* Simple Table */}
+      {/* Kid Room Environment - loads the entire room */}
+      <Suspense fallback={null}>
+        <KidroomEnvironment />
+      </Suspense>
+
+      {/* Simple Table for cards to sit on */}
       <SimpleTable />
 
-      {/* Spectator toys */}
+      {/* Optional: Keep some toys as decorations if desired */}
+      {/*
       <group dispose={null}>
         <Suspense fallback={null}>
           <SpectatorToy
@@ -403,30 +438,9 @@ const HearthstoneBattleArena = ({
             rotation={[0, Math.PI / 2, 0]}
             scale={1}
           />
-          <SpectatorToy
-            modelPath="/assets/toy_rocket_free_standard.glb"
-            position={[5.5, 1.0, 0]}
-            rotation={[0, -Math.PI / 2, 0]}
-            scale={1.5}
-          />
-          <SpectatorToy
-            modelPath="/assets/wooden_toy_train.glb"
-            position={[1.5, 0.4, 2.5]}
-            rotation={[0, Math.PI / 2 + Math.PI / 4, 0]}
-            scale={0.0042}
-          />
         </Suspense>
       </group>
-
-      {/* Toy arena floor with texture */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -4, 0]} receiveShadow>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial
-          map={floorTexture}
-          roughness={0.7}
-          metalness={0.1}
-        />
-      </mesh>
+      */}
 
 
       {/* Enhanced Lighting System */}
@@ -949,8 +963,8 @@ const HearthstoneScene = ({
         }}
         shadows={false} // Completely disable shadows on mobile
         camera={{
-          position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10],
-          fov: window.innerWidth <= 768 ? 65 : 50,
+          position: window.innerWidth <= 768 ? [0, 10, 12] : [0, 12, 15], // Higher and farther back to see room
+          fov: window.innerWidth <= 768 ? 65 : 55,
           near: 0.1,
           far: window.innerWidth <= 768 ? 100 : 1000 // Reduce far plane on mobile
         }}
