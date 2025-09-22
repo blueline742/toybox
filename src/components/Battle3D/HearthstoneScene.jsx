@@ -1,6 +1,6 @@
-import React, { Suspense, useRef, useEffect, useState, useMemo } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
-import { Text, RoundedBox, Loader, OrbitControls, useGLTF, useTexture, Line, Billboard } from '@react-three/drei';
+import React, { Suspense, useRef, useEffect, useState, useMemo, lazy } from 'react';
+import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import { Text, RoundedBox, Loader, OrbitControls, useGLTF, useTexture, Line, Billboard, useProgress, Html } from '@react-three/drei';
 import { EffectComposer, Vignette, Bloom, ChromaticAberration } from '@react-three/postprocessing';
 import { useSpring, animated } from '@react-spring/three';
 import * as THREE from 'three';
@@ -253,23 +253,39 @@ const HearthstoneCard_DEPRECATED = ({
   );
 };
 
-// Spectator Toy Component - Memoized to prevent re-renders
+// Spectator Toy Component - Lazy loaded with error boundary
 const SpectatorToy = React.memo(({ modelPath, position, rotation = [0, 0, 0], scale = 1 }) => {
-  const { scene } = useGLTF(modelPath);
+  const [error, setError] = useState(false);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // Memoize the cloned scene to prevent recreation
-  const clonedScene = React.useMemo(() => scene.clone(), [scene]);
+  // Skip loading on mobile to save memory
+  if (isMobile) return null;
 
-  return (
-    <primitive
-      object={clonedScene}
-      position={position}
-      rotation={rotation}
-      scale={scale}
-      dispose={null}
-    />
-  );
+  try {
+    const { scene } = useGLTF(modelPath);
+    const clonedScene = React.useMemo(() => scene.clone(), [scene]);
+
+    return (
+      <primitive
+        object={clonedScene}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+        dispose={null}
+      />
+    );
+  } catch (e) {
+    console.warn('Failed to load spectator toy:', modelPath);
+    return null;
+  }
 });
+
+// Preload GLTF models
+SpectatorToy.preload = (modelPath) => {
+  if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    useGLTF.preload(modelPath);
+  }
+};
 
 // NFT textures are preloaded in CardWithNFT component
 
@@ -743,6 +759,112 @@ const HearthstoneBattleArena = ({
   );
 };
 
+// Loading Fallback Component with Progress
+const LoadingFallback = () => {
+  const { active, progress, errors, item, loaded, total } = useProgress();
+
+  return (
+    <Html center>
+      <div style={{
+        width: '200px',
+        padding: '20px',
+        background: 'rgba(0,0,0,0.8)',
+        borderRadius: '10px',
+        color: 'white',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '24px', marginBottom: '10px' }}>🎮</div>
+        <div>Loading Battle Arena</div>
+        <div style={{
+          width: '100%',
+          height: '4px',
+          background: 'rgba(255,255,255,0.2)',
+          borderRadius: '2px',
+          marginTop: '10px',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${progress}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg, #4a90e2, #e74c3c)',
+            transition: 'width 0.3s'
+          }} />
+        </div>
+        <div style={{ fontSize: '12px', marginTop: '5px' }}>
+          {Math.round(progress)}% ({loaded}/{total})
+        </div>
+      </div>
+    </Html>
+  );
+};
+
+// WebGL Context Recovery Component - Must be used inside Canvas
+const WebGLRecoveryManager = () => {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    if (!gl) return;
+
+    const canvas = gl.domElement;
+
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      console.warn('WebGL context lost - attempting recovery...');
+
+      // Show recovery message
+      const recoveryDiv = document.createElement('div');
+      recoveryDiv.id = 'webgl-recovery';
+      recoveryDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 10000;
+      `;
+      recoveryDiv.innerHTML = '⚠️ Graphics issue detected. Recovering...';
+
+      // Only append if not already present
+      if (!document.getElementById('webgl-recovery')) {
+        document.body.appendChild(recoveryDiv);
+      }
+
+      // Attempt to restore context
+      setTimeout(() => {
+        if (gl.isContextLost && gl.isContextLost()) {
+          gl.forceContextRestore?.();
+        }
+        const elem = document.getElementById('webgl-recovery');
+        if (elem) {
+          document.body.removeChild(elem);
+        }
+      }, 1000);
+    };
+
+    const handleContextRestored = () => {
+      console.log('WebGL context restored successfully');
+      // Remove any lingering recovery messages
+      const elem = document.getElementById('webgl-recovery');
+      if (elem) {
+        document.body.removeChild(elem);
+      }
+    };
+
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl]);
+
+  return null; // This component doesn't render anything
+};
+
 // Main Hearthstone Scene Component
 const HearthstoneScene = ({
   playerTeam,
@@ -798,9 +920,12 @@ const HearthstoneScene = ({
 
   return (
     <div className="relative w-full h-screen">
-      <Loader />
-
-      <Canvas
+      <Suspense fallback={
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-blue-900 to-purple-900">
+          <LoadingFallback />
+        </div>
+      }>
+        <Canvas
         dpr={window.innerWidth <= 768 ? 1 : Math.min(window.devicePixelRatio, 1.5)}
         gl={{
           powerPreference: window.innerWidth <= 768 ? 'low-power' : 'high-performance',
@@ -935,8 +1060,11 @@ const HearthstoneScene = ({
               />
             </EffectComposer>
           )}
+          {/* WebGL Recovery Hook - Must be inside Canvas */}
+          <WebGLRecoveryManager />
         </Suspense>
       </Canvas>
+      </Suspense>
     </div>
   );
 };

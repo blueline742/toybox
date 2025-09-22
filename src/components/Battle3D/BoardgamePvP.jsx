@@ -1493,6 +1493,8 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   const [isConnected, setIsConnected] = useState(false);
   const [assetsPreloaded, setAssetsPreloaded] = useState(false);
   const [connectionCountdown, setConnectionCountdown] = useState(0);
+  const [socketDisconnected, setSocketDisconnected] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   // Simple reload prevention for mobile
   useEffect(() => {
@@ -1653,17 +1655,24 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
           ? 'http://localhost:4000'
           : 'https://toybox-boardgame.onrender.com',
         socketOpts: {
-          transports: ['websocket', 'polling'], // Prefer websocket for better sync
-          forceNew: false, // Changed from true to prevent duplicate connections
+          transports: ['polling', 'websocket'], // Start with polling for mobile stability
+          forceNew: false,
           reconnection: true,
-          reconnectionAttempts: 5, // Limit attempts to prevent infinite loops
+          reconnectionAttempts: 10, // More attempts for mobile
           reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          timeout: 60000, // 60 second timeout
-          pingInterval: 10000, // Reduced frequency
-          pingTimeout: 30000, // 30 second ping timeout
-          upgrade: true, // Allow upgrading from polling to websocket
-          rememberUpgrade: true
+          reconnectionDelayMax: 10000,
+          randomizationFactor: 0.5, // Add jitter to prevent thundering herd
+          timeout: 120000, // 2 minute timeout for mobile
+          pingInterval: 25000, // Match server settings
+          pingTimeout: 60000, // Match server settings
+          upgrade: true,
+          rememberUpgrade: true,
+          // Custom reconnect handling
+          autoConnect: true,
+          query: {
+            matchID: matchID,
+            playerID: playerID
+          }
         }
       }),
       playerID: String(playerID),
@@ -1673,9 +1682,54 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     });
   }, [matchID, playerID, credentials, assetsPreloaded]);
 
-  // Handle connection state
+  // Handle connection state and socket monitoring
   useEffect(() => {
     setIsConnected(true);
+
+    // Monitor socket connection if available
+    if (window.io && assetsPreloaded) {
+      // Access the socket instance (boardgame.io uses socket.io internally)
+      const checkSocketStatus = () => {
+        const socket = window.io.sockets?.[0] || window.io?.socket;
+        if (socket) {
+          socket.on('disconnect', (reason) => {
+            console.log('Socket disconnected:', reason);
+            setSocketDisconnected(true);
+
+            // Don't navigate away - try to reconnect
+            if (reason === 'io server disconnect' || reason === 'transport close') {
+              // Server disconnected us or transport failed
+              socket.connect();
+            }
+          });
+
+          socket.on('reconnect_attempt', (attemptNumber) => {
+            console.log(`Reconnection attempt ${attemptNumber}`);
+            setReconnectAttempt(attemptNumber);
+          });
+
+          socket.on('reconnect', () => {
+            console.log('Successfully reconnected!');
+            setSocketDisconnected(false);
+            setReconnectAttempt(0);
+          });
+
+          socket.on('connect', () => {
+            console.log('Socket connected');
+            setSocketDisconnected(false);
+            setReconnectAttempt(0);
+          });
+
+          socket.on('connect_error', (error) => {
+            console.error('Connection error:', error.message);
+            setSocketDisconnected(true);
+          });
+        }
+      };
+
+      // Check after a short delay to ensure socket is initialized
+      setTimeout(checkSocketStatus, 1000);
+    }
 
     // Handle WebGL context loss recovery
     const handleContextLost = (event) => {
@@ -1746,6 +1800,34 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   // Render the Client component - pass playerID and lobbySocket as props to the board
   return (
     <div data-pvp-active="true">
+      {/* Reconnection Overlay */}
+      {socketDisconnected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-gray-800 rounded-lg p-6 text-white max-w-sm">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <h3 className="text-xl font-bold mb-2">Connection Lost</h3>
+              <p className="text-gray-300 mb-2">
+                {reconnectAttempt > 0
+                  ? `Reconnecting... Attempt ${reconnectAttempt}/10`
+                  : 'Attempting to reconnect...'}
+              </p>
+              <p className="text-sm text-gray-400">
+                Don't close the app - the battle will resume
+              </p>
+              {reconnectAttempt >= 5 && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm"
+                >
+                  Force Reload
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <ClientComponent
         selectedTeam={selectedTeam}
         credentials={credentials}
