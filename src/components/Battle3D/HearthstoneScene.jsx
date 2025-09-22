@@ -762,10 +762,22 @@ const HearthstoneScene = ({
 }) => {
   // Add error state
   const [hasError, setHasError] = useState(false);
+  const rendererRef = useRef(null);
 
-  // Reset error on component mount
+  // Reset error on component mount and cleanup on unmount
   useEffect(() => {
     setHasError(false);
+
+    // Cleanup function for Three.js resources
+    return () => {
+      if (rendererRef.current) {
+        console.log('🧹 Cleaning up Three.js renderer');
+        rendererRef.current.dispose();
+        rendererRef.current.forceContextLoss();
+        rendererRef.current.domElement = null;
+        rendererRef.current = null;
+      }
+    };
   }, []);
 
   if (hasError) {
@@ -789,37 +801,63 @@ const HearthstoneScene = ({
       <Loader />
 
       <Canvas
-        dpr={Math.min(window.devicePixelRatio, window.innerWidth <= 768 ? 1 : 1.5)}
+        dpr={window.innerWidth <= 768 ? 1 : Math.min(window.devicePixelRatio, 1.5)}
         gl={{
           powerPreference: window.innerWidth <= 768 ? 'low-power' : 'high-performance',
           alpha: false,
           stencil: false,
-          antialias: window.innerWidth <= 768 ? false : true,
+          antialias: false, // Always disable antialiasing on mobile for memory
           failIfMajorPerformanceCaveat: false,
-          preserveDrawingBuffer: false
+          preserveDrawingBuffer: false,
+          depth: true,
+          logarithmicDepthBuffer: false,
+          precision: 'mediump'
         }}
-        onCreated={({ gl }) => {
-          // Optimize for mobile
-          if (window.innerWidth <= 768) {
-            gl.setPixelRatio(Math.min(window.devicePixelRatio, 1));
-          }
+        style={{
+          maxWidth: window.innerWidth <= 768 ? '100vw' : undefined,
+          maxHeight: window.innerWidth <= 768 ? '100vh' : undefined
         }}
+        resize={{ debounce: 200 }}
         onError={(error) => {
           console.error('Canvas error:', error);
           setHasError(true);
         }}
-        shadows={window.innerWidth > 768}
+        shadows={false} // Completely disable shadows on mobile
         camera={{
-          position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10], // Good angle to see table and cards
-          fov: window.innerWidth <= 768 ? 65 : 50, // Wider FOV on mobile for better visibility
+          position: window.innerWidth <= 768 ? [0, 8, 10] : [0, 8, 10],
+          fov: window.innerWidth <= 768 ? 65 : 50,
           near: 0.1,
-          far: 1000
+          far: window.innerWidth <= 768 ? 100 : 1000 // Reduce far plane on mobile
         }}
         onCreated={({ gl, camera }) => {
-          gl.shadowMap.enabled = true;
-          gl.shadowMap.type = THREE.PCFSoftShadowMap;
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.5;
+          // Store renderer ref for cleanup
+          rendererRef.current = gl;
+
+          // Mobile-specific optimizations
+          const isMobile = window.innerWidth <= 768;
+
+          if (isMobile) {
+            // Force cleanup and memory management
+            gl.setPixelRatio(1);
+            gl.shadowMap.enabled = false;
+            gl.toneMapping = THREE.NoToneMapping;
+
+            // Constrain canvas size
+            const maxSize = 2048;
+            if (gl.domElement.width > maxSize || gl.domElement.height > maxSize) {
+              const scale = maxSize / Math.max(gl.domElement.width, gl.domElement.height);
+              gl.setSize(gl.domElement.width * scale, gl.domElement.height * scale);
+            }
+
+            // Force garbage collection hint
+            if (window.gc) window.gc();
+          } else {
+            // Desktop settings
+            gl.shadowMap.enabled = true;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.5;
+          }
 
           // Look at the center of the table
           camera.lookAt(0, 0, 0);

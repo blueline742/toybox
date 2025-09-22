@@ -1375,7 +1375,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           onTargetSelect={handleTargetSelect}
           isTargeting={isTargeting}
           validTargets={validTargets}
-          damageNumbers={damageNumbers}
           isWaiting={!isInPlayingPhase}
           currentPlayer={ctx?.currentPlayer}
           playerID={actualPlayerID}
@@ -1516,11 +1515,53 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   // Mark PvP as active and track wallet status
   const { setIsPvPActive, walletConnected } = useWalletSafety();
   const wallet = useWallet();
+  const walletAdapterRef = useRef(null);
 
+  // Pause wallet adapter during PvP to prevent race conditions
   useEffect(() => {
     setIsPvPActive(true);
-    return () => setIsPvPActive(false);
-  }, [setIsPvPActive]);
+
+    // Store original wallet adapter methods
+    if (wallet.wallet?.adapter) {
+      walletAdapterRef.current = {
+        originalEmit: wallet.wallet.adapter.emit,
+        originalConnect: wallet.wallet.adapter.connect,
+        originalDisconnect: wallet.wallet.adapter.disconnect
+      };
+
+      // Override methods to prevent activity during PvP
+      wallet.wallet.adapter.emit = function(...args) {
+        console.log('🔒 Wallet emit blocked during PvP:', args[0]);
+        // Only allow critical events
+        if (args[0] === 'error') {
+          return walletAdapterRef.current?.originalEmit?.apply(this, args);
+        }
+        return null;
+      };
+
+      // Prevent connection changes during PvP
+      wallet.wallet.adapter.connect = async function() {
+        console.log('🔒 Wallet connect blocked during PvP');
+        return Promise.resolve();
+      };
+
+      wallet.wallet.adapter.disconnect = async function() {
+        console.log('🔒 Wallet disconnect blocked during PvP');
+        return Promise.resolve();
+      };
+    }
+
+    // Restore wallet adapter on cleanup
+    return () => {
+      setIsPvPActive(false);
+      if (walletAdapterRef.current && wallet.wallet?.adapter) {
+        wallet.wallet.adapter.emit = walletAdapterRef.current.originalEmit;
+        wallet.wallet.adapter.connect = walletAdapterRef.current.originalConnect;
+        wallet.wallet.adapter.disconnect = walletAdapterRef.current.originalDisconnect;
+        walletAdapterRef.current = null;
+      }
+    };
+  }, [setIsPvPActive, wallet.wallet?.adapter]);
 
   // Log wallet status for future staking features
   useEffect(() => {
