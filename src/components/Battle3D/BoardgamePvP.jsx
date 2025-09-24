@@ -24,6 +24,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const [activeEffects, setActiveEffects] = useState([]);
   const [damageNumbers, setDamageNumbers] = useState([]);
   const [spellNotification, setSpellNotification] = useState(null);
+  const [frozenCharacters, setFrozenCharacters] = useState(new Map());
+  const [shieldedCharacters, setShieldedCharacters] = useState(new Map());
   const [pyroblastActive, setPyroblastActive] = useState(false);
   const [pyroblastCaster, setPyroblastCaster] = useState(null);
   const [pyroblastTarget, setPyroblastTarget] = useState(null);
@@ -326,6 +328,35 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       health: card.health !== undefined ? card.health : card.maxHealth // Initialize health if not set
     }));
   }, [G?.players?.[opponentID]?.cards, opponentID]);
+
+  // Track frozen and shielded characters
+  useEffect(() => {
+    const frozen = new Map();
+    const shielded = new Map();
+
+    // Check player cards
+    playerTeam.forEach(card => {
+      if (card.frozen && card.currentHealth > 0) {
+        frozen.set(card.instanceId, true);
+      }
+      if (card.shields > 0) {
+        shielded.set(card.instanceId, { type: 'energy', amount: card.shields });
+      }
+    });
+
+    // Check AI cards
+    aiTeam.forEach(card => {
+      if (card.frozen && card.currentHealth > 0) {
+        frozen.set(card.instanceId, true);
+      }
+      if (card.shields > 0) {
+        shielded.set(card.instanceId, { type: 'energy', amount: card.shields });
+      }
+    });
+
+    setFrozenCharacters(frozen);
+    setShieldedCharacters(shielded);
+  }, [playerTeam, aiTeam]);
 
   // Debug logging for card data
   useEffect(() => {
@@ -1323,6 +1354,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           isPlayerTurn={isOurTurn}
           activeEffects={activeEffects}
           damageNumbers={damageNumbers}
+          frozenCharacters={frozenCharacters}
+          shieldedCharacters={shieldedCharacters}
           onEndTurn={() => moves?.endTurn && moves.endTurn()}
           onCardClick={(card) => {
             if (isTargeting) {

@@ -719,15 +719,34 @@ const ToyboxGame = {
         target.currentHealth = Math.min(target.currentHealth + ability.heal, target.maxHealth);
       }
 
-      if (ability.freeze && target) {
-        target.frozen = true;
-        target.frozenTurns = 2; // Frozen for 2 turns
+      // Handle freeze effects
+      if (ability.freeze) {
+        // Check if it's freeze_all (Ice Nova)
+        if (ability.effect === 'freeze_all') {
+          // Freeze ALL enemy cards
+          const enemyCards = opponent.cards.filter(c => c.currentHealth > 0);
+          enemyCards.forEach(enemyCard => {
+            enemyCard.frozen = true;
+            enemyCard.frozenTurns = 1; // Frozen for 1 turn (skip next turn)
+            console.log(`❄️ ${enemyCard.name} is FROZEN!`);
+          });
 
-        G.animationQueue.push({
-          type: 'freeze',
-          target: target,
-          timestamp: Date.now()
-        });
+          G.animationQueue.push({
+            type: 'freeze_all',
+            targets: enemyCards,
+            timestamp: Date.now()
+          });
+        } else if (target) {
+          // Single target freeze
+          target.frozen = true;
+          target.frozenTurns = 1; // Frozen for 1 turn
+
+          G.animationQueue.push({
+            type: 'freeze',
+            target: target,
+            timestamp: Date.now()
+          });
+        }
       }
 
       if (ability.shield) {
@@ -987,15 +1006,34 @@ const ToyboxGame = {
         target.currentHealth = Math.min(target.currentHealth + ability.heal, target.maxHealth);
       }
 
-      if (ability.freeze && target) {
-        target.frozen = true;
-        target.frozenTurns = 2; // Frozen for 2 turns
+      // Handle freeze effects
+      if (ability.freeze) {
+        // Check if it's freeze_all (Ice Nova)
+        if (ability.effect === 'freeze_all') {
+          // Freeze ALL enemy cards
+          const enemyCards = opponent.cards.filter(c => c.currentHealth > 0);
+          enemyCards.forEach(enemyCard => {
+            enemyCard.frozen = true;
+            enemyCard.frozenTurns = 1; // Frozen for 1 turn (skip next turn)
+            console.log(`❄️ ${enemyCard.name} is FROZEN!`);
+          });
 
-        G.animationQueue.push({
-          type: 'freeze',
-          target: target,
-          timestamp: Date.now()
-        });
+          G.animationQueue.push({
+            type: 'freeze_all',
+            targets: enemyCards,
+            timestamp: Date.now()
+          });
+        } else if (target) {
+          // Single target freeze
+          target.frozen = true;
+          target.frozenTurns = 1; // Frozen for 1 turn
+
+          G.animationQueue.push({
+            type: 'freeze',
+            target: target,
+            timestamp: Date.now()
+          });
+        }
       }
 
       if (ability.shield) {

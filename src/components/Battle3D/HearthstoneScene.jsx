@@ -16,6 +16,7 @@ import OptimizedChainLightningEffect from '../ThreeJS/OptimizedChainLightningEff
 import OptimizedBrickDudeEffects from '../ThreeJS/OptimizedBrickDudeEffects';
 import IceNovaEffect, { FrozenOverlay } from './effects/IceNovaEffect';
 import FrostOverlay from './effects/FrostOverlay';
+import IceCubeEffect from './effects/IceCubeEffect';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
@@ -679,17 +680,10 @@ const HearthstoneBattleArena = ({
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <mesh position={[x, y + 0.8, z]}>
-                <boxGeometry args={[2.5, 3.5, 0.8]} />
-                <meshPhysicalMaterial
-                  color="#87CEEB"
-                  transparent
-                  opacity={0.6}
-                  roughness={0.1}
-                  metalness={0.3}
-                  clearcoat={1}
-                />
-              </mesh>
+              <IceCubeEffect
+                position={[x, y + 0.5, z]}
+                scale={1.2}
+              />
             )}
           </group>
         );
@@ -745,17 +739,10 @@ const HearthstoneBattleArena = ({
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <mesh position={[x, y + 0.8, z]}>
-                <boxGeometry args={[2.5, 3.5, 0.8]} />
-                <meshPhysicalMaterial
-                  color="#87CEEB"
-                  transparent
-                  opacity={0.6}
-                  roughness={0.1}
-                  metalness={0.3}
-                  clearcoat={1}
-                />
-              </mesh>
+              <IceCubeEffect
+                position={[x, y + 0.5, z]}
+                scale={1.2}
+              />
             )}
           </group>
         );
@@ -1046,29 +1033,43 @@ const HearthstoneScene = ({
   // Track if Ice Nova is active for frost overlay
   const [isFrostActive, setIsFrostActive] = useState(false);
   const frostTimerRef = useRef(null);
+  const lastIceNovaIdRef = useRef(null);
 
-  // Monitor for Ice Nova effects
+  // Monitor for Ice Nova effects - track by ID
   useEffect(() => {
-    const hasIceNova = activeEffects && activeEffects.some(effect => effect.type === 'ice_nova');
+    // Find all Ice Nova effects
+    const iceNovaEffects = activeEffects?.filter(effect => effect.type === 'ice_nova') || [];
 
-    console.log('🧊 Frost overlay check - hasIceNova:', hasIceNova, 'isFrostActive:', isFrostActive);
-    console.log('🧊 Active effects types:', activeEffects?.map(e => e.type));
+    if (iceNovaEffects.length > 0) {
+      console.log('🧊 Ice Nova effects found:', iceNovaEffects.map(e => e.id));
 
-    if (hasIceNova) {
-      console.log('🧊 Ice Nova detected! Setting frost overlay active');
-      // Start frost overlay
-      setIsFrostActive(true);
+      // Check if any Ice Nova has a different ID than the last one we processed
+      const currentIceNova = iceNovaEffects[iceNovaEffects.length - 1]; // Get the most recent one
+      const currentId = currentIceNova?.id || currentIceNova?.timestamp || 'unknown';
 
-      // Clear any existing timer
-      if (frostTimerRef.current) {
-        clearTimeout(frostTimerRef.current);
+      console.log('🧊 Current Ice Nova ID:', currentId, 'Last processed:', lastIceNovaIdRef.current);
+
+      // If this is a different Ice Nova ID, trigger the overlay
+      if (currentId !== lastIceNovaIdRef.current) {
+        console.log('🧊 NEW Ice Nova detected! Triggering frost overlay');
+
+        // Remember this ID
+        lastIceNovaIdRef.current = currentId;
+
+        // Start/restart frost overlay
+        setIsFrostActive(true);
+
+        // Clear any existing timer
+        if (frostTimerRef.current) {
+          clearTimeout(frostTimerRef.current);
+        }
+
+        // Set timer to disable frost after 5 seconds
+        frostTimerRef.current = setTimeout(() => {
+          console.log('🧊 Deactivating frost overlay after 5 seconds');
+          setIsFrostActive(false);
+        }, 5000);
       }
-
-      // Set timer to disable frost after 5 seconds
-      frostTimerRef.current = setTimeout(() => {
-        console.log('🧊 Deactivating frost overlay after 5 seconds');
-        setIsFrostActive(false);
-      }, 5000);
     }
 
     return () => {
@@ -1236,8 +1237,8 @@ const HearthstoneScene = ({
             // No azimuth limits - can rotate 360°
           />
 
-          {/* Post-processing effects for dramatic spell visuals */}
-          {activeEffects && activeEffects.some(e => e.type === 'pyroblast' || e.type === 'ice_nova') && (
+          {/* Post-processing effects for dramatic spell visuals - Only Pyroblast darkens screen */}
+          {activeEffects && activeEffects.some(e => e.type === 'pyroblast') && (
             <EffectComposer>
               <Bloom
                 intensity={1.5}
@@ -1257,7 +1258,7 @@ const HearthstoneScene = ({
           <FrostOverlay
             isActive={isFrostActive}
             duration={5000}
-            intensity={0.6}
+            intensity={0.85}
           />
 
           {/* WebGL Recovery Hook - Must be inside Canvas */}
