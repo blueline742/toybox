@@ -14,6 +14,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Extract playerID from otherProps if not directly provided
   const actualPlayerID = playerID || otherProps.playerID || ctx?.currentPlayer || '0';
 
+  // Log available moves on mount
+  React.useEffect(() => {
+    console.log('🎮 Available moves:', moves ? Object.keys(moves) : 'No moves');
+  }, [moves]);
+
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingTimeRemaining, setLoadingTimeRemaining] = useState(0);
@@ -904,7 +909,17 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       // Execute the spell on first enemy (AOE will hit all)
       if (targetCard && targetCard.health > 0) {
-        moves.castSpell(actualCaster.instanceId, targetCard.instanceId, iceNovaIndex);
+        console.log('❄️ CALLING castSpell for Ice Nova:', {
+          caster: actualCaster.instanceId,
+          target: targetCard.instanceId,
+          abilityIndex: iceNovaIndex,
+          hasMove: !!moves?.castSpell
+        });
+        if (moves?.castSpell) {
+          moves.castSpell(actualCaster.instanceId, targetCard.instanceId, iceNovaIndex);
+        } else {
+          console.error('❌ moves.castSpell not available!');
+        }
       }
 
       // Clear targeting state
