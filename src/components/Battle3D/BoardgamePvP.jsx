@@ -410,9 +410,9 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       if (allFrozen) {
 //         console.log('❄️ All cards frozen - showing skip notification');
 //         console.log('❄️ Frozen cards:', frozenCards.map(c => ({
-          name: c.name,
-          frozenTurns: c.frozenTurns
-        })));
+//           name: c.name,
+//           frozenTurns: c.frozenTurns
+//         })));
 
         setSpellNotification({
           ability: {
@@ -793,13 +793,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       if (moves?.playCard) {
         // Use playCard since useAbility doesn't handle freeze
 //         console.log('🎮 CALLING playCard for instant ability:', {
-          cardId: card.instanceId || card.id,
-          ability: ability,
-          abilityIndex: abilityIndex,
-          hasFreeze: ability?.freeze,
-          effect: ability?.effect,
-          isIceNova: isIceNova
-        });
+//           cardId: card.instanceId || card.id,
+//           ability: ability,
+//           abilityIndex: abilityIndex,
+//           hasFreeze: ability?.freeze,
+//           effect: ability?.effect,
+//           isIceNova: isIceNova
+//         });
         moves.playCard(card.instanceId || card.id, null, abilityIndex);
 
         // Show spell notification with proper props
@@ -850,14 +850,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     }
 
 //     console.log('🎯 Target selected:', {
-      ability: currentAbility,
-      caster: selectedCard?.name,
-      target: targetCard?.name,
-      isIceNova: currentAbility.name?.toLowerCase() === 'ice nova' ||
-                currentAbility.name?.toLowerCase() === 'icenova' ||
-                currentAbility.id === 'ice_nova' ||
-                currentAbility.effect === 'freeze_all'
-    });
+//       ability: currentAbility,
+//       caster: selectedCard?.name,
+//       target: targetCard?.name,
+//       isIceNova: currentAbility.name?.toLowerCase() === 'ice nova' ||
+//                 currentAbility.name?.toLowerCase() === 'icenova' ||
+//                 currentAbility.id === 'ice_nova' ||
+//                 currentAbility.effect === 'freeze_all'
+//     });
 
 
     // Determine target team
@@ -978,11 +978,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Execute the spell on first enemy (AOE will hit all)
       if (targetCard && targetCard.health > 0) {
 //         console.log('❄️ CALLING castSpell for Ice Nova:', {
-          caster: actualCaster.instanceId,
-          target: targetCard.instanceId,
-          abilityIndex: iceNovaIndex,
-          hasMove: !!moves?.castSpell
-        });
+//           caster: actualCaster.instanceId,
+//           target: targetCard.instanceId,
+//           abilityIndex: iceNovaIndex,
+//           hasMove: !!moves?.castSpell
+//         });
         if (moves?.castSpell) {
           moves.castSpell(actualCaster.instanceId, targetCard.instanceId, iceNovaIndex);
         } else {
@@ -1213,13 +1213,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         }
 //         console.log('🎯 Playing card with ability index:', abilityIndex, 'ability:', currentAbility);
 //         console.log('🎮 CALLING playCard with target:', {
-          cardId: selectedCard.instanceId || selectedCard.id,
-          targetId: targetCard.instanceId || targetCard.id,
-          ability: currentAbility,
-          abilityIndex: abilityIndex,
-          hasFreeze: currentAbility?.freeze,
-          effect: currentAbility?.effect
-        });
+//           cardId: selectedCard.instanceId || selectedCard.id,
+//           targetId: targetCard.instanceId || targetCard.id,
+//           ability: currentAbility,
+//           abilityIndex: abilityIndex,
+//           hasFreeze: currentAbility?.freeze,
+//           effect: currentAbility?.effect
+//         });
         moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
 
       // Clear targeting state with delay

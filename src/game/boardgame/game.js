@@ -814,7 +814,7 @@ const ToyboxGame = {
             timestamp: Date.now()
           });
 //           console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
-            opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
+//             opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
         } else if (target) {
           // Single target freeze
           target.frozen = true;
@@ -1121,7 +1121,7 @@ const ToyboxGame = {
             timestamp: Date.now()
           });
 //           console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
-            opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
+//             opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
         } else if (target) {
           // Single target freeze
           target.frozen = true;
