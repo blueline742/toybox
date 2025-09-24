@@ -332,6 +332,19 @@ const ToyboxGame = {
           const player = G.players[ctx.currentPlayer];
           const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
 
+          // Log frozen state at turn start
+          console.log(`❄️ TURN START - Player ${ctx.currentPlayer}'s turn`);
+          console.log(`Player cards frozen state:`, player.cards.map(c => ({
+            name: c.name,
+            frozen: c.frozen,
+            frozenTurns: c.frozenTurns
+          })));
+          console.log(`Opponent cards frozen state:`, opponent.cards.map(c => ({
+            name: c.name,
+            frozen: c.frozen,
+            frozenTurns: c.frozenTurns
+          })));
+
           // Process turn start effects
           G.turnNumber++;
 
@@ -339,8 +352,10 @@ const ToyboxGame = {
           if (player.cards && player.cards.length > 0) {
             player.cards.forEach(card => {
               if (card.frozenTurns > 0) {
+                console.log(`🧊 Decrementing frozen turns for ${card.name}: ${card.frozenTurns} -> ${card.frozenTurns - 1}`);
                 card.frozenTurns--;
                 if (card.frozenTurns === 0) {
+                  console.log(`🌡️ Unfreezing ${card.name}`);
                   card.frozen = false;
                 }
               }
