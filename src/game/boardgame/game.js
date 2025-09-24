@@ -645,13 +645,14 @@ const ToyboxGame = {
       }
 
       const ability = card.abilities?.[abilityIndex];
-      console.log('📋 Playing card:', card.name, 'abilities:', JSON.stringify(card.abilities, null, 2));
+      console.log('📋 Playing card:', card.name);
+      console.log('📝 Card abilities array:', JSON.stringify(card.abilities, null, 2));
       console.log('🎯 Selected ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
       if (!ability) {
-        console.log('❌ No ability found at index', abilityIndex);
+        console.log('❌ No ability found at index', abilityIndex, 'in abilities of length', card.abilities?.length);
         return;
       }
-      console.log('🔥 Ability has freeze?', ability.freeze, 'Effect:', ability.effect);
+      console.log('🔥 PLAYCARD - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
 
 
       // No mana cost anymore!
@@ -926,15 +927,21 @@ const ToyboxGame = {
 
       // Check if it's the ultimate ability (index 2 usually) or regular ability
       let ability;
+      console.log('🎮 CASTSPELL - Card:', card.name, 'AbilityIndex:', abilityIndex);
+      console.log('📝 CASTSPELL - Card abilities:', JSON.stringify(card.abilities, null, 2));
       if (abilityIndex === 2 && card.ultimateAbility) {
         ability = card.ultimateAbility;
+        console.log('🎆 Using ultimate ability:', JSON.stringify(ability, null, 2));
       } else {
         ability = card.abilities?.[abilityIndex];
+        console.log('🎯 Using ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
       }
 
       if (!ability) {
+        console.log('❌ CASTSPELL - No ability found at index', abilityIndex);
         return;
       }
+      console.log('🔥 CASTSPELL - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
 
 
       // No mana cost anymore!
