@@ -15,6 +15,7 @@ import EnhancedPyroblastV2 from './effects/EnhancedPyroblastV2';
 import OptimizedChainLightningEffect from '../ThreeJS/OptimizedChainLightningEffect';
 import OptimizedBrickDudeEffects from '../ThreeJS/OptimizedBrickDudeEffects';
 import IceNovaEffect, { FrozenOverlay } from './effects/IceNovaEffect';
+import FrostOverlay from './effects/FrostOverlay';
 import ShieldEffect from '../effects/ShieldEffect';
 import HealingEffect from '../effects/HealingEffect';
 import ExplosionEffect from '../effects/ExplosionEffect';
@@ -1042,6 +1043,41 @@ const HearthstoneScene = ({
   const [hasError, setHasError] = useState(false);
   const rendererRef = useRef(null);
 
+  // Track if Ice Nova is active for frost overlay
+  const [isFrostActive, setIsFrostActive] = useState(false);
+  const frostTimerRef = useRef(null);
+
+  // Monitor for Ice Nova effects
+  useEffect(() => {
+    const hasIceNova = activeEffects && activeEffects.some(effect => effect.type === 'ice_nova');
+
+    console.log('🧊 Frost overlay check - hasIceNova:', hasIceNova, 'isFrostActive:', isFrostActive);
+    console.log('🧊 Active effects types:', activeEffects?.map(e => e.type));
+
+    if (hasIceNova) {
+      console.log('🧊 Ice Nova detected! Setting frost overlay active');
+      // Start frost overlay
+      setIsFrostActive(true);
+
+      // Clear any existing timer
+      if (frostTimerRef.current) {
+        clearTimeout(frostTimerRef.current);
+      }
+
+      // Set timer to disable frost after 5 seconds
+      frostTimerRef.current = setTimeout(() => {
+        console.log('🧊 Deactivating frost overlay after 5 seconds');
+        setIsFrostActive(false);
+      }, 5000);
+    }
+
+    return () => {
+      if (frostTimerRef.current) {
+        clearTimeout(frostTimerRef.current);
+      }
+    };
+  }, [activeEffects]);
+
   // Reset error on component mount and cleanup on unmount
   useEffect(() => {
     setHasError(false);
@@ -1216,6 +1252,14 @@ const HearthstoneScene = ({
               />
             </EffectComposer>
           )}
+
+          {/* Frost overlay effect for Ice Nova */}
+          <FrostOverlay
+            isActive={isFrostActive}
+            duration={5000}
+            intensity={0.6}
+          />
+
           {/* WebGL Recovery Hook - Must be inside Canvas */}
           <WebGLRecoveryManager />
         </Suspense>

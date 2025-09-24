@@ -285,6 +285,29 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     return [x, 0.5, z];
   };
 
+  // Absolute position calculation that aligns with HearthstoneScene rendering
+  // HearthstoneScene always renders playerTeam at z=5.5 (bottom) and aiTeam at z=-5.5 (top)
+  // We need to map card positions based on how they appear visually to the current player
+  const getCardPositionAbsolute = (cardIndex, cardOwner) => {
+    const isMobile = window.innerWidth <= 768;
+    const spacing = isMobile ? 2.5 : 2.2;
+    const totalCards = 4;
+    const startX = -(totalCards - 1) * spacing / 2;
+    const x = startX + cardIndex * spacing;
+
+    // Map positions based on visual appearance to the current player:
+    // - Cards owned by actualPlayerID appear at z=5.5 (bottom, same as playerTeam)
+    // - Cards owned by opponent appear at z=-5.5 (top, same as aiTeam)
+    let z;
+    if (String(cardOwner) === actualPlayerID) {
+      z = 5.5;  // This player's cards appear at bottom (playerTeam position)
+    } else {
+      z = -5.5; // Opponent's cards appear at top (aiTeam position)
+    }
+
+    return [x, 0.5, z];
+  };
+
   // Memoize team arrays to prevent recreating on every render
   const playerTeam = useMemo(() => {
     return (G?.players?.[actualPlayerID]?.cards || []).map((card, index) => ({
@@ -361,24 +384,21 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           if (casterCard) {
             const casterTeam = G.players[casterCard.owner].cards;
             const casterIndex = casterTeam.findIndex(c => c.instanceId === casterCard.instanceId);
-            const isPlayerCaster = casterCard.owner === actualPlayerID;
-            startPosition = getCardPositionUnified(casterIndex, isPlayerCaster);
+            // Use absolute position based on actual owner
+            startPosition = getCardPositionAbsolute(casterIndex, casterCard.owner);
           }
         }
 
         // Find target card position for targeted spells
         if (effect.targetCardId && effect.type === 'pyroblast') {
-          // Include all cards (even dead ones) when finding target position
-          const allPlayerCards = G?.players?.[actualPlayerID]?.cards || [];
-          const allOpponentCards = G?.players?.[opponentID]?.cards || [];
+          // Find the target card in the authoritative game state
+          const targetCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.targetCardId);
 
-          const targetInPlayer = allPlayerCards.findIndex(c => c.instanceId === effect.targetCardId);
-          const targetInAI = allOpponentCards.findIndex(c => c.instanceId === effect.targetCardId);
-
-          if (targetInPlayer !== -1) {
-            endPosition = getCardPositionUnified(targetInPlayer, true);
-          } else if (targetInAI !== -1) {
-            endPosition = getCardPositionUnified(targetInAI, false);
+          if (targetCard) {
+            const targetTeam = G.players[targetCard.owner].cards;
+            const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
+            // Use absolute position based on actual owner from game state
+            endPosition = getCardPositionAbsolute(targetIndex, targetCard.owner);
           } else {
             // Fallback: try to determine position from targetCardId format (e.g., p0-2)
             if (effect.targetCardId && effect.targetCardId.includes('-')) {
@@ -386,8 +406,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
               const playerIndex = parts[0].substring(1);
               const cardPos = parseInt(parts[parts.length - 1]);
               if (!isNaN(cardPos)) {
-                const isPlayerTeam = playerIndex === actualPlayerID;
-                endPosition = getCardPositionUnified(cardPos, isPlayerTeam);
+                // Use absolute position with parsed owner ID
+                endPosition = getCardPositionAbsolute(cardPos, playerIndex);
               }
             }
           }
@@ -396,33 +416,32 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         // For Ice Nova, calculate enemy positions
         let targetPositions = [];
         if (effect.type === 'ice_nova') {
-          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
-          const isPlayerCasting = casterInPlayer !== -1;
-          const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
+          // Use the casterCard we already found above to determine the caster's owner
+          const casterCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.casterCardId);
+          const isPlayerCasting = casterCard ? String(casterCard.owner) === actualPlayerID : false;
+          const enemyOwner = casterCard ? (String(casterCard.owner) === '0' ? '1' : '0') : opponentID;
+          const enemyTeam = G.players[enemyOwner].cards.filter(c => c.currentHealth > 0);
 
-          targetPositions = enemyTeam.filter(c => c.health > 0).map((card, index) => {
-            const x = (index - 1.5) * 2;
-            const z = isPlayerCasting
-              ? (actualPlayerID === '0' ? -5.5 : 5.5)
-              : (actualPlayerID === '0' ? 5.5 : -5.5);
-            return [x, 0.5, z];
+          targetPositions = enemyTeam.map((card, index) => {
+            // Use absolute position based on enemy owner
+            return getCardPositionAbsolute(index, enemyOwner);
           });
         }
 
         // For Chain Lightning, calculate all target positions
         let chainTargets = [];
         if (effect.type === 'chain_lightning') {
-          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
-          const isPlayerCasting = casterInPlayer !== -1;
-          const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
+          // Use the casterCard to determine the caster's owner
+          const casterCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.casterCardId);
+          const isPlayerCasting = casterCard ? String(casterCard.owner) === actualPlayerID : false;
+          const enemyOwner = casterCard ? (String(casterCard.owner) === '0' ? '1' : '0') : opponentID;
+          const enemyTeam = G.players[enemyOwner].cards.filter(c => c.currentHealth > 0);
 
-          chainTargets = enemyTeam.filter(c => c.health > 0).map((card, index) => {
-            const x = (index - 1.5) * 2;
-            const z = isPlayerCasting
-              ? (actualPlayerID === '0' ? -5.5 : 5.5)
-              : (actualPlayerID === '0' ? 5.5 : -5.5);
+          chainTargets = enemyTeam.map((card, index) => {
+            // Use absolute position based on enemy owner
+            const position = getCardPositionAbsolute(index, enemyOwner);
             return {
-              position: [x, 0.5, z],
+              position: position,
               cardId: card.instanceId || card.id
             };
           });
@@ -444,21 +463,38 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
                        if (targetCard) {
                          const targetTeam = G.players[targetCard.owner].cards;
                          const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
-                         const isTargetPlayerTeam = targetCard.owner === actualPlayerID;
-                         const position = getCardPositionUnified(targetIndex, isTargetPlayerTeam);
+                         // Use absolute position based on target's actual owner
+                         const position = getCardPositionAbsolute(targetIndex, targetCard.owner);
                          return [{position: position, cardId: effect.targetCardId}];
                        }
                        return [{position: [0, 0.5, 0], cardId: effect.targetCardId}];
                      })() :
                      effect.type === 'block_defence' ?
-                       playerTeam.filter(c => c.health > 0).map((card, index) => ({
-                         position: [(index - 1.5) * 2, 0.5, actualPlayerID === '0' ? 5.5 : -5.5],
-                         cardId: card.instanceId || card.id
-                       })) :
-                       aiTeam.filter(c => c.health > 0).map((card, index) => ({
-                         position: [(index - 1.5) * 2, 0.5, actualPlayerID === '0' ? -5.5 : 5.5],
-                         cardId: card.instanceId || card.id
-                       }))
+                       (() => {
+                         // Block defence affects the caster's team
+                         const casterCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.casterCardId);
+                         if (casterCard) {
+                           const allyTeam = G.players[casterCard.owner].cards.filter(c => c.currentHealth > 0);
+                           return allyTeam.map((card, index) => {
+                             const position = getCardPositionAbsolute(index, casterCard.owner);
+                             return {position: position, cardId: card.instanceId || card.id};
+                           });
+                         }
+                         return [];
+                       })() :
+                       (() => {
+                         // Whirlwind affects the enemy team
+                         const casterCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.casterCardId);
+                         if (casterCard) {
+                           const enemyOwner = String(casterCard.owner) === '0' ? '1' : '0';
+                           const enemyTeam = G.players[enemyOwner].cards.filter(c => c.currentHealth > 0);
+                           return enemyTeam.map((card, index) => {
+                             const position = getCardPositionAbsolute(index, enemyOwner);
+                             return {position: position, cardId: card.instanceId || card.id};
+                           });
+                         }
+                         return [];
+                       })()
                    ) : undefined,
           active: true,
           duration: effect.type === 'chain_lightning' ? 2000 :
@@ -729,16 +765,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Calculate precise 3D positions for the Pyroblast effect using game state
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
 
       const targetTeam = G.players[targetCard.owner].cards;
       const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
-      const isTargetPlayer = targetCard.owner === actualPlayerID;
+      const isTargetPlayer = String(targetCard.owner) === actualPlayerID;
 
 
-      // Use unified position calculation for both caster and target
-      const startPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
-      const endPosition = getCardPositionUnified(targetIndex, isTargetPlayer);
+      // Use absolute position calculation for both caster and target
+      const startPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
+      const endPosition = getCardPositionAbsolute(targetIndex, targetCard.owner);
 
       // Adjust Y position slightly for spell effect
       startPosition[1] += 0.5;
@@ -768,17 +804,17 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Ice Nova is AOE - hits all enemies
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
 
-      // Use unified position calculation
-      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      // Use absolute position calculation
+      const casterPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
 
       // Get all enemy positions
-      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyOwner = String(actualCaster.owner) === '0' ? '1' : '0';
       const enemyTeam = G.players[enemyOwner].cards;
       const enemyPositions = enemyTeam.filter(c => c.isAlive !== false && c.currentHealth > 0).map((card, index) => {
-        const isEnemyPlayerTeam = enemyOwner === actualPlayerID;
-        return getCardPositionUnified(index, isEnemyPlayerTeam);
+        // Use absolute position based on enemy owner
+        return getCardPositionAbsolute(index, enemyOwner);
       });
 
       // Add Ice Nova effect
@@ -827,16 +863,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Brick Dude - Sword Slash Effect
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
 
-      // Use unified position calculation
-      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      // Use absolute position calculation
+      const casterPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
 
       // Get target position
       const targetTeam = G.players[targetCard.owner].cards;
       const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
-      const isTargetPlayer = targetCard.owner === actualPlayerID;
-      const targetPosition = getCardPositionUnified(targetIndex, isTargetPlayer);
+      const isTargetPlayer = String(targetCard.owner) === actualPlayerID;
+      const targetPosition = getCardPositionAbsolute(targetIndex, targetCard.owner);
 
       const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'sword slash' || a.id === 'sword_slash'
@@ -865,8 +901,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       const allyTeam = G.players[actualCaster.owner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
-      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
+      const casterPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
 
       const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'block defence' || a.id === 'block_defence'
@@ -891,12 +927,12 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     } else if (moves?.castSpell && isWhirlwind) {
       // Brick Dude - Whirlwind Slash (Ultimate)
-      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyOwner = String(actualCaster.owner) === '0' ? '1' : '0';
       const enemyTeam = G.players[enemyOwner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
-      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
+      const casterPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
 
       const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase().includes('whirlwind') || a.id === 'whirlwind_slash'
@@ -925,19 +961,19 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Chain Lightning Effect
 
       // Find all enemy targets
-      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyOwner = String(actualCaster.owner) === '0' ? '1' : '0';
       const enemyTeam = G.players[enemyOwner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
 
       // Calculate caster position (Wizard Toy)
       const casterTeam = G.players[actualCaster.owner].cards;
       const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
-      const isPlayerCasting = actualCaster.owner === actualPlayerID;
-      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      const isPlayerCasting = String(actualCaster.owner) === actualPlayerID;
+      const casterPosition = getCardPositionAbsolute(casterIndex, actualCaster.owner);
 
       // Calculate all target positions for the chain effect
       const chainTargets = enemyTeam.map((card, index) => {
-        const isEnemyPlayerTeam = enemyOwner === actualPlayerID;
-        const targetPos = getCardPositionUnified(index, isEnemyPlayerTeam);
+        // Use absolute position based on enemy owner
+        const targetPos = getCardPositionAbsolute(index, enemyOwner);
         return {
           position: targetPos,
           cardId: card.instanceId
