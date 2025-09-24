@@ -337,6 +337,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Check player cards
     playerTeam.forEach(card => {
       if (card.frozen && card.currentHealth > 0) {
+        console.log(`❄️ Player card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
         frozen.set(card.instanceId, true);
       }
       if (card.shields > 0) {
@@ -347,6 +348,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Check AI cards
     aiTeam.forEach(card => {
       if (card.frozen && card.currentHealth > 0) {
+        console.log(`❄️ AI card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
         frozen.set(card.instanceId, true);
       }
       if (card.shields > 0) {
@@ -354,6 +356,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }
     });
 
+    console.log('🧊 Frozen characters map:', frozen.size, 'frozen cards');
     setFrozenCharacters(frozen);
     setShieldedCharacters(shielded);
   }, [playerTeam, aiTeam]);
@@ -661,16 +664,36 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       return;
     }
 
-    const ability = card.abilities?.[0];
+    console.log('🎮 handleAbilityClick - Card:', card.name, 'Abilities:', card.abilities);
+
+    // Find the correct ability index based on what the user wants
+    // For now, try to find Ice Nova if it's a wizard
+    let abilityIndex = 0;
+    if (card.name === 'Wizard Toy' && card.abilities) {
+      const iceNovaIndex = card.abilities.findIndex(a =>
+        a.name?.toLowerCase().includes('ice nova') || a.effect === 'freeze_all'
+      );
+      if (iceNovaIndex >= 0) {
+        abilityIndex = iceNovaIndex;
+        console.log('❄️ Found Ice Nova at index:', iceNovaIndex);
+      }
+    }
+
+    console.log('🧙 Card abilities array:', card.abilities);
+    console.log('🔢 Ability index requested:', abilityIndex);
+    const ability = card.abilities?.[abilityIndex];
+    console.log('📌 Selected ability:', JSON.stringify(ability, null, 2));
     if (!ability) {
+      console.error('❌ No ability at index', abilityIndex, 'in abilities:', card.abilities);
       return;
     }
 
 
     // Check if this is Pyroblast or another targeted spell
     const isPyroblast = ability.name?.toLowerCase() === 'pyroblast';
-    const isIceNova = ability.name?.toLowerCase() === 'ice nova' || ability.effect === 'freeze_all';
-    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || ability.targetType === 'all_allies' || ability.targetType === 'single' || isPyroblast || isIceNova;
+    const isIceNova = ability.name?.toLowerCase().includes('ice nova') || ability.effect === 'freeze_all';
+    // Ice Nova is instant - it affects all enemies without needing a target
+    const requiresTarget = !isIceNova && (ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || ability.targetType === 'all_allies' || ability.targetType === 'single' || isPyroblast);
 
     // Handle different ability types
     if (requiresTarget) {
@@ -692,13 +715,19 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       setValidTargets(targets.map(c => c.instanceId || c.id));
     } else {
-      // Instant ability - no target needed
-      if (moves?.useAbility) {
-        moves.useAbility({
-          sourceCardId: card.id,
-          abilityIndex: 0,
-          targetCardId: null
+      // Instant ability - no target needed (includes Ice Nova)
+      console.log('❄️ INSTANT CAST - Ice Nova or other instant ability');
+      if (moves?.playCard) {
+        // Use playCard since useAbility doesn't handle freeze
+        console.log('🎮 CALLING playCard for instant ability:', {
+          cardId: card.instanceId || card.id,
+          ability: ability,
+          abilityIndex: abilityIndex,
+          hasFreeze: ability?.freeze,
+          effect: ability?.effect,
+          isIceNova: isIceNova
         });
+        moves.playCard(card.instanceId || card.id, null, abilityIndex);
 
         // Show spell notification with proper props
         setSpellNotification({
@@ -708,12 +737,18 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         });
 
         // Add visual effect
-      setActiveEffects(prev => [...prev, {
+        setActiveEffects(prev => [...prev, {
           id: Date.now(),
           type: ability.effect,
           cardId: card.id,
           duration: 1500
         }]);
+
+        // Trigger frost overlay for Ice Nova
+        if (isIceNova) {
+          console.log('❄️ Triggering frost overlay for Ice Nova');
+          setFrostOverlayTriggerIds(prev => [...prev, `ice-nova-${Date.now()}`]);
+        }
 
         // End turn after instant ability
       setTimeout(() => {
@@ -1052,13 +1087,19 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setValidTargets([]);
       }, 100);
 
-    } else if (moves?.useAbility) {
-
-        moves.useAbility({
-          sourceCardId: selectedCard.id,
-          abilityIndex: 0,
-          targetCardId: targetCard.id
-        });
+    } else if (moves?.castSpell) {
+        // Use castSpell for spells like Ice Nova (it handles freeze properly)
+        // Find the correct ability index for the current ability
+        let abilityIndex = 0;
+        if (selectedCard.abilities && currentAbility) {
+          const index = selectedCard.abilities.findIndex(a =>
+            a.name === currentAbility.name ||
+            (a.effect === currentAbility.effect && a.damage === currentAbility.damage)
+          );
+          if (index >= 0) abilityIndex = index;
+        }
+        console.log('🎯 Casting spell with ability index:', abilityIndex, 'ability:', currentAbility);
+        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
 
       // Only trigger Pyroblast effect for actual Pyroblast spell
       // Disabled for now to prevent rendering glitches
@@ -1078,7 +1119,25 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }, 100);
     } else if (moves?.playCard) {
         // Fallback to playCard if useAbility doesn't exist
-        moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, 0);
+        // Find the correct ability index for the current ability
+        let abilityIndex = 0;
+        if (selectedCard.abilities && currentAbility) {
+          const index = selectedCard.abilities.findIndex(a =>
+            a.name === currentAbility.name ||
+            (a.effect === currentAbility.effect && a.damage === currentAbility.damage)
+          );
+          if (index >= 0) abilityIndex = index;
+        }
+        console.log('🎯 Playing card with ability index:', abilityIndex, 'ability:', currentAbility);
+        console.log('🎮 CALLING playCard with target:', {
+          cardId: selectedCard.instanceId || selectedCard.id,
+          targetId: targetCard.instanceId || targetCard.id,
+          ability: currentAbility,
+          abilityIndex: abilityIndex,
+          hasFreeze: currentAbility?.freeze,
+          effect: currentAbility?.effect
+        });
+        moves.playCard(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
 
       // Clear targeting state with delay
       setTimeout(() => {

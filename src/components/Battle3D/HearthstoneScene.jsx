@@ -680,10 +680,13 @@ const HearthstoneBattleArena = ({
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <IceCubeEffect
-                position={[x, y + 0.5, z]}
-                scale={1.2}
-              />
+              <>
+                {console.log(`🧊 Rendering ice cube for ${char.name} at position:`, [x, y + 1.0, z])}
+                <IceCubeEffect
+                  position={[x, y + 1.0, z]}
+                  scale={1.5}
+                />
+              </>
             )}
           </group>
         );
@@ -739,10 +742,13 @@ const HearthstoneBattleArena = ({
             )}
 
             {frozenCharacters?.has(char.instanceId) && (
-              <IceCubeEffect
-                position={[x, y + 0.5, z]}
-                scale={1.2}
-              />
+              <>
+                {console.log(`🧊 Rendering ice cube for ${char.name} at position:`, [x, y + 1.0, z])}
+                <IceCubeEffect
+                  position={[x, y + 1.0, z]}
+                  scale={1.5}
+                />
+              </>
             )}
           </group>
         );

@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { useTexture } from '@react-three/drei';
+import { useTexture, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 /**
@@ -62,6 +62,33 @@ const SafeNFTCard = ({
             color={character.currentHealth > character.maxHealth * 0.3 ? '#00ff00' : '#ff0000'}
           />
         </mesh>
+      )}
+
+      {/* Frozen status indicator */}
+      {character.frozen && (
+        <group position={[0, -cardHeight/2 - 0.35, 0.02]}>
+          {/* Frozen icon background */}
+          <mesh>
+            <circleGeometry args={[0.15]} />
+            <meshBasicMaterial
+              color="#4dd0ff"
+              transparent
+              opacity={0.9}
+            />
+          </mesh>
+          {/* Frozen text */}
+          <Text
+            position={[0, 0, 0.01]}
+            fontSize={0.18}
+            color="#ffffff"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.02}
+            outlineColor="#003366"
+          >
+            ❄
+          </Text>
+        </group>
       )}
     </>
   );
@@ -264,14 +291,14 @@ const HybridCard3D = ({
         </mesh>
       )}
 
-      {/* Frozen effect */}
+      {/* Frozen overlay effect - subtle blue tint */}
       {character.frozen && (
         <mesh position={[0, 0, 0.03]}>
           <planeGeometry args={[cardWidth, cardHeight]} />
           <meshBasicMaterial
             color="#87CEEB"
             transparent
-            opacity={0.4}
+            opacity={0.25}
             side={THREE.DoubleSide}
           />
         </mesh>
