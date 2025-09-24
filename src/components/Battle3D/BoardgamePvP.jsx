@@ -272,6 +272,19 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // CRITICAL FIX: Always use G.players for teams (synchronized state)
   const opponentID = actualPlayerID === '0' ? '1' : '0';
 
+  // Unified position calculation function for consistency across all spell effects
+  const getCardPositionUnified = (cardIndex, isPlayerTeam) => {
+    const isMobile = window.innerWidth <= 768;
+    const spacing = isMobile ? 2.5 : 2.2;
+    const totalCards = 4;
+    const startX = -(totalCards - 1) * spacing / 2;
+    const x = startX + cardIndex * spacing;
+    const z = isPlayerTeam ?
+      (actualPlayerID === '0' ? 5.5 : -5.5) :
+      (actualPlayerID === '0' ? -5.5 : 5.5);
+    return [x, 0.5, z];
+  };
+
   // Memoize team arrays to prevent recreating on every render
   const playerTeam = useMemo(() => {
     return (G?.players?.[actualPlayerID]?.cards || []).map((card, index) => ({
@@ -340,35 +353,43 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         let startPosition = [0, 0.5, 0];
         let endPosition = [0, 0.5, 0];
 
-        // Find caster card position
+        // Find caster card position (include all cards even dead ones)
         if (effect.casterCardId) {
-          const casterInPlayer = playerTeam.findIndex(c => c.instanceId === effect.casterCardId);
-          const casterInAI = aiTeam.findIndex(c => c.instanceId === effect.casterCardId);
+          // Find the caster card in the authoritative game state
+          const casterCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.casterCardId);
 
-          if (casterInPlayer !== -1) {
-            const x = (casterInPlayer - 1.5) * 2;
-            const z = actualPlayerID === '0' ? 5.5 : -5.5;
-            startPosition = [x, 0.5, z];
-          } else if (casterInAI !== -1) {
-            const x = (casterInAI - 1.5) * 2;
-            const z = actualPlayerID === '0' ? -5.5 : 5.5;
-            startPosition = [x, 0.5, z];
+          if (casterCard) {
+            const casterTeam = G.players[casterCard.owner].cards;
+            const casterIndex = casterTeam.findIndex(c => c.instanceId === casterCard.instanceId);
+            const isPlayerCaster = casterCard.owner === actualPlayerID;
+            startPosition = getCardPositionUnified(casterIndex, isPlayerCaster);
           }
         }
 
         // Find target card position for targeted spells
         if (effect.targetCardId && effect.type === 'pyroblast') {
-          const targetInPlayer = playerTeam.findIndex(c => c.instanceId === effect.targetCardId);
-          const targetInAI = aiTeam.findIndex(c => c.instanceId === effect.targetCardId);
+          // Include all cards (even dead ones) when finding target position
+          const allPlayerCards = G?.players?.[actualPlayerID]?.cards || [];
+          const allOpponentCards = G?.players?.[opponentID]?.cards || [];
+
+          const targetInPlayer = allPlayerCards.findIndex(c => c.instanceId === effect.targetCardId);
+          const targetInAI = allOpponentCards.findIndex(c => c.instanceId === effect.targetCardId);
 
           if (targetInPlayer !== -1) {
-            const x = (targetInPlayer - 1.5) * 2;
-            const z = actualPlayerID === '0' ? 5.5 : -5.5;
-            endPosition = [x, 0.5, z];
+            endPosition = getCardPositionUnified(targetInPlayer, true);
           } else if (targetInAI !== -1) {
-            const x = (targetInAI - 1.5) * 2;
-            const z = actualPlayerID === '0' ? -5.5 : 5.5;
-            endPosition = [x, 0.5, z];
+            endPosition = getCardPositionUnified(targetInAI, false);
+          } else {
+            // Fallback: try to determine position from targetCardId format (e.g., p0-2)
+            if (effect.targetCardId && effect.targetCardId.includes('-')) {
+              const parts = effect.targetCardId.split('-');
+              const playerIndex = parts[0].substring(1);
+              const cardPos = parseInt(parts[parts.length - 1]);
+              if (!isNaN(cardPos)) {
+                const isPlayerTeam = playerIndex === actualPlayerID;
+                endPosition = getCardPositionUnified(cardPos, isPlayerTeam);
+              }
+            }
           }
         }
 
@@ -418,18 +439,14 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
                    (effect.type === 'sword_slash' || effect.type === 'block_defence' || effect.type === 'whirlwind') ?
                    (effect.type === 'sword_slash' ?
                      (() => {
-                       // Calculate target position for sword slash
-                       const targetCard = [...playerTeam, ...aiTeam].find(c => c.instanceId === effect.targetCardId);
+                       // Calculate target position for sword slash using unified position
+                       const targetCard = [...G.players['0'].cards, ...G.players['1'].cards].find(c => c.instanceId === effect.targetCardId);
                        if (targetCard) {
-                         const targetInPlayer = playerTeam.findIndex(c => c.instanceId === targetCard.instanceId) !== -1;
-                         const targetIndex = targetInPlayer ?
-                           playerTeam.findIndex(c => c.instanceId === targetCard.instanceId) :
-                           aiTeam.findIndex(c => c.instanceId === targetCard.instanceId);
-                         const x = (targetIndex - 1.5) * 2;
-                         const z = targetInPlayer
-                           ? (actualPlayerID === '0' ? 5.5 : -5.5)
-                           : (actualPlayerID === '0' ? -5.5 : 5.5);
-                         return [{position: [x, 0.5, z], cardId: effect.targetCardId}];
+                         const targetTeam = G.players[targetCard.owner].cards;
+                         const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
+                         const isTargetPlayerTeam = targetCard.owner === actualPlayerID;
+                         const position = getCardPositionUnified(targetIndex, isTargetPlayerTeam);
+                         return [{position: position, cardId: effect.targetCardId}];
                        }
                        return [{position: [0, 0.5, 0], cardId: effect.targetCardId}];
                      })() :
@@ -511,13 +528,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Delay to make it feel more natural
     setTimeout(() => {
-      // Select an ability from the card based on weighted chances
-      const abilities = activeCard.abilities || [];
+      // Use G.currentTurnCard if available, as that's the authoritative source
+      const actualCaster = G?.currentTurnCard?.card || activeCard;
+
+      // Select an ability from the ACTUAL CASTER's abilities
+      const abilities = actualCaster.abilities || [];
       if (abilities.length > 0) {
         let selectedAbility;
 
         // Special handling for Wizard Toy with weighted spell selection
-        if (activeCard.name === 'Wizard Toy') {
+        if (actualCaster.name === 'Wizard Toy') {
           const rand = Math.random();
           if (rand < 0.50) {
             // 50% chance for Ice Nova
@@ -534,21 +554,21 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           selectedAbility = abilities[Math.floor(Math.random() * abilities.length)];
         }
 
-        setSelectedCard(activeCard);
+        setSelectedCard(actualCaster);
         setCurrentAbility(selectedAbility);
 
         // Show spell notification for the selected ability
         setSpellNotification({
           ability: selectedAbility,
-          caster: activeCard,
+          caster: actualCaster,
           targets: []
         });
 
         // Determine valid targets based on ability
-        const targets = selectedAbility.targetType === 'enemy'
+        const targets = selectedAbility.targetType === 'enemy' || selectedAbility.targetType === 'single' || selectedAbility.targetType === 'all_enemies'
           ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
-          : selectedAbility.targetType === 'friendly'
-          ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0 && c.id !== activeCard.id)
+          : selectedAbility.targetType === 'friendly' || selectedAbility.targetType === 'ally' || selectedAbility.targetType === 'all_allies'
+          ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
           : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
         if (targets.length > 0) {
@@ -583,7 +603,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Check if this is Pyroblast or another targeted spell
     const isPyroblast = ability.name?.toLowerCase() === 'pyroblast';
     const isIceNova = ability.name?.toLowerCase() === 'ice nova' || ability.effect === 'freeze_all';
-    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || isPyroblast || isIceNova;
+    const requiresTarget = ability.requiresTarget || ability.targetType === 'enemy' || ability.targetType === 'ally' || ability.targetType === 'all_allies' || ability.targetType === 'single' || isPyroblast || isIceNova;
 
     // Handle different ability types
     if (requiresTarget) {
@@ -597,10 +617,10 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Ice Nova targets all enemies but still needs target selection
       const targets = isIceNova
         ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0) // Ice Nova always targets all enemies
-        : ability.targetType === 'enemy'
+        : ability.targetType === 'enemy' || ability.targetType === 'single'
         ? aiTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
-        : ability.targetType === 'friendly'
-        ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0 && c.id !== card.id)
+        : ability.targetType === 'friendly' || ability.targetType === 'ally' || ability.targetType === 'all_allies'
+        ? playerTeam.filter(c => (c.health || c.currentHealth || 100) > 0)
         : [...playerTeam, ...aiTeam].filter(c => (c.health || c.currentHealth || 100) > 0);
 
       setValidTargets(targets.map(c => c.instanceId || c.id));
@@ -642,6 +662,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const handleTargetSelect = (targetCard) => {
 
     if (!isTargeting || !currentAbility || !selectedCard) {
+      console.log('❌ Not targeting or no ability/card selected:', { isTargeting, currentAbility, selectedCard });
       return;
     }
 
@@ -649,12 +670,26 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     const targetInstanceId = targetCard.instanceId || targetCard.id;
 
     if (!validTargets.includes(targetInstanceId)) {
+      console.log('❌ Invalid target:', targetInstanceId, 'Valid targets:', validTargets);
       return;
     }
 
+    console.log('🎯 Target selected:', {
+      ability: currentAbility,
+      caster: selectedCard?.name,
+      target: targetCard?.name,
+      isIceNova: currentAbility.name?.toLowerCase() === 'ice nova' ||
+                currentAbility.name?.toLowerCase() === 'icenova' ||
+                currentAbility.id === 'ice_nova' ||
+                currentAbility.effect === 'freeze_all'
+    });
+
 
     // Determine target team
-    const targetTeam = playerTeam.some(c => c.id === targetCard.id) ? 'player' : 'enemy';
+    // Use instanceId for team detection to ensure accuracy\n    const targetTeam = playerTeam.some(c => c.instanceId === targetCard.instanceId) ? 'player' : 'enemy';
+
+    // Get the actual caster from game state (used by all abilities)
+    const actualCaster = G?.currentTurnCard?.card || selectedCard;
 
     // Check if this is a Pyroblast spell or any fire spell
 
@@ -663,93 +698,59 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
                        currentAbility.name?.toLowerCase().includes('fire');
 
     const isIceNova = currentAbility.name?.toLowerCase() === 'ice nova' ||
-                      currentAbility.name?.toLowerCase().includes('frost') ||
-                      currentAbility.name?.toLowerCase().includes('ice');
+                      currentAbility.name?.toLowerCase() === 'icenova' ||
+                      currentAbility.id === 'ice_nova' ||
+                      currentAbility.effect === 'freeze_all';
+
+    const isWhirlwind = currentAbility.name?.toLowerCase().includes('whirlwind') ||
+                        currentAbility.id === 'whirlwind_slash';
+
+    const isSwordSlash = currentAbility.name?.toLowerCase() === 'sword slash' ||
+                         currentAbility.id === 'sword_slash';
+
+    const isBlockDefence = currentAbility.name?.toLowerCase() === 'block defence' ||
+                          currentAbility.id === 'block_defence';
+
+    const isLightning = currentAbility.name?.toLowerCase() === 'lightning zap' ||
+                       currentAbility.name?.toLowerCase().includes('chain') ||
+                       currentAbility.name?.toLowerCase().includes('lightning');
 
     // Execute ability with target
     if (moves?.castSpell && isPyroblast) {
 
       // Find the correct ability index for Pyroblast
-      const pyroblastIndex = selectedCard.abilities?.findIndex(a =>
+      const pyroblastIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'pyroblast' || a.id === 'pyroblast'
       ) ?? 0;
 
-      // Use the new castSpell move for Pyroblast
-      moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, pyroblastIndex);
+      // Use the new castSpell move for Pyroblast with actual caster
+      moves.castSpell(actualCaster.instanceId, targetCard.instanceId, pyroblastIndex);
 
-      // Calculate precise 3D positions for the Pyroblast effect
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const targetIndex = targetTeam === 'enemy'
-        ? aiTeam.findIndex(c => c.id === targetCard.id)
-        : playerTeam.findIndex(c => c.id === targetCard.id);
+      // Calculate precise 3D positions for the Pyroblast effect using game state
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
 
-
-      // Match the exact card positioning from HearthstoneScene
-      const isMobile = window.innerWidth <= 768;
-      const spacing = isMobile ? 2.5 : 2.2;
-      const totalCards = 4;
-
-      // Center the cards horizontally (matching getCardPosition function)
-      const startX = -(totalCards - 1) * spacing / 2;
-
-      // Calculate X positions for caster and target
-      const casterX = startX + (casterIndex * spacing);
-      const targetX = startX + (targetIndex * spacing);
-
-      // Y position (height above table)
-      const cardY = 0.4;
-
-      // Z positions (distance from center - matching HearthstoneScene)
-      const playerZ = 5.5;  // Player cards are at z = 5.5
-      const aiZ = -5.5;     // AI cards are at z = -5.5
-
-      const startPosition = [
-        casterX,
-        cardY + 0.5,  // Slightly above the card
-        actualPlayerID === '0' ? playerZ : aiZ
-      ];
-
-      const endPosition = [
-        targetX,
-        cardY + 0.5,  // Slightly above the target card
-        targetTeam === 'enemy'
-          ? (actualPlayerID === '0' ? aiZ : playerZ)  // Enemy team opposite side
-          : (actualPlayerID === '0' ? playerZ : aiZ)   // Same team same side
-      ];
+      const targetTeam = G.players[targetCard.owner].cards;
+      const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
+      const isTargetPlayer = targetCard.owner === actualPlayerID;
 
 
-      // Add Pyroblast to activeEffects using the safe SimplePyroblast
-      const pyroblastEffect = {
-        id: Date.now(),
-        type: 'pyroblast',
-        startPosition: startPosition,
-        endPosition: endPosition,
-        active: true,
-        duration: 6000  // 6 seconds - longer than turn delay to ensure full animation
-      };
+      // Use unified position calculation for both caster and target
+      const startPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
+      const endPosition = getCardPositionUnified(targetIndex, isTargetPlayer);
 
-      // Effects are now synced from G.activeEffects for both players
-      // setActiveEffects(prev => [...prev, pyroblastEffect]);
+      // Adjust Y position slightly for spell effect
+      startPosition[1] += 0.5;
+      endPosition[1] += 0.5;
 
-      // Execute the spell move - this will add the effect to G.activeEffects
-      const abilityIndex = selectedCard.abilities?.findIndex(a =>
-        a.name?.toLowerCase() === 'pyroblast' || a.id === 'pyroblast'
-      ) ?? 0;
 
-      // Execute the spell move - this will add the effect to G.activeEffects
-
-      if (moves.castSpell) {
-        moves.castSpell(
-          selectedCard.instanceId || selectedCard.id,
-          targetCard.instanceId || targetCard.id,
-          abilityIndex
-        );
-      } else {
-        console.error('❌ moves.castSpell is not available!');
-      }
-
-      // Clear targeting state immediately to hide overlay
+      // Clear ALL targeting state immediately to prevent duplicate casts
       setShowTargetingOverlay(false);
+      setIsTargeting(false);
+      setSelectedCard(null);
+      setCurrentAbility(null);
+      setValidTargets([]);
 
       // Add spell notification
       setSpellNotification({
@@ -758,14 +759,6 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         targets: [targetCard]
       });
 
-      // Clear remaining targeting state
-      setTimeout(() => {
-        setIsTargeting(false);
-        setSelectedCard(null);
-        setCurrentAbility(null);
-        setValidTargets([]);
-      }, 100);
-
     } else if (moves?.castSpell && isIceNova) {
 
       // Z positions (distance from center - matching HearthstoneScene)
@@ -773,32 +766,20 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       const aiZ = -5.5;     // AI cards are at z = -5.5
 
       // Ice Nova is AOE - hits all enemies
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const isPlayerCasting = casterIndex !== -1;
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
 
-      // Calculate caster position
-      const casterX = isPlayerCasting
-        ? (casterIndex - 1.5) * 2  // Player positions
-        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2; // AI positions
-
-      const casterY = 0.5;
-      const casterZ = isPlayerCasting
-        ? (actualPlayerID === '0' ? playerZ : aiZ)
-        : (actualPlayerID === '0' ? aiZ : playerZ);
-
-      const casterPosition = [casterX, casterY, casterZ];
+      // Use unified position calculation
+      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
 
       // Get all enemy positions
-      const enemyTeam = isPlayerCasting ? aiTeam : playerTeam;
-      const enemyPositions = enemyTeam.filter(c => c.health > 0).map((card, index) => {
-        const x = (index - 1.5) * 2;
-        const y = 0.5;
-        const z = isPlayerCasting
-          ? (actualPlayerID === '0' ? aiZ : playerZ)
-          : (actualPlayerID === '0' ? playerZ : aiZ);
-        return [x, y, z];
+      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyTeam = G.players[enemyOwner].cards;
+      const enemyPositions = enemyTeam.filter(c => c.isAlive !== false && c.currentHealth > 0).map((card, index) => {
+        const isEnemyPlayerTeam = enemyOwner === actualPlayerID;
+        return getCardPositionUnified(index, isEnemyPlayerTeam);
       });
-
 
       // Add Ice Nova effect
       const iceNovaEffect = {
@@ -806,7 +787,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         type: 'ice_nova',
         casterPosition: casterPosition,
         targetPositions: enemyPositions,
-        enemyCardIds: enemyTeam.filter(c => c.health > 0).map(c => c.id),
+        enemyCardIds: enemyTeam.filter(c => c.isAlive !== false && c.currentHealth > 0).map(c => c.instanceId),
         active: true,
         duration: 8000  // 8 seconds for the full effect
       };
@@ -815,13 +796,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // setActiveEffects(prev => [...prev, iceNovaEffect]);
 
       // Find the correct ability index for Ice Nova
-      const iceNovaIndex = selectedCard.abilities?.findIndex(a =>
+      const iceNovaIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'ice nova' || a.id === 'ice_nova'
       ) ?? 0;
 
       // Execute the spell on first enemy (AOE will hit all)
       if (targetCard && targetCard.health > 0) {
-        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, iceNovaIndex);
+        moves.castSpell(actualCaster.instanceId, targetCard.instanceId, iceNovaIndex);
       }
 
       // Clear targeting state
@@ -842,35 +823,27 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setValidTargets([]);
       }, 100);
 
-    } else if (currentAbility.name?.toLowerCase() === 'sword slash' ||
-               currentAbility.id === 'sword_slash') {
+    } else if (moves?.castSpell && isSwordSlash) {
       // Brick Dude - Sword Slash Effect
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const isPlayerCasting = casterIndex !== -1;
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
 
-      const casterX = isPlayerCasting
-        ? (casterIndex - 1.5) * 2
-        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2;
-
-      const casterZ = isPlayerCasting
-        ? (actualPlayerID === '0' ? 5.5 : -5.5)
-        : (actualPlayerID === '0' ? -5.5 : 5.5);
-
-      const casterPosition = [casterX, 0.5, casterZ];
+      // Use unified position calculation
+      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
 
       // Get target position
-      const targetIndex = aiTeam.findIndex(c => c.id === targetCard.id);
-      const targetX = (targetIndex - 1.5) * 2;
-      const targetZ = isPlayerCasting
-        ? (actualPlayerID === '0' ? -5.5 : 5.5)
-        : (actualPlayerID === '0' ? 5.5 : -5.5);
+      const targetTeam = G.players[targetCard.owner].cards;
+      const targetIndex = targetTeam.findIndex(c => c.instanceId === targetCard.instanceId);
+      const isTargetPlayer = targetCard.owner === actualPlayerID;
+      const targetPosition = getCardPositionUnified(targetIndex, isTargetPlayer);
 
-      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+      const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'sword slash' || a.id === 'sword_slash'
       ) ?? 0;
 
       if (targetCard && targetCard.health > 0) {
-        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
+        moves.castSpell(actualCaster.instanceId, targetCard.instanceId, abilityIndex);
       }
 
       setShowTargetingOverlay(false);
@@ -887,20 +860,20 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setValidTargets([]);
       }, 100);
 
-    } else if (currentAbility.name?.toLowerCase() === 'block defence' ||
-               currentAbility.id === 'block_defence') {
+    } else if (moves?.castSpell && isBlockDefence) {
       // Brick Dude - Block Defence Effect (shields all allies)
-      const allyTeam = playerTeam.filter(c => c.health > 0);
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const casterX = (casterIndex - 1.5) * 2;
-      const casterZ = actualPlayerID === '0' ? 5.5 : -5.5;
+      const allyTeam = G.players[actualCaster.owner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
 
-      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+      const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'block defence' || a.id === 'block_defence'
       ) ?? 1;
 
       // No target needed for self/team buff - just cast it
-      moves.castSpell(selectedCard.instanceId || selectedCard.id, selectedCard.instanceId || selectedCard.id, abilityIndex);
+      moves.castSpell(actualCaster.instanceId, actualCaster.instanceId, abilityIndex);
 
       setShowTargetingOverlay(false);
       setSpellNotification({
@@ -916,21 +889,22 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setValidTargets([]);
       }, 100);
 
-    } else if (currentAbility.name?.toLowerCase().includes('whirlwind') ||
-               currentAbility.id === 'whirlwind_slash') {
+    } else if (moves?.castSpell && isWhirlwind) {
       // Brick Dude - Whirlwind Slash (Ultimate)
-      const enemyTeam = aiTeam.filter(c => c.health > 0);
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const casterX = (casterIndex - 1.5) * 2;
-      const casterZ = actualPlayerID === '0' ? 5.5 : -5.5;
+      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyTeam = G.players[enemyOwner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
 
-      const abilityIndex = selectedCard.abilities?.findIndex(a =>
+      const abilityIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase().includes('whirlwind') || a.id === 'whirlwind_slash'
       ) ?? 2;
 
       // Execute on first enemy (AOE will hit all)
       if (enemyTeam.length > 0) {
-        moves.castSpell(selectedCard.instanceId || selectedCard.id, enemyTeam[0].instanceId || enemyTeam[0].id, abilityIndex);
+        moves.castSpell(actualCaster.instanceId, enemyTeam[0].instanceId, abilityIndex);
       }
 
       setShowTargetingOverlay(false);
@@ -947,37 +921,26 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         setValidTargets([]);
       }, 100);
 
-    } else if (currentAbility.name?.toLowerCase() === 'lightning zap' ||
-               currentAbility.name?.toLowerCase().includes('chain') ||
-               currentAbility.name?.toLowerCase().includes('lightning')) {
+    } else if (moves?.castSpell && isLightning) {
       // Chain Lightning Effect
 
       // Find all enemy targets
-      const enemyTeam = aiTeam.filter(c => c.health > 0);
+      const enemyOwner = actualCaster.owner === '0' ? '1' : '0';
+      const enemyTeam = G.players[enemyOwner].cards.filter(c => c.isAlive !== false && c.currentHealth > 0);
 
       // Calculate caster position (Wizard Toy)
-      const casterIndex = playerTeam.findIndex(c => c.id === selectedCard.id);
-      const isPlayerCasting = casterIndex !== -1;
-
-      const casterX = isPlayerCasting
-        ? (casterIndex - 1.5) * 2
-        : (aiTeam.findIndex(c => c.id === selectedCard.id) - 1.5) * 2;
-
-      const casterZ = isPlayerCasting
-        ? (actualPlayerID === '0' ? 5.5 : -5.5)
-        : (actualPlayerID === '0' ? -5.5 : 5.5);
-
-      const casterPosition = [casterX, 0.5, casterZ];
+      const casterTeam = G.players[actualCaster.owner].cards;
+      const casterIndex = casterTeam.findIndex(c => c.instanceId === actualCaster.instanceId);
+      const isPlayerCasting = actualCaster.owner === actualPlayerID;
+      const casterPosition = getCardPositionUnified(casterIndex, isPlayerCasting);
 
       // Calculate all target positions for the chain effect
       const chainTargets = enemyTeam.map((card, index) => {
-        const x = (index - 1.5) * 2;
-        const z = isPlayerCasting
-          ? (actualPlayerID === '0' ? -5.5 : 5.5)
-          : (actualPlayerID === '0' ? 5.5 : -5.5);
+        const isEnemyPlayerTeam = enemyOwner === actualPlayerID;
+        const targetPos = getCardPositionUnified(index, isEnemyPlayerTeam);
         return {
-          position: [x, 0.5, z],
-          cardId: card.id
+          position: targetPos,
+          cardId: card.instanceId
         };
       });
 
@@ -995,13 +958,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // The effect will be picked up by the useEffect that syncs G.activeEffects
 
       // Find the correct ability index for Lightning Zap
-      const lightningIndex = selectedCard.abilities?.findIndex(a =>
+      const lightningIndex = actualCaster.abilities?.findIndex(a =>
         a.name?.toLowerCase() === 'lightning zap' || a.id === 'lightning_zap'
       ) ?? 1; // Default to index 1 for Wizard Toy
 
       // Execute the spell on the first target (will chain to others)
       if (targetCard && targetCard.health > 0) {
-        moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, lightningIndex);
+        moves.castSpell(actualCaster.instanceId, targetCard.instanceId, lightningIndex);
       }
 
       // Clear targeting state
@@ -1652,7 +1615,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
       board: ToyboxBoard,
       multiplayer: SocketIO({
         server: window.location.hostname === 'localhost'
-          ? 'http://localhost:4000'
+          ? 'http://localhost:4001'
           : 'https://toybox-boardgame.onrender.com',
         socketOpts: {
           transports: ['polling', 'websocket'], // Start with polling for mobile stability

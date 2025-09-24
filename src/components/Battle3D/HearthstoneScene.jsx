@@ -330,10 +330,13 @@ const KidroomEnvironment = () => {
     const cloned = scene.clone();
 
     // Scale the room to fit our battle arena
-    cloned.scale.set(2, 2, 2); // Adjust scale as needed
+    cloned.scale.set(0.25, 0.25, 0.25); // Reduced by another 50% from 0.5,0.5,0.5
 
     // Position it so the floor aligns with our play area
-    cloned.position.set(0, -2, 0);
+    cloned.position.set(0, -3.95, 37); // Centered horizontally, below table, and back
+
+    // Rotate the scene 29 degrees (back to before the anti-clockwise rotations)
+    cloned.rotation.y = Math.PI / 4 - (16 * Math.PI / 180); // 29 degrees rotation
 
     // Traverse and configure materials
     cloned.traverse((child) => {
@@ -420,10 +423,139 @@ const HearthstoneBattleArena = ({
 
   return (
     <>
-      {/* Kid Room Environment - loads the entire room */}
-      <Suspense fallback={null}>
-        <KidroomEnvironment />
-      </Suspense>
+      {/* Magical Toy Store Environment */}
+
+      {/* Checkered Floor */}
+      {[...Array(20)].map((_, i) =>
+        [...Array(20)].map((_, j) => (
+          <mesh
+            key={`floor-${i}-${j}`}
+            position={[(i - 10) * 2, -2, (j - 10) * 2]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            receiveShadow
+          >
+            <planeGeometry args={[2, 2]} />
+            <meshStandardMaterial
+              color={(i + j) % 2 === 0 ? "#2c3e50" : "#34495e"}
+              roughness={0.9}
+              metalness={0.1}
+            />
+          </mesh>
+        ))
+      )}
+
+      {/* Giant Toy Shelves in Background */}
+      <group position={[0, 3, -15]}>
+        {/* Back Wall */}
+        <mesh>
+          <boxGeometry args={[30, 12, 0.5]} />
+          <meshStandardMaterial color="#8b4513" roughness={0.7} />
+        </mesh>
+
+        {/* Shelves */}
+        {[0, 3, 6].map((y, i) => (
+          <group key={i}>
+            <mesh position={[0, y, 0.5]}>
+              <boxGeometry args={[28, 0.3, 3]} />
+              <meshStandardMaterial color="#a0522d" />
+            </mesh>
+            {/* Toy Blocks on shelves */}
+            {[-10, -5, 0, 5, 10].map((x, j) => (
+              <mesh key={j} position={[x, y + 0.5, 0.5]} rotation={[0, Math.random() * Math.PI, 0]}>
+                <boxGeometry args={[1.5, 1.5, 1.5]} />
+                <meshStandardMaterial
+                  color={["#ff6b6b", "#4ecdc4", "#45b7d1", "#fdcb6e", "#a29bfe"][j % 5]}
+                  emissive={["#ff6b6b", "#4ecdc4", "#45b7d1", "#fdcb6e", "#a29bfe"][j % 5]}
+                  emissiveIntensity={0.1}
+                />
+              </mesh>
+            ))}
+          </group>
+        ))}
+      </group>
+
+      {/* Floating Building Blocks */}
+      <group>
+        {[...Array(8)].map((_, i) => {
+          const angle = (i / 8) * Math.PI * 2;
+          return (
+            <mesh
+              key={i}
+              position={[
+                Math.cos(angle) * 10,
+                3 + Math.sin(angle * 2),
+                Math.sin(angle) * 10
+              ]}
+              rotation={[angle, angle, 0]}
+            >
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial
+                color={["#ff6b6b", "#4ecdc4", "#45b7d1", "#fdcb6e"][i % 4]}
+                emissive={["#ff6b6b", "#4ecdc4", "#45b7d1", "#fdcb6e"][i % 4]}
+                emissiveIntensity={0.3}
+              />
+            </mesh>
+          );
+        })}
+      </group>
+
+      {/* Giant Dice Decorations */}
+      <group>
+        <mesh position={[-8, 1, -8]} rotation={[0.3, 0.5, 0.2]}>
+          <boxGeometry args={[2, 2, 2]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.2} />
+        </mesh>
+        <mesh position={[8, 1, -8]} rotation={[0.5, 0.3, 0.4]}>
+          <boxGeometry args={[2, 2, 2]} />
+          <meshStandardMaterial color="#ff0000" roughness={0.3} metalness={0.2} />
+        </mesh>
+      </group>
+
+      {/* Toy Train Track Circle */}
+      <group>
+        {[...Array(16)].map((_, i) => {
+          const angle = (i / 16) * Math.PI * 2;
+          return (
+            <mesh
+              key={i}
+              position={[Math.cos(angle) * 12, -1.5, Math.sin(angle) * 12]}
+              rotation={[0, -angle, 0]}
+            >
+              <boxGeometry args={[1.5, 0.2, 0.8]} />
+              <meshStandardMaterial color="#654321" roughness={0.8} />
+            </mesh>
+          );
+        })}
+      </group>
+
+      {/* Glowing Star Decorations */}
+      {[...Array(12)].map((_, i) => {
+        const angle = (i / 12) * Math.PI * 2;
+        return (
+          <mesh
+            key={i}
+            position={[
+              Math.cos(angle) * 15,
+              5 + Math.sin(i),
+              Math.sin(angle) * 15
+            ]}
+          >
+            <coneGeometry args={[0.3, 0.6, 4]} />
+            <meshStandardMaterial
+              color="#ffd700"
+              emissive="#ffd700"
+              emissiveIntensity={0.5}
+            />
+          </mesh>
+        );
+      })}
+
+      {/* Warm Lighting */}
+      <pointLight position={[0, 8, 0]} intensity={0.5} color="#ffa500" />
+      <pointLight position={[-10, 5, -10]} intensity={0.3} color="#ff6b6b" />
+      <pointLight position={[10, 5, -10]} intensity={0.3} color="#4ecdc4" />
+      <pointLight position={[-10, 5, 10]} intensity={0.3} color="#45b7d1" />
+      <pointLight position={[10, 5, 10]} intensity={0.3} color="#fdcb6e" />
 
       {/* Simple Table for cards to sit on */}
       <SimpleTable />
@@ -501,9 +633,11 @@ const HearthstoneBattleArena = ({
         {playerTeam && playerTeam.map((char, index) => {
           // Check if card exists
           if (!char) return null;
-          // Skip dead cards only if health is explicitly 0 or less
-          const isDead = char.health === 0 || (char.health < 0) || (char.isAlive === false);
-          if (isDead) return null;
+          // Check if card is dead (but still render it to show card back)
+          const isDead = (char.health !== undefined && char.health <= 0) ||
+                        (char.currentHealth !== undefined && char.currentHealth <= 0) ||
+                        (char.isAlive === false);
+          // Don't skip dead cards - we want to show them with card backs
 
           const isActive = currentTurn === 'player' && index === activeCharacterIndex;
           const [x, y, z, scale] = getCardPosition(index, 'player', isActive);
@@ -515,9 +649,12 @@ const HearthstoneBattleArena = ({
                 character={char}
                 position={[x, y, z]}
                 rotation={[-Math.PI / 2, 0, 0]} // Lay flat on table
-                isDead={(char.health !== undefined && char.health <= 0) || (char.isAlive !== undefined && !char.isAlive) || (char.currentHealth !== undefined && char.currentHealth <= 0)}
+                isDead={isDead}
                 teamColor="blue"
                 onClick={() => {
+                  // Don't allow clicking on dead cards
+                  if (isDead) return;
+
                   if (isValidTarget && isTargeting) {
                     setTargetCard({
                       id: char.instanceId,
@@ -562,9 +699,11 @@ const HearthstoneBattleArena = ({
         {aiTeam && aiTeam.map((char, index) => {
           // Check if card exists
           if (!char) return null;
-          // Skip dead cards only if health is explicitly 0 or less
-          const isDead = char.health === 0 || (char.health < 0) || (char.isAlive === false);
-          if (isDead) return null;
+          // Check if card is dead (but still render it to show card back)
+          const isDead = (char.health !== undefined && char.health <= 0) ||
+                        (char.currentHealth !== undefined && char.currentHealth <= 0) ||
+                        (char.isAlive === false);
+          // Don't skip dead cards - we want to show them with card backs
 
           const isActive = (currentTurn === 'ai' || currentTurn === 'opponent') && index === activeCharacterIndex;
           const [x, y, z, scale] = getCardPosition(index, 'ai', isActive);
@@ -576,9 +715,12 @@ const HearthstoneBattleArena = ({
                 character={char}
                 position={[x, y, z]}
                 rotation={[Math.PI / 2, Math.PI, 0]} // Lay flat on table, facing opposite direction
-                isDead={(char.health !== undefined && char.health <= 0) || (char.isAlive !== undefined && !char.isAlive) || (char.currentHealth !== undefined && char.currentHealth <= 0)}
+                isDead={isDead}
                 teamColor="red"
                 onClick={() => {
+                  // Don't allow clicking on dead cards
+                  if (isDead) return;
+
                   if (isValidTarget && isTargeting) {
                     setTargetCard({
                       id: char.instanceId,
@@ -1003,17 +1145,17 @@ const HearthstoneScene = ({
         }}
       >
         <Suspense fallback={null}>
-          {/* Magical Background with mobile optimization */}
+          {/* Magical Background with mobile optimization - no god rays */}
           <MagicalBackground
             sparkleCount={window.innerWidth <= 768 ? 200 : 400}
             sparkleSize={window.innerWidth <= 768 ? 0.12 : 0.18}
             domeScale={100}
             glowSphereRadius={60}
-            godRayRadius={25}
-            godRayHeight={40}
+            godRayRadius={0}
+            godRayHeight={0}
             godRayColor="#ffd6ff"
-            godRaySpeed={0.6}
-            godRayIntensity={0.35}
+            godRaySpeed={0}
+            godRayIntensity={0}
           />
 
           <HearthstoneBattleArena

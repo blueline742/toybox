@@ -30,8 +30,8 @@ const server = Server({
   }
 });
 
-// Run the server on port 4000
-const PORT = process.env.BOARDGAME_PORT || 4000;
+// Run the server on port 4001 for matchmaking compatibility
+const PORT = process.env.BOARDGAME_PORT || 4001;
 server.run(PORT, () => {
   console.log(`🎮 Boardgame.io server running on port ${PORT}`);
   console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}`);

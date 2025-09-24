@@ -73,7 +73,9 @@
       "Bash(npx netlify-cli deploy:*)",
       "WebFetch(domain:github.com)",
       "Bash(npx netlify-cli:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(set BOARDGAME_PORT=4001)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

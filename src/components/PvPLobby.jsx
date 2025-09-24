@@ -6,7 +6,7 @@ import { useSocket } from '../contexts/SocketContext';
 import { useTouchClick } from '../hooks/useTouchClick';
 import { isMobileDevice } from '../config/walletConfig';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3003';
 const RPC_ENDPOINT = 'https://api.devnet.solana.com';
 
 const GAME_TIPS = [
@@ -78,24 +78,7 @@ const PvPLobby = ({ onBattleStart, selectedTeam, onBack }) => {
     const handleMatchFound = async ({ battleId: id, opponent: opp, wagerAmount: wager, opponentTeam, playerNumber, credentials }) => {
       console.log('Match found! - MatchID:', id, 'Opponent team:', opponentTeam, 'Credentials:', credentials ? 'provided' : 'none');
 
-      // Create match on boardgame server immediately
-      try {
-        const boardgameServerUrl = import.meta.env.VITE_BOARDGAME_SERVER_URL || 'http://localhost:4000';
-        const createMatchUrl = boardgameServerUrl.replace(':4000', ':4001') + '/create-match';
-        const response = await fetch(createMatchUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ matchID: id, numPlayers: 2 }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          console.log('✅ Match created on boardgame server');
-        } else {
-          console.error('❌ Match creation failed:', data.error);
-        }
-      } catch (error) {
-        console.error('❌ Error creating match:', error.message);
-      }
+      // Boardgame.io will create the match automatically when players connect
 
       setMatchFound(true);
       setMatchmaking(false);

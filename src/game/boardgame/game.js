@@ -328,7 +328,7 @@ const ToyboxGame = {
           }
 
           // Store the randomly selected card for this turn
-          const aliveCards = player.cards.filter(c => c.currentHealth > 0 && !c.frozen);
+          const aliveCards = player.cards.filter(c => c.isAlive !== false && c.currentHealth > 0 && !c.frozen);
           if (aliveCards.length > 0) {
             const randomCard = random.Shuffle(aliveCards)[0];
 
@@ -580,9 +580,13 @@ const ToyboxGame = {
         target.currentHealth -= actualDamage;
 
         if (target.currentHealth <= 0) {
+          target.currentHealth = 0;
+          target.isAlive = false;
           const targetOwner = target.owner;
-          G.players[targetOwner].graveyard.push(target);
-          G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== target.instanceId);
+          // Add to graveyard but don't remove from cards array
+          if (!G.players[targetOwner].graveyard.find(c => c.instanceId === target.instanceId)) {
+            G.players[targetOwner].graveyard.push({...target});
+          }
         }
       }
 
@@ -699,11 +703,15 @@ const ToyboxGame = {
 
         target.currentHealth -= actualDamage;
 
-        // If card dies, move to graveyard
+        // If card dies, mark as dead but keep in array for display
         if (target.currentHealth <= 0) {
+          target.currentHealth = 0;
+          target.isAlive = false;
           const targetOwner = target.owner;
-          G.players[targetOwner].graveyard.push(target);
-          G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== target.instanceId);
+          // Add to graveyard but don't remove from cards array
+          if (!G.players[targetOwner].graveyard.find(c => c.instanceId === target.instanceId)) {
+            G.players[targetOwner].graveyard.push({...target});
+          }
         }
       }
 
@@ -845,7 +853,7 @@ const ToyboxGame = {
     },
 
     // Cast spell move - this is what the frontend actually calls
-    castSpell: ({ G, ctx }, sourceCardId, targetCardId, abilityIndex) => {
+    castSpell: ({ G, ctx, events }, sourceCardId, targetCardId, abilityIndex) => {
 
       const currentPlayer = ctx.currentPlayer;
       const player = G.players[currentPlayer];
@@ -963,11 +971,15 @@ const ToyboxGame = {
 
         target.currentHealth -= actualDamage;
 
-        // If card dies, move to graveyard
+        // If card dies, mark as dead but keep in array for display
         if (target.currentHealth <= 0) {
+          target.currentHealth = 0;
+          target.isAlive = false;
           const targetOwner = target.owner;
-          G.players[targetOwner].graveyard.push(target);
-          G.players[targetOwner].cards = G.players[targetOwner].cards.filter(c => c.instanceId !== target.instanceId);
+          // Add to graveyard but don't remove from cards array
+          if (!G.players[targetOwner].graveyard.find(c => c.instanceId === target.instanceId)) {
+            G.players[targetOwner].graveyard.push({...target});
+          }
         }
       }
 
@@ -998,9 +1010,101 @@ const ToyboxGame = {
         });
       }
 
+      // Handle resurrect effect
+      if (ability.effect === 'resurrect') {
+        const deadAllies = G.players[currentPlayer].graveyard;
+        if (deadAllies.length > 0) {
+          // Resurrect the most recently dead ally
+          const toRevive = deadAllies[deadAllies.length - 1];
+          const reviveHealth = Math.floor(toRevive.maxHealth * (ability.reviveHealth || 0.5));
+
+          // Find the dead card in the cards array and revive it
+          const deadCard = G.players[currentPlayer].cards.find(c =>
+            c.instanceId === toRevive.instanceId && !c.isAlive
+          );
+
+          if (deadCard) {
+            deadCard.isAlive = true;
+            deadCard.currentHealth = reviveHealth;
+            deadCard.frozen = false;
+            deadCard.confused = false;
+
+            // Remove from graveyard
+            G.players[currentPlayer].graveyard = deadAllies.filter(c =>
+              c.instanceId !== toRevive.instanceId
+            );
+
+            console.log(`🔮 Resurrected ${deadCard.name} with ${reviveHealth} health!`);
+          }
+        }
+      }
+
+      // Handle spell steal effect
+      if (ability.effect === 'steal_ability' && target) {
+        const enemyCards = opponent.cards.filter(c => c.isAlive && c.abilities?.length > 0);
+        if (enemyCards.length > 0) {
+          // Pick a random enemy card
+          const randomCard = enemyCards[Math.floor(Math.random() * enemyCards.length)];
+          // Pick a random ability from that card
+          const randomAbility = randomCard.abilities[Math.floor(Math.random() * randomCard.abilities.length)];
+
+          console.log(`🎯 Spell Steal: Casting ${randomAbility.name} from ${randomCard.name}!`);
+
+          // Execute the stolen ability on the target
+          if (randomAbility.damage && target) {
+            let actualDamage = randomAbility.damage;
+            if (target.shields > 0) {
+              const absorbed = Math.min(target.shields, actualDamage);
+              actualDamage -= absorbed;
+              target.shields -= absorbed;
+            }
+            target.currentHealth -= actualDamage;
+            if (target.currentHealth <= 0) {
+              target.currentHealth = 0;
+              target.isAlive = false;
+              if (!G.players[target.owner].graveyard.find(c => c.instanceId === target.instanceId)) {
+                G.players[target.owner].graveyard.push({...target});
+              }
+            }
+          }
+
+          // Add effect animation
+          G.animationQueue.push({
+            type: 'spell_steal',
+            caster: card,
+            target: target,
+            stolenAbility: randomAbility.name,
+            timestamp: Date.now()
+          });
+        }
+      }
+
+      // Handle confuse effect
+      if (ability.effect === 'confuse' && target) {
+        target.confused = true;
+        target.confusedTurns = ability.confuseDuration || 2;
+        target.confuseChance = ability.confuseChance || 0.5;
+
+        G.animationQueue.push({
+          type: 'confuse',
+          target: target,
+          duration: target.confusedTurns,
+          timestamp: Date.now()
+        });
+
+        console.log(`😵 ${target.name} is confused for ${target.confusedTurns} turns!`);
+      }
+
       // Mark ability as used
       if (!card.usedAbilities) card.usedAbilities = [];
       card.usedAbilities.push(ability.id || ability.name);
+
+      // End turn after casting spell
+      if (events && events.endTurn) {
+        setTimeout(() => {
+          events.endTurn();
+        }, 3000); // Wait 3 seconds to show spell animations
+      }
 
     },
 
@@ -1132,9 +1236,9 @@ const ToyboxGame = {
       return;
     }
 
-    // Check if all cards are dead (cards array becomes empty when they die)
-    const player0HasCards = G.players['0'].cards && G.players['0'].cards.some(card => card.isAlive);
-    const player1HasCards = G.players['1'].cards && G.players['1'].cards.some(card => card.isAlive);
+    // Check if all cards are dead (check isAlive property)
+    const player0HasCards = G.players['0'].cards && G.players['0'].cards.some(card => card.isAlive !== false);
+    const player1HasCards = G.players['1'].cards && G.players['1'].cards.some(card => card.isAlive !== false);
 
     // Only check for winner if game has actually started (turns have been played)
     const gameInProgress = G.turnNumber > 0;

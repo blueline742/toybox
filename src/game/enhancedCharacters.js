@@ -392,30 +392,31 @@ export const ENHANCED_CHARACTERS = {
         id: 'arcane_barrage',
         name: 'Arcane Barrage',
         damage: 40,
-        chance: 0.40,
+        chance: 0.30,
         description: 'Unleashes pure arcane energy at target',
         effect: 'damage',
         animation: 'arcane_barrage',
         priority: 1
       },
       {
-        id: 'time_warp',
-        name: 'Time Warp',
-        heal: 30,
-        chance: 0.35,
-        description: 'Reverses time to heal an ally',
-        effect: 'heal',
-        animation: 'time_warp',
+        id: 'resurrect',
+        name: 'Resurrect',
+        chance: 0.20,
+        description: 'Brings a fallen ally back to life with 50% health',
+        effect: 'resurrect',
+        animation: 'resurrect',
+        targetType: 'dead_ally',
+        reviveHealth: 0.5, // 50% of max health
         priority: 2
       },
       {
-        id: 'meteor_storm',
-        name: 'METEOR STORM',
-        damage: 65,
-        chance: 0.25,
-        description: 'Rains meteors from the sky on all enemies',
-        effect: 'damage_all',
-        animation: 'meteor_storm',
+        id: 'spell_steal',
+        name: 'SPELL STEAL',
+        chance: 0.15,
+        description: 'Steals and casts a random enemy ability',
+        effect: 'steal_ability',
+        animation: 'spell_steal',
+        targetType: 'enemy',
         isUltimate: true,
         priority: 3
       }
@@ -829,10 +830,13 @@ export const ENHANCED_CHARACTERS = {
         id: 'possession',
         name: 'Possession',
         damage: 0,
-        chance: 0.45,
-        description: 'Forces enemy to attack their ally',
-        effect: 'mind_control',
+        chance: 0.35,
+        description: 'Confuses enemy - 50% chance to hit ally on next attack',
+        effect: 'confuse',
+        confuseDuration: 2, // turns
+        confuseChance: 0.5, // 50% chance to hit wrong target
         animation: 'default',
+        targetType: 'enemy',
         priority: 2
       },
       {
