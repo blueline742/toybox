@@ -669,6 +669,19 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       return;
     }
 
+    // Check if card is frozen
+    if (card.frozen) {
+      console.log('❄️ Card is frozen - cannot use abilities!');
+      return;
+    }
+
+    // Check if all our cards are frozen (shouldn't be able to act at all)
+    const allFrozen = playerTeam.every(c => c.frozen || c.currentHealth <= 0);
+    if (allFrozen) {
+      console.log('❄️ All cards are frozen - turn should be skipping!');
+      return;
+    }
+
     console.log('🎮 handleAbilityClick - Card:', card.name, 'Abilities:', card.abilities);
 
     // Find the correct ability index based on what the user wants
