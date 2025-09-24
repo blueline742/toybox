@@ -157,12 +157,30 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
     }
 
     // Clean ultimate ability if it exists
+    // For Ice Nova, copy freeze data from abilities array if not present
     if (card.ultimateAbility) {
+      // Check if this is Ice Nova and copy freeze data from abilities if needed
+      let ultimateFreeze = card.ultimateAbility.freeze;
+      let ultimateEffect = card.ultimateAbility.effect;
+
+      if (card.ultimateAbility.name?.toLowerCase().includes('ice nova')) {
+        // Find Ice Nova in abilities array to get freeze data
+        const iceNovaAbility = card.abilities?.find(a =>
+          a.name?.toLowerCase().includes('ice nova') || a.id === 'ice_nova'
+        );
+        if (iceNovaAbility) {
+          ultimateFreeze = iceNovaAbility.freeze || true;
+          ultimateEffect = iceNovaAbility.effect || 'freeze_all';
+        }
+      }
+
       const cleanUltimate = {
         name: String(card.ultimateAbility.name || ''),
         damage: Number(card.ultimateAbility.damage || 0),
         heal: Number(card.ultimateAbility.heal || 0),
         shield: Number(card.ultimateAbility.shield || 0),
+        freeze: Boolean(ultimateFreeze || false),
+        effect: String(ultimateEffect || ''),
         manaCost: Number(card.ultimateAbility.manaCost || 0),
         targetType: String(card.ultimateAbility.targetType || 'enemy'),
         description: String(card.ultimateAbility.description || '')
