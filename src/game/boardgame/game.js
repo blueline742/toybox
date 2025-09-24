@@ -348,16 +348,37 @@ const ToyboxGame = {
           // Process turn start effects
           G.turnNumber++;
 
-          // Unfreeze cards that have been frozen for a turn
+          // Handle frozen cards - they need to skip this entire turn
+          // Check if all current player's cards are frozen
+          const allFrozen = player.cards.length > 0 &&
+                           player.cards.every(card => card.frozen || card.currentHealth <= 0);
+
+          if (allFrozen) {
+            console.log(`❄️ All of Player ${ctx.currentPlayer}'s cards are frozen - skipping turn!`);
+            // Decrement frozen turns but keep them frozen
+            player.cards.forEach(card => {
+              if (card.frozen && card.frozenTurns > 0) {
+                console.log(`🧊 Frozen turn for ${card.name}: ${card.frozenTurns} -> ${card.frozenTurns - 1}`);
+                card.frozenTurns--;
+                // Don't unfreeze yet - will unfreeze at start of their NEXT turn
+              }
+            });
+            // Skip this turn entirely
+            if (events && events.endTurn) {
+              setTimeout(() => {
+                events.endTurn();
+              }, 1000); // Short delay to show frozen state
+            }
+            return; // Don't select a card to act
+          }
+
+          // Unfreeze cards that have completed their frozen duration
           if (player.cards && player.cards.length > 0) {
             player.cards.forEach(card => {
-              if (card.frozenTurns > 0) {
-                console.log(`🧊 Decrementing frozen turns for ${card.name}: ${card.frozenTurns} -> ${card.frozenTurns - 1}`);
-                card.frozenTurns--;
-                if (card.frozenTurns === 0) {
-                  console.log(`🌡️ Unfreezing ${card.name}`);
-                  card.frozen = false;
-                }
+              // Only unfreeze if frozenTurns is 0 and card is still frozen
+              if (card.frozen && card.frozenTurns === 0) {
+                console.log(`🌡️ Unfreezing ${card.name} - frozen duration complete`);
+                card.frozen = false;
               }
             });
           }
