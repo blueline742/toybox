@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
+const SpellNotification = ({ ability, caster, targets = [], onComplete, isFrozenSkip = false }) => {
   const [casterImageError, setCasterImageError] = useState(false)
   const [targetImageErrors, setTargetImageErrors] = useState({})
   
@@ -8,9 +8,9 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
     // Reset image errors when spell changes
     setCasterImageError(false)
     setTargetImageErrors({})
-    console.log('🎭 SpellNotification received caster:', JSON.stringify(caster, null, 2))
-    console.log('🎭 Caster has image?', !!caster?.image, 'Image path:', caster?.image)
-    console.log('🎭 casterImageError state:', casterImageError)
+//     console.log('🎭 SpellNotification received caster:', JSON.stringify(caster, null, 2))
+//     console.log('🎭 Caster has image?', !!caster?.image, 'Image path:', caster?.image)
+//     console.log('🎭 casterImageError state:', casterImageError)
   }, [caster, targets])
   
   useEffect(() => {
@@ -44,6 +44,47 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
     }
   }
 
+  // Special rendering for frozen skip notification
+  if (isFrozenSkip) {
+    return (
+      <div className="fixed bottom-2 sm:bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-40 pointer-events-none"
+        style={{
+          zoom: window.innerWidth <= 480 ? 0.9 : window.innerWidth <= 768 ? 0.95 : 1
+        }}
+      >
+        <div className="animate-spell-appear">
+          <div className="relative bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 p-1 rounded-2xl shadow-2xl">
+            <div className="bg-gray-900 rounded-xl p-4 sm:p-6 md:p-8 relative overflow-hidden">
+              {/* Ice crystal pattern background */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-200/30 to-transparent" />
+              </div>
+
+              {/* Main frozen message */}
+              <div className="relative z-10 text-center">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <span className="text-4xl md:text-5xl animate-pulse">❄️</span>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-black font-toy text-cyan-300 animate-text-shimmer">
+                    FROZEN
+                  </div>
+                  <span className="text-4xl md:text-5xl animate-pulse">❄️</span>
+                </div>
+
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-white/90 mb-2">
+                  SKIPPING TURN
+                </div>
+
+                <div className="text-sm sm:text-base text-cyan-200/80 italic">
+                  All cards are frozen in ice!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed bottom-2 sm:bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-40 pointer-events-none"
       style={{
@@ -53,7 +94,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
       <div className="animate-spell-appear">
         {/* Main Card Container */}
         <div className={`
-          relative bg-gradient-to-br ${getRarityGradient(caster.rarity)}
+          relative bg-gradient-to-br ${getRarityGradient(caster?.rarity || 'common')}
           p-1 rounded-2xl shadow-2xl
           transform animate-pulse shadow-2xl
         `}>
@@ -75,7 +116,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                 {/* Spell Name */}
                 <div className={`
                   text-xl sm:text-2xl md:text-4xl font-black font-toy
-                  bg-gradient-to-r ${getRarityGradient(caster.rarity)}
+                  bg-gradient-to-r ${getRarityGradient(caster?.rarity || 'common')}
                   bg-clip-text text-transparent
                   animate-text-shimmer
                 `}>
@@ -102,7 +143,7 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
                                   alt={target.name}
                                   className="absolute inset-0 w-full h-full object-cover"
                                   onError={(e) => {
-                                    console.error('❌ Target image failed to load:', target.image);
+//                                     console.error('❌ Target image failed to load:', target.image);
                                     e.target.style.display = 'none';
                                   }}
                                 />
@@ -144,45 +185,47 @@ const SpellNotification = ({ ability, caster, targets = [], onComplete }) => {
               <div className="flex items-center justify-center gap-2 opacity-70">
                 {/* Small Caster Portrait */}
                 {caster && (
-                  <div className={`
-                    w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full
-                    bg-gradient-to-br ${getRarityGradient(caster?.rarity || 'common')}
-                    p-0.5
-                  `}>
-                    <div className="w-full h-full rounded-full bg-gray-800 overflow-hidden relative flex items-center justify-center">
-                      {caster.image ? (
-                        <img 
-                          src={caster.image} 
-                          alt={caster.name}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          onLoad={(e) => {
-                            console.log('✅ Image loaded:', caster.image, 'dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                          }}
-                          onError={(e) => {
-                            console.error('❌ Image failed to load:', caster.image);
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-lg md:text-xl z-10">{caster.emoji || '❄️'}</span>
-                      )}
+                  <>
+                    <div className={`
+                      w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full
+                      bg-gradient-to-br ${getRarityGradient(caster?.rarity || 'common')}
+                      p-0.5
+                    `}>
+                      <div className="w-full h-full rounded-full bg-gray-800 overflow-hidden relative flex items-center justify-center">
+                        {caster.image ? (
+                          <img
+                            src={caster.image}
+                            alt={caster.name}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onLoad={(e) => {
+//                               console.log('✅ Image loaded:', caster.image, 'dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                            }}
+                            onError={(e) => {
+//                               console.error('❌ Image failed to load:', caster.image);
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-lg md:text-xl z-10">{caster.emoji || '❄️'}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Caster Name */}
+                    <div className="text-white/80 text-xs sm:text-sm md:text-base font-toy">
+                      {caster.name}
+                    </div>
+
+                    {/* Rarity Badge */}
+                    <div className={`
+                      px-2 py-0.5 rounded-full text-xs font-bold uppercase
+                      bg-gradient-to-r ${getRarityGradient(caster.rarity)}
+                      text-white/90
+                    `}>
+                      {caster.rarity}
+                    </div>
+                  </>
                 )}
-                
-                {/* Caster Name */}
-                <div className="text-white/80 text-xs sm:text-sm md:text-base font-toy">
-                  {caster.name}
-                </div>
-                
-                {/* Rarity Badge */}
-                <div className={`
-                  px-2 py-0.5 rounded-full text-xs font-bold uppercase
-                  bg-gradient-to-r ${getRarityGradient(caster.rarity)}
-                  text-white/90
-                `}>
-                  {caster.rarity}
-                </div>
                 
                 {/* Chance Percentage */}
                 {ability.chance && (

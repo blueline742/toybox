@@ -7,10 +7,11 @@ The FROZEN debuff prevents cards from attacking for one turn. When Ice Nova is c
 
 ### 1. Game Logic (src/game/boardgame/game.js)
 - Added `frozen` and `frozenTurns` properties to all cards
-- Modified turn system to skip frozen cards when selecting random attacker (line 331)
-- Ice Nova's 'freeze_all' effect freezes all enemy cards for 1 turn (lines 727-732)
-- Frozen status decrements at the start of each turn (lines 319-327)
-- Cards cannot be played when frozen (line 641 check)
+- Modified turn system to automatically skip turn when all cards are frozen (lines 390-411)
+- Ice Nova's 'freeze_all' effect freezes all enemy cards with `frozenTurns = 1`
+- Frozen counters are decremented AFTER the frozen turn is skipped (lines 355-371)
+- Cards with `frozenTurns = 0` are unfrozen at the start of the next turn (lines 373-398)
+- Frozen cards are excluded from random attacker selection
 
 ### 2. Visual Effects (src/components/Battle3D/effects/IceCubeEffect.jsx)
 - Created realistic ice cube using drei's MeshTransmissionMaterial

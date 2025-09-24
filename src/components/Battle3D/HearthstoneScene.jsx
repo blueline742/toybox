@@ -277,7 +277,7 @@ const SpectatorToy = React.memo(({ modelPath, position, rotation = [0, 0, 0], sc
       />
     );
   } catch (e) {
-    console.warn('Failed to load spectator toy:', modelPath);
+//     console.warn('Failed to load spectator toy:', modelPath);
     return null;
   }
 });
@@ -806,14 +806,14 @@ const HearthstoneBattleArena = ({
       {/* Render active effects */}
       <Suspense fallback={null}>
         {activeEffects?.map((effect, index) => {
-          console.log('Rendering effect:', effect.type, effect);
+//           console.log('Rendering effect:', effect.type, effect);
           switch (effect.type) {
             case 'fireball':
               return <FireballEffect key={index} {...effect} />;
             case 'pyroblast':
-              console.log('🔥 Rendering EnhancedPyroblastV2 with drei components');
+//               console.log('🔥 Rendering EnhancedPyroblastV2 with drei components');
               if (!effect.startPosition || !effect.endPosition) {
-                console.warn('Invalid positions for Pyroblast effect');
+//                 console.warn('Invalid positions for Pyroblast effect');
                 return null;
               }
               // Use EnhancedPyroblastV2 for better visuals
@@ -822,7 +822,7 @@ const HearthstoneBattleArena = ({
                 startPosition={effect.startPosition}
                 endPosition={effect.endPosition}
                 onComplete={() => {
-                  console.log('Pyroblast animation complete');
+//                   console.log('Pyroblast animation complete');
                 }}
                 casterCard={pyroblastCaster}
                 targetCard={pyroblastTarget}
@@ -832,30 +832,30 @@ const HearthstoneBattleArena = ({
             case 'healing':
               return <HealingEffect key={index} {...effect} />;
             case 'ice_nova':
-              console.log('❄️ Rendering Ice Nova effect');
+//               console.log('❄️ Rendering Ice Nova effect');
               return <IceNovaEffect
                 key={`ice-nova-${effect.id}`}
                 casterPosition={effect.casterPosition}
                 targetPositions={effect.targetPositions}
                 onComplete={() => {
-                  console.log('Ice Nova animation complete');
+//                   console.log('Ice Nova animation complete');
                 }}
                 onHitTarget={(index, position) => {
-                  console.log('❄️ Ice Nova hit target at index:', index, 'position:', position);
+//                   console.log('❄️ Ice Nova hit target at index:', index, 'position:', position);
                   // Could add frozen overlay here if needed
                 }}
               />;
             case 'frozen':
-              console.log('❄️ Rendering Frozen overlay');
+//               console.log('❄️ Rendering Frozen overlay');
               return <FrozenOverlay
                 key={`frozen-${effect.id}`}
                 position={effect.position}
                 duration={effect.duration || 10000}
               />;
             case 'chain_lightning':
-              console.log('⚡ Rendering Chain Lightning effect');
+//               console.log('⚡ Rendering Chain Lightning effect');
               if (!effect.casterPosition || !effect.targets || effect.targets.length === 0) {
-                console.warn('Invalid data for Chain Lightning effect');
+//                 console.warn('Invalid data for Chain Lightning effect');
                 return null;
               }
               return <OptimizedChainLightningEffect
@@ -863,11 +863,11 @@ const HearthstoneBattleArena = ({
                 casterPosition={effect.casterPosition}
                 targets={effect.targets}
                 onComplete={() => {
-                  console.log('Chain Lightning animation complete');
+//                   console.log('Chain Lightning animation complete');
                 }}
               />;
             case 'sword_slash':
-              console.log('⚔️ Rendering Sword Slash effect');
+//               console.log('⚔️ Rendering Sword Slash effect');
               return <OptimizedBrickDudeEffects
                 key={`sword-slash-${effect.id}`}
                 effectType="sword_slash"
@@ -875,29 +875,29 @@ const HearthstoneBattleArena = ({
                 targets={effect.targets}
                 casterCardId={effect.casterCardId}
                 onComplete={() => {
-                  console.log('Sword Slash animation complete');
+//                   console.log('Sword Slash animation complete');
                 }}
               />;
             case 'block_defence':
-              console.log('🛡️ Rendering Block Defence effect');
+//               console.log('🛡️ Rendering Block Defence effect');
               return <OptimizedBrickDudeEffects
                 key={`block-defence-${effect.id}`}
                 effectType="block_defence"
                 casterPosition={effect.casterPosition}
                 targets={effect.targets}
                 onComplete={() => {
-                  console.log('Block Defence animation complete');
+//                   console.log('Block Defence animation complete');
                 }}
               />;
             case 'whirlwind':
-              console.log('🌪️ Rendering Whirlwind Slash effect');
+//               console.log('🌪️ Rendering Whirlwind Slash effect');
               return <OptimizedBrickDudeEffects
                 key={`whirlwind-${effect.id}`}
                 effectType="whirlwind"
                 casterPosition={effect.casterPosition}
                 targets={effect.targets}
                 onComplete={() => {
-                  console.log('Whirlwind Slash animation complete');
+//                   console.log('Whirlwind Slash animation complete');
                 }}
               />;
             default:
@@ -959,7 +959,7 @@ const WebGLRecoveryManager = () => {
 
     const handleContextLost = (event) => {
       event.preventDefault();
-      console.warn('WebGL context lost - attempting recovery...');
+//       console.warn('WebGL context lost - attempting recovery...');
 
       // Show recovery message
       const recoveryDiv = document.createElement('div');
@@ -995,7 +995,7 @@ const WebGLRecoveryManager = () => {
     };
 
     const handleContextRestored = () => {
-      console.log('WebGL context restored successfully');
+//       console.log('WebGL context restored successfully');
       // Remove any lingering recovery messages
       const elem = document.getElementById('webgl-recovery');
       if (elem) {
@@ -1047,17 +1047,17 @@ const HearthstoneScene = ({
     const iceNovaEffects = activeEffects?.filter(effect => effect.type === 'ice_nova') || [];
 
     if (iceNovaEffects.length > 0) {
-      console.log('🧊 Ice Nova effects found:', iceNovaEffects.map(e => e.id));
+//       console.log('🧊 Ice Nova effects found:', iceNovaEffects.map(e => e.id));
 
       // Check if any Ice Nova has a different ID than the last one we processed
       const currentIceNova = iceNovaEffects[iceNovaEffects.length - 1]; // Get the most recent one
       const currentId = currentIceNova?.id || currentIceNova?.timestamp || 'unknown';
 
-      console.log('🧊 Current Ice Nova ID:', currentId, 'Last processed:', lastIceNovaIdRef.current);
+//       console.log('🧊 Current Ice Nova ID:', currentId, 'Last processed:', lastIceNovaIdRef.current);
 
       // If this is a different Ice Nova ID, trigger the overlay
       if (currentId !== lastIceNovaIdRef.current) {
-        console.log('🧊 NEW Ice Nova detected! Triggering frost overlay');
+//         console.log('🧊 NEW Ice Nova detected! Triggering frost overlay');
 
         // Remember this ID
         lastIceNovaIdRef.current = currentId;
@@ -1072,7 +1072,7 @@ const HearthstoneScene = ({
 
         // Set timer to disable frost after 5 seconds
         frostTimerRef.current = setTimeout(() => {
-          console.log('🧊 Deactivating frost overlay after 5 seconds');
+//           console.log('🧊 Deactivating frost overlay after 5 seconds');
           setIsFrostActive(false);
         }, 5000);
       }
@@ -1092,7 +1092,7 @@ const HearthstoneScene = ({
     // Cleanup function for Three.js resources
     return () => {
       if (rendererRef.current) {
-        console.log('🧹 Cleaning up Three.js renderer');
+//         console.log('🧹 Cleaning up Three.js renderer');
         rendererRef.current.dispose();
         rendererRef.current.forceContextLoss();
         rendererRef.current.domElement = null;
@@ -1143,7 +1143,7 @@ const HearthstoneScene = ({
         }}
         resize={{ debounce: 200 }}
         onError={(error) => {
-          console.error('Canvas error:', error);
+//           console.error('Canvas error:', error);
           setHasError(true);
         }}
         shadows={false} // Completely disable shadows on mobile

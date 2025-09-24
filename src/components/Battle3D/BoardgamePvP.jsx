@@ -16,7 +16,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
   // Log available moves on mount
   React.useEffect(() => {
-    console.log('🎮 Available moves:', moves ? Object.keys(moves) : 'No moves');
+//     console.log('🎮 Available moves:', moves ? Object.keys(moves) : 'No moves');
   }, [moves]);
 
   const [assetsLoaded, setAssetsLoaded] = useState(false);
@@ -75,7 +75,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       const fallbackTimer = setTimeout(() => {
         const canvas = document.querySelector('canvas');
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
-          console.warn('3D scene failed to render on mobile, using 2D fallback');
+//           console.warn('3D scene failed to render on mobile, using 2D fallback');
           setForceFallback(true);
         }
       }, 3000);
@@ -87,7 +87,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   // Prevent page reload on errors
   useEffect(() => {
     const handleError = (event) => {
-      console.error('Global error caught:', event.error);
+//       console.error('Global error caught:', event.error);
       event.preventDefault(); // Prevent page reload
 
       // Force 2D mode on mobile if there's an error
@@ -98,7 +98,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     };
 
     const handleUnhandledRejection = (event) => {
-      console.error('Unhandled promise rejection:', event.reason);
+//       console.error('Unhandled promise rejection:', event.reason);
       event.preventDefault(); // Prevent page reload
 
       // Force 2D mode on mobile if there's an error
@@ -158,13 +158,13 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       assetPreloader.onLoadComplete(() => {
         setAssetsLoaded(true);
-        console.log('✅ PvP assets loaded and ready');
+//         console.log('✅ PvP assets loaded and ready');
       });
 
       try {
         await assetPreloader.loadAssets(criticalAssets);
       } catch (error) {
-        console.error('⚠️ Error loading assets, proceeding anyway:', error);
+//         console.error('⚠️ Error loading assets, proceeding anyway:', error);
         // Force proceed even if some assets fail
         setAssetsLoaded(true);
       }
@@ -191,7 +191,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     const timeoutId = setTimeout(() => {
       if (!assetsLoaded) {
-        console.warn(`⏰ Asset loading timeout after ${timeoutMs/1000}s, proceeding anyway`);
+//         console.warn(`⏰ Asset loading timeout after ${timeoutMs/1000}s, proceeding anyway`);
         setAssetsLoaded(true);
       }
     }, timeoutMs);
@@ -208,7 +208,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     const delay = 500;
 
     if (attemptCount >= maxAttempts) {
-      console.error('❌ Failed to authenticate after', maxAttempts, 'attempts');
+//       console.error('❌ Failed to authenticate after', maxAttempts, 'attempts');
       return false;
     }
 
@@ -236,7 +236,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       // Wait for authentication first
       const isAuthenticated = await waitForAuthentication();
       if (!isAuthenticated) {
-        console.error('❌ Failed to authenticate, cannot submit team');
+//         console.error('❌ Failed to authenticate, cannot submit team');
         return;
       }
 
@@ -259,7 +259,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           moves.setPlayerTeam(teamWithMetadata);
           setHasAutoSelected(true);
         } catch (error) {
-          console.error('❌ Failed to submit team:', error);
+//           console.error('❌ Failed to submit team:', error);
           // Retry after a delay if it's a stateID mismatch
           if (error.toString().includes('stateID')) {
             setTimeout(() => {
@@ -342,7 +342,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Check player cards
     playerTeam.forEach(card => {
       if (card.frozen && card.currentHealth > 0) {
-        console.log(`❄️ Player card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
+//         console.log(`❄️ Player card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
         frozen.set(card.instanceId, true);
       }
       if (card.shields > 0) {
@@ -353,7 +353,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     // Check AI cards
     aiTeam.forEach(card => {
       if (card.frozen && card.currentHealth > 0) {
-        console.log(`❄️ AI card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
+//         console.log(`❄️ AI card ${card.name} is FROZEN:`, card.frozen, 'turns:', card.frozenTurns);
         frozen.set(card.instanceId, true);
       }
       if (card.shields > 0) {
@@ -361,7 +361,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }
     });
 
-    console.log('🧊 Frozen characters map:', frozen.size, 'frozen cards');
+//     console.log('🧊 Frozen characters map:', frozen.size, 'frozen cards');
     setFrozenCharacters(frozen);
     setShieldedCharacters(shielded);
   }, [playerTeam, aiTeam]);
@@ -379,7 +379,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // If we're in playing phase but can't see opponent's cards, log a warning
     if (G?.phase === 'playing' && aiTeam.length === 0 && G?.players?.[opponentID]?.cards?.length > 0) {
-      console.warn('⚠️ State sync issue detected - opponent cards not visible!');
+//       console.warn('⚠️ State sync issue detected - opponent cards not visible!');
       // Force a re-render after a short delay
       setTimeout(() => {
         setIsInitialized(false);
@@ -387,6 +387,51 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       }, 1000);
     }
   }, [G, playerTeam, aiTeam, actualPlayerID, opponentID]);
+
+  // Show frozen notification when it's a frozen player's turn
+  useEffect(() => {
+    if (!ctx?.currentPlayer || !G?.phase || G.phase !== 'playing') return;
+    if (!moves?.endFrozenTurn) return;
+
+    const isOurTurn = ctx.currentPlayer === actualPlayerID;
+
+    // Only process when it's our turn
+    if (!isOurTurn) return;
+
+    // Check if the server has marked this as a skip turn
+    if (G.skipTurn) {
+//       console.log(`❄️❄️❄️ Server says skip turn - Player ${actualPlayerID}`);
+
+      // Check if all our cards are frozen (for validation)
+      const aliveCards = playerTeam.filter(c => c.currentHealth > 0);
+      const frozenCards = aliveCards.filter(c => c.frozen);
+      const allFrozen = aliveCards.length > 0 && frozenCards.length === aliveCards.length;
+
+      if (allFrozen) {
+//         console.log('❄️ All cards frozen - showing skip notification');
+//         console.log('❄️ Frozen cards:', frozenCards.map(c => ({
+          name: c.name,
+          frozenTurns: c.frozenTurns
+        })));
+
+        setSpellNotification({
+          ability: {
+            name: 'FROZEN - SKIPPING TURN',
+            description: 'All cards are frozen in ice!'
+          },
+          caster: null,
+          targets: [],
+          isFrozenSkip: true
+        });
+
+        // After showing the notification, end the turn
+        setTimeout(() => {
+//           console.log('❄️ Calling endFrozenTurn to skip turn');
+          moves.endFrozenTurn();
+        }, 3000);
+      }
+    }
+  }, [ctx?.currentPlayer, G?.phase, G?.skipTurn, playerTeam, actualPlayerID, moves]);
 
   // Simplified sync mechanism - just track G.activeEffects directly
   // No need for complex tracking refs that cause performance issues
@@ -587,8 +632,18 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       return;
     }
 
+    // Check if all our cards are frozen
+    const allFrozen = playerTeam.every(c => c.frozen || c.currentHealth <= 0);
+    if (allFrozen) {
+//       console.log('❄️ All player cards are frozen - marking turn as started to prevent card selection');
+      // Mark turn as started to prevent re-running this logic
+      setHasStartedTurn(true);
+      // The frozen notification and turn ending is handled by the other useEffect
+      return; // Don't select cards or abilities
+    }
+
     // Get alive cards from our team
-    const aliveCards = playerTeam.filter(c => c.health > 0 || c.currentHealth > 0);
+    const aliveCards = playerTeam.filter(c => (c.health > 0 || c.currentHealth > 0) && !c.frozen);
     if (aliveCards.length === 0) {
       return;
     }
@@ -671,18 +726,18 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
     // Check if card is frozen
     if (card.frozen) {
-      console.log('❄️ Card is frozen - cannot use abilities!');
+//       console.log('❄️ Card is frozen - cannot use abilities!');
       return;
     }
 
     // Check if all our cards are frozen (shouldn't be able to act at all)
     const allFrozen = playerTeam.every(c => c.frozen || c.currentHealth <= 0);
     if (allFrozen) {
-      console.log('❄️ All cards are frozen - turn should be skipping!');
+//       console.log('❄️ All cards are frozen - turn should be skipping!');
       return;
     }
 
-    console.log('🎮 handleAbilityClick - Card:', card.name, 'Abilities:', card.abilities);
+//     console.log('🎮 handleAbilityClick - Card:', card.name, 'Abilities:', card.abilities);
 
     // Find the correct ability index based on what the user wants
     // For now, try to find Ice Nova if it's a wizard
@@ -693,16 +748,16 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       );
       if (iceNovaIndex >= 0) {
         abilityIndex = iceNovaIndex;
-        console.log('❄️ Found Ice Nova at index:', iceNovaIndex);
+//         console.log('❄️ Found Ice Nova at index:', iceNovaIndex);
       }
     }
 
-    console.log('🧙 Card abilities array:', card.abilities);
-    console.log('🔢 Ability index requested:', abilityIndex);
+//     console.log('🧙 Card abilities array:', card.abilities);
+//     console.log('🔢 Ability index requested:', abilityIndex);
     const ability = card.abilities?.[abilityIndex];
-    console.log('📌 Selected ability:', JSON.stringify(ability, null, 2));
+//     console.log('📌 Selected ability:', JSON.stringify(ability, null, 2));
     if (!ability) {
-      console.error('❌ No ability at index', abilityIndex, 'in abilities:', card.abilities);
+//       console.error('❌ No ability at index', abilityIndex, 'in abilities:', card.abilities);
       return;
     }
 
@@ -734,10 +789,10 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
       setValidTargets(targets.map(c => c.instanceId || c.id));
     } else {
       // Instant ability - no target needed (includes Ice Nova)
-      console.log('❄️ INSTANT CAST - Ice Nova or other instant ability');
+//       console.log('❄️ INSTANT CAST - Ice Nova or other instant ability');
       if (moves?.playCard) {
         // Use playCard since useAbility doesn't handle freeze
-        console.log('🎮 CALLING playCard for instant ability:', {
+//         console.log('🎮 CALLING playCard for instant ability:', {
           cardId: card.instanceId || card.id,
           ability: ability,
           abilityIndex: abilityIndex,
@@ -764,7 +819,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
         // Trigger frost overlay for Ice Nova
         if (isIceNova) {
-          console.log('❄️ Triggering frost overlay for Ice Nova');
+//           console.log('❄️ Triggering frost overlay for Ice Nova');
           setFrostOverlayTriggerIds(prev => [...prev, `ice-nova-${Date.now()}`]);
         }
 
@@ -782,7 +837,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
   const handleTargetSelect = (targetCard) => {
 
     if (!isTargeting || !currentAbility || !selectedCard) {
-      console.log('❌ Not targeting or no ability/card selected:', { isTargeting, currentAbility, selectedCard });
+//       console.log('❌ Not targeting or no ability/card selected:', { isTargeting, currentAbility, selectedCard });
       return;
     }
 
@@ -790,11 +845,11 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
     const targetInstanceId = targetCard.instanceId || targetCard.id;
 
     if (!validTargets.includes(targetInstanceId)) {
-      console.log('❌ Invalid target:', targetInstanceId, 'Valid targets:', validTargets);
+//       console.log('❌ Invalid target:', targetInstanceId, 'Valid targets:', validTargets);
       return;
     }
 
-    console.log('🎯 Target selected:', {
+//     console.log('🎯 Target selected:', {
       ability: currentAbility,
       caster: selectedCard?.name,
       target: targetCard?.name,
@@ -922,7 +977,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
 
       // Execute the spell on first enemy (AOE will hit all)
       if (targetCard && targetCard.health > 0) {
-        console.log('❄️ CALLING castSpell for Ice Nova:', {
+//         console.log('❄️ CALLING castSpell for Ice Nova:', {
           caster: actualCaster.instanceId,
           target: targetCard.instanceId,
           abilityIndex: iceNovaIndex,
@@ -931,7 +986,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
         if (moves?.castSpell) {
           moves.castSpell(actualCaster.instanceId, targetCard.instanceId, iceNovaIndex);
         } else {
-          console.error('❌ moves.castSpell not available!');
+//           console.error('❌ moves.castSpell not available!');
         }
       }
 
@@ -1126,7 +1181,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           );
           if (index >= 0) abilityIndex = index;
         }
-        console.log('🎯 Casting spell with ability index:', abilityIndex, 'ability:', currentAbility);
+//         console.log('🎯 Casting spell with ability index:', abilityIndex, 'ability:', currentAbility);
         moves.castSpell(selectedCard.instanceId || selectedCard.id, targetCard.instanceId || targetCard.id, abilityIndex);
 
       // Only trigger Pyroblast effect for actual Pyroblast spell
@@ -1156,8 +1211,8 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           );
           if (index >= 0) abilityIndex = index;
         }
-        console.log('🎯 Playing card with ability index:', abilityIndex, 'ability:', currentAbility);
-        console.log('🎮 CALLING playCard with target:', {
+//         console.log('🎯 Playing card with ability index:', abilityIndex, 'ability:', currentAbility);
+//         console.log('🎮 CALLING playCard with target:', {
           cardId: selectedCard.instanceId || selectedCard.id,
           targetId: targetCard.instanceId || targetCard.id,
           ability: currentAbility,
@@ -1432,7 +1487,7 @@ const ToyboxBoard = ({ G, ctx, moves, events, playerID, gameMetadata, selectedTe
           zIndex: 1
         }}
         onError={(e) => {
-          console.error('Scene render error:', e);
+//           console.error('Scene render error:', e);
           setSceneError(true);
         }}>
           <HearthstoneScene
@@ -1620,7 +1675,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
 
     const preventReload = (e) => {
-      console.log('Preventing reload during PvP battle');
+//       console.log('Preventing reload during PvP battle');
       e.preventDefault();
       e.returnValue = 'Battle in progress!';
       return e.returnValue;
@@ -1652,7 +1707,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
       // Override methods to prevent activity during PvP
       wallet.wallet.adapter.emit = function(...args) {
-        console.log('🔒 Wallet emit blocked during PvP:', args[0]);
+//         console.log('🔒 Wallet emit blocked during PvP:', args[0]);
         // Only allow critical events
         if (args[0] === 'error') {
           return walletAdapterRef.current?.originalEmit?.apply(this, args);
@@ -1662,12 +1717,12 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
       // Prevent connection changes during PvP
       wallet.wallet.adapter.connect = async function() {
-        console.log('🔒 Wallet connect blocked during PvP');
+//         console.log('🔒 Wallet connect blocked during PvP');
         return Promise.resolve();
       };
 
       wallet.wallet.adapter.disconnect = async function() {
-        console.log('🔒 Wallet disconnect blocked during PvP');
+//         console.log('🔒 Wallet disconnect blocked during PvP');
         return Promise.resolve();
       };
     }
@@ -1687,8 +1742,8 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
   // Log wallet status for future staking features
   useEffect(() => {
     if (walletConnected) {
-      console.log('💰 Wallet connected during PvP - ready for future staking features!');
-      console.log('Wallet address:', wallet.publicKey?.toString());
+//       console.log('💰 Wallet connected during PvP - ready for future staking features!');
+//       console.log('Wallet address:', wallet.publicKey?.toString());
     }
   }, [walletConnected, wallet.publicKey]);
 
@@ -1700,7 +1755,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
         // Even if assets are loaded, add a delay on mobile to ensure stable connection
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         if (isMobile) {
-          console.log('📱 Mobile detected - waiting for stable connection...');
+//           console.log('📱 Mobile detected - waiting for stable connection...');
           const waitTime = 5; // 5 seconds
           setConnectionCountdown(waitTime);
 
@@ -1725,7 +1780,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
 
       // If not, do a quick load of essential assets
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      console.log(`📦 Preparing for ${isMobile ? 'mobile' : 'desktop'} play...`);
+//       console.log(`📦 Preparing for ${isMobile ? 'mobile' : 'desktop'} play...`);
 
       // Much longer delay for mobile to ensure PC doesn't think they disconnected
       const waitTime = isMobile ? 10 : 2; // seconds
@@ -1812,7 +1867,7 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
         const socket = window.io.sockets?.[0] || window.io?.socket;
         if (socket) {
           socket.on('disconnect', (reason) => {
-            console.log('Socket disconnected:', reason);
+//             console.log('Socket disconnected:', reason);
             setSocketDisconnected(true);
 
             // Don't navigate away - try to reconnect
@@ -1823,24 +1878,24 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
           });
 
           socket.on('reconnect_attempt', (attemptNumber) => {
-            console.log(`Reconnection attempt ${attemptNumber}`);
+//             console.log(`Reconnection attempt ${attemptNumber}`);
             setReconnectAttempt(attemptNumber);
           });
 
           socket.on('reconnect', () => {
-            console.log('Successfully reconnected!');
+//             console.log('Successfully reconnected!');
             setSocketDisconnected(false);
             setReconnectAttempt(0);
           });
 
           socket.on('connect', () => {
-            console.log('Socket connected');
+//             console.log('Socket connected');
             setSocketDisconnected(false);
             setReconnectAttempt(0);
           });
 
           socket.on('connect_error', (error) => {
-            console.error('Connection error:', error.message);
+//             console.error('Connection error:', error.message);
             setSocketDisconnected(true);
           });
         }
@@ -1853,13 +1908,13 @@ const BoardgamePvP = ({ matchID, playerID, credentials, selectedTeam, lobbySocke
     // Handle WebGL context loss recovery
     const handleContextLost = (event) => {
       event.preventDefault();
-      console.warn('WebGL context lost - switching to 2D mode');
+//       console.warn('WebGL context lost - switching to 2D mode');
       setForceFallback(true);
       setSceneError(true);
     };
 
     const handleContextRestored = () => {
-      console.log('WebGL context restored');
+//       console.log('WebGL context restored');
       // Don't automatically switch back to 3D on mobile
       if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         setForceFallback(false);

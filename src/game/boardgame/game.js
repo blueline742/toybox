@@ -79,8 +79,8 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
     } else if (!G.players['1'].ready) {
       actualPlayerID = '1';
     } else {
-      console.error('❌ Both players already ready, cannot accept new team');
-      console.error('Player states:', {
+//       console.error('❌ Both players already ready, cannot accept new team');
+//       console.error('Player states:', {
         player0: G.players['0'].ready,
         player1: G.players['1'].ready
       });
@@ -91,13 +91,13 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
 
   // Validate team cards
   if (!teamCards || !Array.isArray(teamCards) || teamCards.length === 0) {
-    console.error('❌ Invalid team data:', teamCards);
+//     console.error('❌ Invalid team data:', teamCards);
     return G; // Return unchanged game state
   }
 
   // Validate we have a valid player ID
   if (!G.players[actualPlayerID]) {
-    console.error('❌ Invalid playerID:', actualPlayerID);
+//     console.error('❌ Invalid playerID:', actualPlayerID);
     return G;
   }
 
@@ -333,13 +333,13 @@ const ToyboxGame = {
           const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
 
           // Log frozen state at turn start
-          console.log(`❄️ TURN START - Player ${ctx.currentPlayer}'s turn`);
-          console.log(`Player cards frozen state:`, player.cards.map(c => ({
+//           console.log(`\n❄️❄️❄️ TURN START - Player ${ctx.currentPlayer}'s turn (Turn #${G.turnNumber})`);
+//           console.log(`Player ${ctx.currentPlayer} cards:`, player.cards.map(c => ({
             name: c.name,
             frozen: c.frozen,
             frozenTurns: c.frozenTurns
           })));
-          console.log(`Opponent cards frozen state:`, opponent.cards.map(c => ({
+//           console.log(`Player ${opponent === G.players['0'] ? '0' : '1'} cards:`, opponent.cards.map(c => ({
             name: c.name,
             frozen: c.frozen,
             frozenTurns: c.frozenTurns
@@ -348,45 +348,90 @@ const ToyboxGame = {
           // Process turn start effects
           G.turnNumber++;
 
-          // Handle frozen cards - they need to skip this entire turn
-          // Check if all current player's cards are frozen
-          const allFrozen = player.cards.length > 0 &&
-                           player.cards.every(card => card.frozen || card.currentHealth <= 0);
+          // STEP 1: Unfreeze cards that have completed their frozen duration (frozenTurns = 0)
+//           console.log(`\n🔄 Turn ${G.turnNumber} - Player ${ctx.currentPlayer}'s turn starting`);
+//           console.log(`📋 Current player: ${ctx.currentPlayer}, Phase: ${G.phase}`);
 
-          if (allFrozen) {
-            console.log(`❄️ All of Player ${ctx.currentPlayer}'s cards are frozen - skipping turn!`);
-            // Decrement frozen turns but keep them frozen
-            player.cards.forEach(card => {
-              if (card.frozen && card.frozenTurns > 0) {
-                console.log(`🧊 Frozen turn for ${card.name}: ${card.frozenTurns} -> ${card.frozenTurns - 1}`);
-                card.frozenTurns--;
-                // Don't unfreeze yet - will unfreeze at start of their NEXT turn
-              }
-            });
-            // Skip this turn entirely
-            if (events && events.endTurn) {
-              setTimeout(() => {
-                events.endTurn();
-              }, 1000); // Short delay to show frozen state
+          // First, check if the OTHER player skipped last turn due to frozen
+          // If so, decrement their frozen counters now
+          const otherPlayerID = ctx.currentPlayer === '0' ? '1' : '0';
+          if (G.lastSkippedPlayer === otherPlayerID) {
+//             console.log(`📉 Player ${otherPlayerID} skipped last turn due to frozen. Decrementing their frozen counters now...`);
+            const otherPlayer = G.players[otherPlayerID];
+            if (otherPlayer && otherPlayer.cards) {
+              otherPlayer.cards.forEach(card => {
+                if (card.frozen && card.frozenTurns > 0) {
+//                   console.log(`  - Decrementing ${card.name}: ${card.frozenTurns} -> ${card.frozenTurns - 1}`);
+                  card.frozenTurns--;
+                }
+              });
             }
-            return; // Don't select a card to act
+            // Clear the flags
+            G.lastSkippedPlayer = null;
+            G.skipTurn = false; // Clear skipTurn flag after the frozen player's client has seen it
+//             console.log('🧊 Cleared skipTurn flag (frozen turn has been handled)');
           }
 
-          // Unfreeze cards that have completed their frozen duration
+          // Check current player's cards for unfreezing
           if (player.cards && player.cards.length > 0) {
+//             console.log(`🔍 Checking ${player.cards.length} cards for unfreeze...`);
+            let unfrozeAny = false;
             player.cards.forEach(card => {
-              // Only unfreeze if frozenTurns is 0 and card is still frozen
-              if (card.frozen && card.frozenTurns === 0) {
-                console.log(`🌡️ Unfreezing ${card.name} - frozen duration complete`);
-                card.frozen = false;
+              if (card.frozen) {
+//                 console.log(`  ${card.name}: frozen=${card.frozen}, frozenTurns=${card.frozenTurns}, type: ${typeof card.frozenTurns}`);
+                // Check for 0 or undefined (in case it's not properly set)
+                if (card.frozenTurns === 0 || card.frozenTurns === undefined || card.frozenTurns === null) {
+//                   console.log(`  ✅ UNFREEZING ${card.name} - frozen turns complete!`);
+                  card.frozen = false;
+                  card.frozenTurns = undefined;
+                  unfrozeAny = true;
+                }
               }
             });
+
+            if (unfrozeAny) {
+//               console.log(`🎉 Unfroze some cards! Checking final state...`);
+              player.cards.forEach(card => {
+                if (card.currentHealth > 0) {
+//                   console.log(`  ${card.name}: frozen=${card.frozen}, frozenTurns=${card.frozenTurns}`);
+                }
+              });
+            }
+          }
+
+          // STEP 2: Check if all living cards are frozen
+          const aliveCards = player.cards.filter(c => c.currentHealth > 0);
+          const frozenAliveCards = aliveCards.filter(c => c.frozen);
+          const allFrozen = aliveCards.length > 0 && aliveCards.length === frozenAliveCards.length;
+
+//           console.log(`📊 Status: ${aliveCards.length} alive cards, ${frozenAliveCards.length} frozen`);
+
+          // STEP 3: If all frozen, mark for skip but don't end turn yet
+          if (allFrozen) {
+//             console.log(`❄️❄️ All cards are frozen! Marking Player ${ctx.currentPlayer}'s turn for skip`);
+//             console.log(`❄️ Frozen card details:`);
+            frozenAliveCards.forEach(card => {
+//               console.log(`  - ${card.name}: frozenTurns=${card.frozenTurns}`);
+            });
+
+            // DON'T decrement frozen counters here - we'll do it at the start of their NEXT turn
+            // This ensures the frozen state persists through the skip and client sees frozenTurns=1
+
+            // Set flag to mark this was a skipped frozen turn
+            G.skipTurn = true;
+            G.lastSkippedPlayer = ctx.currentPlayer; // Track who skipped
+            G.frozenSkipPlayer = ctx.currentPlayer; // Mark this player needs their turn skipped
+//             console.log('🚫 Marked turn for skip - will end automatically...');
+
+            // Don't call endTurn here - let it happen naturally after a moment
+            // This gives the client time to see G.skipTurn and show the notification
+            return;
           }
 
           // Store the randomly selected card for this turn
-          const aliveCards = player.cards.filter(c => c.isAlive !== false && c.currentHealth > 0 && !c.frozen);
-          if (aliveCards.length > 0) {
-            const randomCard = random.Shuffle(aliveCards)[0];
+          const selectableCards = player.cards.filter(c => c.isAlive !== false && c.currentHealth > 0 && !c.frozen);
+          if (selectableCards.length > 0) {
+            const randomCard = random.Shuffle(selectableCards)[0];
 
             // Pick a random ability from the card
             if (randomCard.abilities && randomCard.abilities.length > 0) {
@@ -407,18 +452,47 @@ const ToyboxGame = {
             return;
           }
 
+          // Don't clear skipTurn here - let it persist for the client to see
+          // We'll clear it when the next player's turn starts instead
+
           // Clear any temporary buffs
           const player = G.players[ctx.currentPlayer];
           if (player.buffs) {
             player.buffs = player.buffs.filter(buff => buff.duration > 1);
             player.buffs.forEach(buff => buff.duration--);
           }
+        },
+        // Automatically end turn if skipTurn flag is set
+        endIf: ({ G }) => {
+          if (G.skipTurn) {
+//             console.log('🧊 Auto-ending frozen turn');
+            return true;
+          }
+          return false;
         }
       }
     }
   },
 
   moves: {
+    // End frozen turn - can only be called when all cards are frozen
+    endFrozenTurn: ({ G, ctx, events }) => {
+      if (!G || !G.players) return;
+
+      const player = G.players[ctx.currentPlayer];
+      if (!player || !player.cards) return;
+
+      // Verify all alive cards are frozen
+      const aliveCards = player.cards.filter(c => c.currentHealth > 0);
+      const frozenCards = aliveCards.filter(c => c.frozen);
+      const allFrozen = aliveCards.length > 0 && aliveCards.length === frozenCards.length;
+
+      if (allFrozen && G.skipTurn) {
+//         console.log(`❄️ Ending frozen turn for Player ${ctx.currentPlayer}`);
+        events.endTurn();
+      }
+    },
+
     // Reference the setPlayerTeam function defined above
     setPlayerTeam,
 
@@ -604,20 +678,20 @@ const ToyboxGame = {
     playCard: ({ G, ctx }, cardId, targetId, abilityIndex = 0) => {
       // Safety checks
       if (!G || !ctx || !G.players || !cardId) {
-        console.error('Invalid game state or parameters');
+//         console.error('Invalid game state or parameters');
         return;
       }
 
 
       const player = G.players[ctx.currentPlayer];
       if (!player || !player.cards) {
-        console.error('Invalid player or player cards');
+//         console.error('Invalid player or player cards');
         return;
       }
 
       const opponent = G.players[ctx.currentPlayer === '0' ? '1' : '0'];
       if (!opponent || !opponent.cards) {
-        console.error('Invalid opponent or opponent cards');
+//         console.error('Invalid opponent or opponent cards');
         return;
       }
 
@@ -629,14 +703,14 @@ const ToyboxGame = {
       }
 
       const ability = card.abilities?.[abilityIndex];
-      console.log('📋 Playing card:', card.name);
-      console.log('📝 Card abilities array:', JSON.stringify(card.abilities, null, 2));
-      console.log('🎯 Selected ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
+//       console.log('📋 Playing card:', card.name);
+//       console.log('📝 Card abilities array:', JSON.stringify(card.abilities, null, 2));
+//       console.log('🎯 Selected ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
       if (!ability) {
-        console.log('❌ No ability found at index', abilityIndex, 'in abilities of length', card.abilities?.length);
+//         console.log('❌ No ability found at index', abilityIndex, 'in abilities of length', card.abilities?.length);
         return;
       }
-      console.log('🔥 PLAYCARD - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
+//       console.log('🔥 PLAYCARD - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
 
 
       // No mana cost anymore!
@@ -711,24 +785,24 @@ const ToyboxGame = {
       }
 
       // Handle freeze effects
-      console.log('🔍 Checking freeze:', ability.name, 'freeze:', ability.freeze, 'effect:', ability.effect);
-      console.log('📦 Full ability object:', JSON.stringify(ability, null, 2));
+//       console.log('🔍 Checking freeze:', ability.name, 'freeze:', ability.freeze, 'effect:', ability.effect);
+//       console.log('📦 Full ability object:', JSON.stringify(ability, null, 2));
       if (ability.freeze) {
         // Check if it's freeze_all (Ice Nova)
         if (ability.effect === 'freeze_all') {
-          console.log('❄️❄️ ICE NOVA FREEZE ALL TRIGGERED!');
-          console.log('🎯 Opponent has', opponent.cards.length, 'total cards');
+//           console.log('❄️❄️ ICE NOVA FREEZE ALL TRIGGERED!');
+//           console.log('🎯 Opponent has', opponent.cards.length, 'total cards');
           // Freeze ALL enemy cards
           const enemyCards = opponent.cards.filter(c => c.currentHealth > 0);
-          console.log('🎯 Freezing', enemyCards.length, 'alive enemy cards');
+//           console.log('🎯 Freezing', enemyCards.length, 'alive enemy cards');
           enemyCards.forEach(enemyCard => {
-            console.log(`🧊 BEFORE: ${enemyCard.name} frozen=${enemyCard.frozen}`);
+//             console.log(`🧊 BEFORE: ${enemyCard.name} frozen=${enemyCard.frozen}`);
             enemyCard.frozen = true;
             enemyCard.frozenTurns = 1; // Frozen for 1 turn (skip next turn)
-            console.log(`❄️ AFTER: ${enemyCard.name} is FROZEN! frozen=${enemyCard.frozen}, frozenTurns=${enemyCard.frozenTurns}, ID: ${enemyCard.instanceId}`);
+//             console.log(`❄️ AFTER: ${enemyCard.name} is FROZEN! frozen=${enemyCard.frozen}, frozenTurns=${enemyCard.frozenTurns}, ID: ${enemyCard.instanceId}`);
           });
 
-          console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
+//           console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
             name: c.name,
             frozen: c.frozen,
             frozenTurns: c.frozenTurns,
@@ -739,7 +813,7 @@ const ToyboxGame = {
             targets: enemyCards,
             timestamp: Date.now()
           });
-          console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
+//           console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
             opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
         } else if (target) {
           // Single target freeze
@@ -911,21 +985,21 @@ const ToyboxGame = {
 
       // Check if it's the ultimate ability (index 2 usually) or regular ability
       let ability;
-      console.log('🎮 CASTSPELL - Card:', card.name, 'AbilityIndex:', abilityIndex);
-      console.log('📝 CASTSPELL - Card abilities:', JSON.stringify(card.abilities, null, 2));
+//       console.log('🎮 CASTSPELL - Card:', card.name, 'AbilityIndex:', abilityIndex);
+//       console.log('📝 CASTSPELL - Card abilities:', JSON.stringify(card.abilities, null, 2));
       if (abilityIndex === 2 && card.ultimateAbility) {
         ability = card.ultimateAbility;
-        console.log('🎆 Using ultimate ability:', JSON.stringify(ability, null, 2));
+//         console.log('🎆 Using ultimate ability:', JSON.stringify(ability, null, 2));
       } else {
         ability = card.abilities?.[abilityIndex];
-        console.log('🎯 Using ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
+//         console.log('🎯 Using ability at index', abilityIndex, ':', JSON.stringify(ability, null, 2));
       }
 
       if (!ability) {
-        console.log('❌ CASTSPELL - No ability found at index', abilityIndex);
+//         console.log('❌ CASTSPELL - No ability found at index', abilityIndex);
         return;
       }
-      console.log('🔥 CASTSPELL - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
+//       console.log('🔥 CASTSPELL - Ability has freeze?', ability.freeze, 'Effect:', ability.effect, 'Name:', ability.name);
 
 
       // No mana cost anymore!
@@ -1018,24 +1092,24 @@ const ToyboxGame = {
       }
 
       // Handle freeze effects
-      console.log('🔍 Checking freeze:', ability.name, 'freeze:', ability.freeze, 'effect:', ability.effect);
-      console.log('📦 Full ability object:', JSON.stringify(ability, null, 2));
+//       console.log('🔍 Checking freeze:', ability.name, 'freeze:', ability.freeze, 'effect:', ability.effect);
+//       console.log('📦 Full ability object:', JSON.stringify(ability, null, 2));
       if (ability.freeze) {
         // Check if it's freeze_all (Ice Nova)
         if (ability.effect === 'freeze_all') {
-          console.log('❄️❄️ ICE NOVA FREEZE ALL TRIGGERED!');
-          console.log('🎯 Opponent has', opponent.cards.length, 'total cards');
+//           console.log('❄️❄️ ICE NOVA FREEZE ALL TRIGGERED!');
+//           console.log('🎯 Opponent has', opponent.cards.length, 'total cards');
           // Freeze ALL enemy cards
           const enemyCards = opponent.cards.filter(c => c.currentHealth > 0);
-          console.log('🎯 Freezing', enemyCards.length, 'alive enemy cards');
+//           console.log('🎯 Freezing', enemyCards.length, 'alive enemy cards');
           enemyCards.forEach(enemyCard => {
-            console.log(`🧊 BEFORE: ${enemyCard.name} frozen=${enemyCard.frozen}`);
+//             console.log(`🧊 BEFORE: ${enemyCard.name} frozen=${enemyCard.frozen}`);
             enemyCard.frozen = true;
             enemyCard.frozenTurns = 1; // Frozen for 1 turn (skip next turn)
-            console.log(`❄️ AFTER: ${enemyCard.name} is FROZEN! frozen=${enemyCard.frozen}, frozenTurns=${enemyCard.frozenTurns}, ID: ${enemyCard.instanceId}`);
+//             console.log(`❄️ AFTER: ${enemyCard.name} is FROZEN! frozen=${enemyCard.frozen}, frozenTurns=${enemyCard.frozenTurns}, ID: ${enemyCard.instanceId}`);
           });
 
-          console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
+//           console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
             name: c.name,
             frozen: c.frozen,
             frozenTurns: c.frozenTurns,
@@ -1046,7 +1120,7 @@ const ToyboxGame = {
             targets: enemyCards,
             timestamp: Date.now()
           });
-          console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
+//           console.log('📝 Game state after freeze - player', opponent === G.players['0'] ? '0' : '1', 'cards:',
             opponent.cards.map(c => ({ name: c.name, frozen: c.frozen })));
         } else if (target) {
           // Single target freeze
@@ -1097,7 +1171,7 @@ const ToyboxGame = {
               c.instanceId !== toRevive.instanceId
             );
 
-            console.log(`🔮 Resurrected ${deadCard.name} with ${reviveHealth} health!`);
+//             console.log(`🔮 Resurrected ${deadCard.name} with ${reviveHealth} health!`);
           }
         }
       }
@@ -1111,7 +1185,7 @@ const ToyboxGame = {
           // Pick a random ability from that card
           const randomAbility = randomCard.abilities[Math.floor(Math.random() * randomCard.abilities.length)];
 
-          console.log(`🎯 Spell Steal: Casting ${randomAbility.name} from ${randomCard.name}!`);
+//           console.log(`🎯 Spell Steal: Casting ${randomAbility.name} from ${randomCard.name}!`);
 
           // Execute the stolen ability on the target
           if (randomAbility.damage && target) {
@@ -1155,7 +1229,7 @@ const ToyboxGame = {
           timestamp: Date.now()
         });
 
-        console.log(`😵 ${target.name} is confused for ${target.confusedTurns} turns!`);
+//         console.log(`😵 ${target.name} is confused for ${target.confusedTurns} turns!`);
       }
 
       // Mark ability as used
