@@ -81,9 +81,9 @@ const setPlayerTeam = ({ G, ctx, events, playerID }, team) => {
     } else {
 //       console.error('❌ Both players already ready, cannot accept new team');
 //       console.error('Player states:', {
-        player0: G.players['0'].ready,
-        player1: G.players['1'].ready
-      });
+//         player0: G.players['0'].ready,
+//         player1: G.players['1'].ready
+//       });
       return G; // Return unchanged game state
     }
   }
@@ -335,15 +335,15 @@ const ToyboxGame = {
           // Log frozen state at turn start
 //           console.log(`\n❄️❄️❄️ TURN START - Player ${ctx.currentPlayer}'s turn (Turn #${G.turnNumber})`);
 //           console.log(`Player ${ctx.currentPlayer} cards:`, player.cards.map(c => ({
-            name: c.name,
-            frozen: c.frozen,
-            frozenTurns: c.frozenTurns
-          })));
+//             name: c.name,
+//             frozen: c.frozen,
+//             frozenTurns: c.frozenTurns
+//           })));
 //           console.log(`Player ${opponent === G.players['0'] ? '0' : '1'} cards:`, opponent.cards.map(c => ({
-            name: c.name,
-            frozen: c.frozen,
-            frozenTurns: c.frozenTurns
-          })));
+//             name: c.name,
+//             frozen: c.frozen,
+//             frozenTurns: c.frozenTurns
+//           })));
 
           // Process turn start effects
           G.turnNumber++;
@@ -803,11 +803,11 @@ const ToyboxGame = {
           });
 
 //           console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
-            name: c.name,
-            frozen: c.frozen,
-            frozenTurns: c.frozenTurns,
-            alive: c.currentHealth > 0
-          })));
+//             name: c.name,
+//             frozen: c.frozen,
+//             frozenTurns: c.frozenTurns,
+//             alive: c.currentHealth > 0
+//           })));
           G.animationQueue.push({
             type: 'freeze_all',
             targets: enemyCards,
@@ -1110,11 +1110,11 @@ const ToyboxGame = {
           });
 
 //           console.log('🧊 Final freeze check - All opponent cards:', opponent.cards.map(c => ({
-            name: c.name,
-            frozen: c.frozen,
-            frozenTurns: c.frozenTurns,
-            alive: c.currentHealth > 0
-          })));
+//             name: c.name,
+//             frozen: c.frozen,
+//             frozenTurns: c.frozenTurns,
+//             alive: c.currentHealth > 0
+//           })));
           G.animationQueue.push({
             type: 'freeze_all',
             targets: enemyCards,
